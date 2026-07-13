@@ -1,6 +1,6 @@
 {
   "name": "mspm0-pin-planner-desktop",
-  "version": "1.0.1",
+  "version": "1.1.0-beta.1",
   "description": "Portable desktop wrapper for the MSPM0 pin planner",
   "author": "应电2514",
   "main": "main.js",
@@ -8,9 +8,11 @@
   "license": "UNLICENSED",
   "packageManager": "pnpm@11.7.0",
   "scripts": {
+    "validate:data": "node ../web/validate-data.js",
     "prepare:web": "node ../web/build.js && node scripts/prepare-app.js",
     "start": "pnpm run prepare:web && electron .",
-    "build:portable": "pnpm run prepare:web && electron-builder --win portable --x64 && node scripts/copy-artifact.js"
+    "build:portable": "pnpm run prepare:web && electron-builder --win portable --x64 && node scripts/copy-artifact.js",
+    "build:folder": "pnpm run prepare:web && electron-builder --win --x64 --dir && node scripts/copy-folder-artifact.js"
   },
   "devDependencies": {
     "electron": "31.7.7",

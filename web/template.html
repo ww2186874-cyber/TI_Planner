@@ -131,12 +131,16 @@
       position: sticky;
       top: 0;
       z-index: 20;
-      display: flex;
+      display: grid;
+      grid-template-columns: minmax(190px, 215px) minmax(0, 1fr);
+      grid-template-areas:
+        "brand package"
+        "brand toolbar";
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      min-height: 68px;
-      padding: 12px 18px;
+      column-gap: 16px;
+      row-gap: 8px;
+      min-height: 104px;
+      padding: 10px 18px;
       border-bottom: 1px solid var(--line);
       background: color-mix(in srgb, var(--surface) 96%, transparent);
       box-shadow: 0 3px 14px rgba(30, 48, 58, 0.08);
@@ -144,6 +148,7 @@
     }
 
     .brand {
+      grid-area: brand;
       min-width: 215px;
     }
 
@@ -160,10 +165,12 @@
     }
 
     .package-control {
+      grid-area: package;
       display: flex;
       align-items: center;
+      justify-content: flex-end;
       gap: 8px;
-      min-width: 390px;
+      min-width: 0;
     }
 
     .select-control {
@@ -173,8 +180,8 @@
       min-width: 0;
     }
 
-    .select-control:first-child { flex: 1.1; }
-    .select-control:last-child { flex: 1; }
+    .select-control { flex: 1; }
+    .select-control.project-select { flex: 1.25; }
 
     .package-control label {
       color: var(--muted);
@@ -210,12 +217,52 @@
     }
 
     .toolbar {
+      grid-area: toolbar;
       display: flex;
       align-items: center;
       justify-content: flex-end;
       gap: 8px;
       flex-wrap: wrap;
     }
+
+    .menu-wrap { position: relative; }
+
+    .dropdown-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      z-index: 60;
+      display: grid;
+      min-width: 190px;
+      padding: 5px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .dropdown-menu button {
+      min-height: 34px;
+      padding: 7px 9px;
+      border: 0;
+      border-radius: 4px;
+      color: var(--text);
+      background: transparent;
+      text-align: left;
+      font-size: 0.78rem;
+    }
+
+    .dropdown-menu button:hover { color: var(--primary); background: var(--primary-soft); }
+    .dropdown-menu button.danger { color: var(--danger); }
+
+    .icon-btn {
+      width: 38px;
+      min-width: 38px;
+      padding: 0;
+      font-size: 1.08rem;
+    }
+
+    .btn:disabled { cursor: not-allowed; opacity: 0.42; transform: none; }
 
     .btn {
       min-height: 38px;
@@ -768,6 +815,65 @@
       text-align: center;
     }
 
+    .modal {
+      width: min(760px, calc(100vw - 48px));
+      max-height: calc(100vh - 64px);
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      color: var(--text);
+      background: var(--surface);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+    }
+
+    .modal::backdrop { background: rgba(10, 18, 22, 0.58); }
+    .modal-shell { display: flex; max-height: calc(100vh - 64px); flex-direction: column; }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 18px; border-bottom: 1px solid var(--line); }
+    .modal-header h2 { margin: 0; font-size: 1rem; }
+    .modal-close { min-height: 32px; }
+    .modal-body { overflow: auto; padding: 18px; }
+    .modal-section + .modal-section { margin-top: 18px; }
+    .modal-section h3 { margin: 0 0 8px; font-size: 0.86rem; }
+    .modal-section p { margin: 6px 0; color: var(--muted); font-size: 0.78rem; line-height: 1.6; }
+    .modal-section a { color: var(--primary); }
+
+    .issue-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+    .issue-count { padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-soft); }
+    .issue-count span { display: block; color: var(--muted); font-size: 0.68rem; }
+    .issue-count strong { display: block; margin-top: 3px; font-size: 1.1rem; }
+    .issue-list { display: grid; gap: 7px; }
+    .issue-item { padding: 10px 11px; border: 1px solid var(--line); border-left: 4px solid var(--info-line); border-radius: 6px; background: var(--surface-soft); }
+    .issue-item.error { border-left-color: var(--danger); }
+    .issue-item.warning { border-left-color: var(--warning); }
+    .issue-item.info { border-left-color: var(--primary); }
+    .issue-item strong { display: block; font-size: 0.79rem; }
+    .issue-item span { display: block; margin-top: 3px; color: var(--muted); font-size: 0.72rem; line-height: 1.5; }
+    .issue-empty { padding: 24px; color: var(--success); text-align: center; }
+
+    .about-grid { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 8px 14px; font-size: 0.78rem; }
+    .about-grid dt { color: var(--muted); }
+    .about-grid dd { margin: 0; overflow-wrap: anywhere; }
+    .legal-notice { padding: 11px 12px; border: 1px solid var(--info-line); border-radius: 6px; color: var(--info-text); background: var(--info-bg); font-size: 0.76rem; line-height: 1.65; }
+
+    .resource-health { margin-left: 5px; color: var(--success); font-family: "Segoe UI", "Microsoft YaHei", sans-serif; font-size: 0.64rem; }
+    .resource-health.incomplete { color: var(--warning); }
+
+    .print-report { display: none; }
+
+    @media print {
+      html, body { height: auto; overflow: visible; background: #fff; color: #111; }
+      .app { display: none !important; }
+      .print-report { display: block; padding: 12mm; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
+      .print-report h1 { margin: 0 0 4mm; font-size: 18pt; }
+      .print-report h2 { margin: 7mm 0 2mm; font-size: 12pt; }
+      .print-report p { margin: 1mm 0; font-size: 9pt; }
+      .print-report table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+      .print-report th, .print-report td { padding: 1.5mm; border: 0.2mm solid #aaa; text-align: left; vertical-align: top; }
+      .print-report th { background: #eee; }
+      .print-report .print-warning { color: #8a4b00; }
+    }
+
     .hidden { display: none !important; }
 
     @media (max-width: 900px) {
@@ -777,7 +883,12 @@
     }
 
     @media (max-width: 700px) {
-      .topbar { position: static; align-items: stretch; flex-direction: column; }
+      .topbar {
+        position: static;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "brand" "package" "toolbar";
+        align-items: stretch;
+      }
       .package-control { min-width: 0; }
       .toolbar { justify-content: flex-start; }
       .save-state { text-align: left; }
@@ -802,10 +913,23 @@
     <header class="topbar">
       <div class="brand">
         <h1>MSPM0G 引脚规划器</h1>
-        <p>TI 官方引脚复用数据 · 仅用于规划，不生成初始化代码</p>
+        <p>非 TI 官方工具 · 基于公开数据手册整理 · 仅用于规划</p>
       </div>
 
       <div class="package-control">
+        <div class="select-control project-select">
+          <label for="projectSelect">工程</label>
+          <select id="projectSelect" aria-label="选择工程"></select>
+        </div>
+        <div class="menu-wrap">
+          <button class="btn" id="projectMenuBtn" type="button" aria-haspopup="true" aria-expanded="false">工程</button>
+          <div class="dropdown-menu hidden" id="projectMenu" role="menu">
+            <button type="button" data-project-action="new">新建工程</button>
+            <button type="button" data-project-action="rename">重命名</button>
+            <button type="button" data-project-action="duplicate">复制工程</button>
+            <button class="danger" type="button" data-project-action="delete">删除当前工程</button>
+          </div>
+        </div>
         <div class="select-control">
           <label for="deviceSelect">芯片型号</label>
           <select id="deviceSelect" aria-label="选择芯片型号"></select>
@@ -817,10 +941,24 @@
       </div>
 
       <div class="toolbar">
+        <button class="btn icon-btn" id="undoBtn" type="button" title="撤销 Ctrl+Z" aria-label="撤销">↶</button>
+        <button class="btn icon-btn" id="redoBtn" type="button" title="重做 Ctrl+Y" aria-label="重做">↷</button>
         <button class="btn" id="themeToggleBtn" type="button">夜间模式</button>
         <button class="btn" id="importBtn" type="button">导入 JSON</button>
-        <button class="btn" id="exportJsonBtn" type="button">导出 JSON</button>
-        <button class="btn" id="exportCsvBtn" type="button">导出 CSV</button>
+        <div class="menu-wrap">
+          <button class="btn" id="exportMenuBtn" type="button" aria-haspopup="true" aria-expanded="false">导出</button>
+          <div class="dropdown-menu hidden" id="exportMenu" role="menu">
+            <button type="button" data-export="json">当前工程 JSON</button>
+            <button type="button" data-export="workspace">全部工程 JSON</button>
+            <button type="button" data-export="csv">当前封装 CSV</button>
+            <button type="button" data-export="grouped">外设分组 CSV</button>
+            <button type="button" data-export="connector">连接器对应表 CSV</button>
+            <button type="button" data-export="kicad">KiCad 网络标签 CSV</button>
+            <button type="button" data-export="print">打印 / 保存 PDF</button>
+          </div>
+        </div>
+        <button class="btn" id="checkBtn" type="button">检查 <span id="checkBadge"></span></button>
+        <button class="btn" id="aboutBtn" type="button">关于</button>
         <button class="btn danger" id="resetBtn" type="button">清空当前封装</button>
         <span class="save-state" id="saveState">已保存</span>
       </div>
@@ -940,6 +1078,12 @@
             </div>
 
             <div class="field">
+              <label for="connectorInput">连接器 / 端子</label>
+              <input id="connectorInput" type="text" maxlength="48" placeholder="例如：J3-5、CN1.2、排针右侧 6">
+              <p class="field-hint">用于连接器对应表和 KiCad 网络标签参考导出。</p>
+            </div>
+
+            <div class="field">
               <label for="noteInput">备注</label>
               <textarea id="noteInput" maxlength="240" placeholder="记录电平、连接器、上拉电阻等信息"></textarea>
             </div>
@@ -956,8 +1100,49 @@
       </aside>
     </main>
 
+    <dialog class="modal" id="checkDialog">
+      <div class="modal-shell">
+        <div class="modal-header">
+          <h2>规划检查报告</h2>
+          <button class="btn small modal-close" type="button" data-close-dialog="checkDialog">关闭</button>
+        </div>
+        <div class="modal-body" id="checkDialogBody"></div>
+      </div>
+    </dialog>
+
+    <dialog class="modal" id="projectDialog">
+      <form class="modal-shell" id="projectForm" method="dialog">
+        <div class="modal-header">
+          <h2 id="projectDialogTitle">新建工程</h2>
+          <button class="btn small modal-close" type="button" data-close-dialog="projectDialog">关闭</button>
+        </div>
+        <div class="modal-body">
+          <div class="field">
+            <label for="projectNameInput">工程名称</label>
+            <input id="projectNameInput" type="text" maxlength="48" autocomplete="off" required>
+          </div>
+          <div class="inspector-actions">
+            <button class="btn" type="button" data-close-dialog="projectDialog">取消</button>
+            <button class="btn primary" type="submit">确定</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="aboutDialog">
+      <div class="modal-shell">
+        <div class="modal-header">
+          <h2>关于 MSPM0 引脚规划器</h2>
+          <button class="btn small modal-close" type="button" data-close-dialog="aboutDialog">关闭</button>
+        </div>
+        <div class="modal-body" id="aboutDialogBody"></div>
+      </div>
+    </dialog>
+
     <footer class="source-footer" id="sourceFooter"></footer>
   </div>
+
+  <section class="print-report" id="printReport"></section>
 
   <script>
     (() => {

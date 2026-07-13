@@ -2,10 +2,13 @@
   'use strict';
 
   const DEVICE_DATA = __DEVICE_DATA__;
-  const STORAGE_KEY = 'mspm0g-pin-planner-v3';
+  const APP_META = __APP_META__;
+  const STORAGE_KEY = 'mspm0g-pin-planner-v4';
+  const LEGACY_V3_STORAGE_KEY = 'mspm0g-pin-planner-v3';
   const LEGACY_V2_STORAGE_KEY = 'mspm0g3519-pin-planner-v2';
   const LEGACY_V1_STORAGE_KEY = 'mspm0g3519-pin-planner-v1';
-  const SCHEMA_VERSION = 3;
+  const SCHEMA_VERSION = 4;
+  const PROJECT_DATA_VERSION = 3;
   const DEVICE_ORDER = ['MSPM0G3519', 'MSPM0G3507'];
   const DEVICE_CONFIG = {
     MSPM0G3519: { defaultPackage: 'PZ', packageOrder: ['PT', 'PM', 'PN', 'PZ'], defaultZoom: { PT: 100, PM: 90, PN: 80, PZ: 70 } },
@@ -63,15 +66,18 @@
   };
 
   const elements = Object.fromEntries([
-    'deviceSelect', 'packageSelect', 'themeToggleBtn', 'importBtn', 'importFile', 'exportJsonBtn', 'exportCsvBtn', 'resetBtn', 'saveState',
+    'projectSelect', 'projectMenuBtn', 'projectMenu', 'deviceSelect', 'packageSelect', 'undoBtn', 'redoBtn', 'themeToggleBtn', 'importBtn', 'importFile',
+    'exportMenuBtn', 'exportMenu', 'checkBtn', 'checkBadge', 'aboutBtn', 'resetBtn', 'saveState',
     'packagePinCount', 'assignedCount', 'unassignedCount', 'fixedCount', 'conflictCount', 'searchInput',
     'filterTabs', 'categoryList', 'sidebarViewTabs', 'sidebarTitle', 'pinPanel', 'resourcePanel', 'resourceSummary',
     'resourceList', 'resourceDetail', 'resourceDetailTitle', 'resourceDetailNote', 'resourceSignals', 'canvasTitle',
     'canvasSubtitle', 'zoomSlider', 'zoomValue', 'rotateCcwBtn', 'rotateCwBtn', 'fitViewBtn', 'centerViewBtn', 'canvasScroller', 'stageScale',
     'packageStage', 'topPins', 'rightPins', 'bottomPins', 'leftPins', 'chipDevice', 'chipPackage', 'chipSummary',
     'inspectorEmpty', 'inspectorContent', 'pinTitle', 'pinSubtitle', 'pinStatus', 'physicalPin', 'logicalPin',
-    'iomuxRegister', 'bufferType', 'editableFields', 'functionSelect', 'functionInfo', 'aliasInput', 'noteInput',
-    'conflictBox', 'clearPinBtn', 'fixedBox', 'leftResizer', 'rightResizer', 'sourceFooter'
+    'iomuxRegister', 'bufferType', 'editableFields', 'functionSelect', 'functionInfo', 'aliasInput', 'connectorInput', 'noteInput',
+    'conflictBox', 'clearPinBtn', 'fixedBox', 'leftResizer', 'rightResizer', 'sourceFooter',
+    'checkDialog', 'checkDialogBody', 'projectDialog', 'projectDialogTitle', 'projectForm', 'projectNameInput',
+    'aboutDialog', 'aboutDialogBody', 'printReport'
   ].map(id => [id, document.getElementById(id)]));
 
   let selectedPinNumber = null;
@@ -84,7 +90,10 @@
   let saveTimer = null;
   let panState = null;
   let resizeState = null;
-  let state = loadState();
+  let projectDialogMode = 'new';
+  const historyByProject = new Map();
+  let workspace = loadWorkspace();
+  let state = currentProjectRecord().data;
 
   function packageOrder(device = state?.activeDevice || DEVICE_ORDER[0]) { return DEVICE_CONFIG[device].packageOrder; }
   function resourceCatalog(device = state?.activeDevice || DEVICE_ORDER[0]) { return RESOURCE_CATALOGS[device]; }
@@ -103,12 +112,27 @@
 
   function createEmptyState() {
     return {
-      version: SCHEMA_VERSION,
+      version: PROJECT_DATA_VERSION,
       activeDevice: 'MSPM0G3519',
       theme: 'light',
       layout: { leftWidth: 250, rightWidth: 330 },
       devices: Object.fromEntries(DEVICE_ORDER.map(device => [device, createDeviceState(device)]))
     };
+  }
+
+  function createId() {
+    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+    return `project-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
+  function createProject(name = '默认工程', data = createEmptyState()) {
+    const now = new Date().toISOString();
+    return { id: createId(), name: String(name || '未命名工程').slice(0, 48), createdAt: now, updatedAt: now, data };
+  }
+
+  function createWorkspace(data = createEmptyState()) {
+    const project = createProject('默认工程', data);
+    return { version: SCHEMA_VERSION, activeProjectId: project.id, projects: [project] };
   }
 
   function sanitizeAssignments(device, packageCode, assignments) {
@@ -122,9 +146,10 @@
       const next = {
         function: allowed.has(value.function) ? value.function : '',
         alias: String(value.alias || '').slice(0, 48),
+        connector: String(value.connector || '').slice(0, 48),
         note: String(value.note || '').slice(0, 240)
       };
-      if (next.function || next.alias.trim() || next.note.trim()) output[String(pin.number)] = next;
+      if (next.function || next.alias.trim() || next.connector.trim() || next.note.trim()) output[String(pin.number)] = next;
     });
     return { assignments: output, skipped };
   }
@@ -162,6 +187,28 @@
     return empty;
   }
 
+  function normalizeProject(project, index = 0) {
+    const now = new Date().toISOString();
+    const data = normalizeLoaded(project?.data || project || {});
+    return {
+      id: String(project?.id || createId()),
+      name: String(project?.name || `工程 ${index + 1}`).slice(0, 48),
+      createdAt: String(project?.createdAt || now),
+      updatedAt: String(project?.updatedAt || now),
+      data
+    };
+  }
+
+  function normalizeWorkspace(parsed) {
+    const projects = Array.isArray(parsed?.projects) && parsed.projects.length
+      ? parsed.projects.slice(0, 40).map(normalizeProject)
+      : [createProject()];
+    const activeProjectId = projects.some(project => project.id === parsed?.activeProjectId)
+      ? parsed.activeProjectId
+      : projects[0].id;
+    return { version: SCHEMA_VERSION, activeProjectId, projects };
+  }
+
   function migrateLegacy(parsed, legacy = false) {
     const empty = createEmptyState();
     empty.theme = parsed?.theme === 'dark' ? 'dark' : 'light';
@@ -171,20 +218,42 @@
     return empty;
   }
 
-  function loadState() {
+  function loadWorkspace() {
     try {
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      if (parsed?.version === SCHEMA_VERSION) return normalizeLoaded(parsed);
+      if (parsed?.version === SCHEMA_VERSION) return normalizeWorkspace(parsed);
+      const legacyV3 = JSON.parse(localStorage.getItem(LEGACY_V3_STORAGE_KEY));
+      if (legacyV3?.version === 3) return createWorkspace(normalizeLoaded(legacyV3));
       const legacyV2 = JSON.parse(localStorage.getItem(LEGACY_V2_STORAGE_KEY));
-      if (legacyV2?.version === 2 && legacyV2.device === 'MSPM0G3519') return migrateLegacy(legacyV2);
+      if (legacyV2?.version === 2 && legacyV2.device === 'MSPM0G3519') return createWorkspace(migrateLegacy(legacyV2));
       const legacyV1 = JSON.parse(localStorage.getItem(LEGACY_V1_STORAGE_KEY));
-      if (legacyV1?.version === 1 && legacyV1.device === 'MSPM0G3519') return migrateLegacy(legacyV1, true);
+      if (legacyV1?.version === 1 && legacyV1.device === 'MSPM0G3519') return createWorkspace(migrateLegacy(legacyV1, true));
     } catch (error) { /* start clean */ }
-    return createEmptyState();
+    return createWorkspace();
+  }
+
+  function currentProjectRecord() {
+    return workspace.projects.find(project => project.id === workspace.activeProjectId) || workspace.projects[0];
+  }
+
+  function activateProject(projectId) {
+    const project = workspace.projects.find(item => item.id === projectId);
+    if (!project) return;
+    workspace.activeProjectId = project.id;
+    state = project.data;
+    resetTransientSelection();
+    saveState();
+    render();
+  }
+
+  function touchProject() {
+    currentProjectRecord().data = state;
+    currentProjectRecord().updatedAt = new Date().toISOString();
   }
 
   function saveState() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    touchProject();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace));
     elements.saveState.textContent = '已保存';
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
@@ -196,11 +265,212 @@
   function currentDeviceState() { return state.devices[state.activeDevice]; }
   function currentPackage() { return currentDeviceData().packages[currentDeviceState().activePackage]; }
   function assignments() { return currentDeviceState().packages[currentDeviceState().activePackage].assignments; }
-  function assignmentFor(number) { return assignments()[String(number)] || { function: '', alias: '', note: '' }; }
+  function assignmentFor(number) { return assignments()[String(number)] || { function: '', alias: '', connector: '', note: '' }; }
   function selectedPin() { return currentPackage().pins.find(pin => pin.number === selectedPinNumber) || null; }
   function selectedFunction(pin, value) { return pin.functions.find(item => item.signal === value.function) || null; }
-  function isMeaningfulAssignment(value) { return Boolean(value.function || value.alias.trim() || value.note.trim()); }
+  function isMeaningfulAssignment(value) { return Boolean(value.function || value.alias.trim() || value.connector?.trim() || value.note.trim()); }
   function currentView() { return currentDeviceState().views[currentDeviceState().activePackage]; }
+
+  function projectHistory(projectId = workspace.activeProjectId) {
+    if (!historyByProject.has(projectId)) historyByProject.set(projectId, { undo: [], redo: [] });
+    return historyByProject.get(projectId);
+  }
+
+  function commitMutation(label, mutator, options = {}) {
+    const before = JSON.stringify(state);
+    mutator();
+    const after = JSON.stringify(state);
+    if (before === after) return false;
+    recordSnapshot(label, before, options.mergeKey);
+    saveState();
+    if (options.render !== false) render();
+    else renderHistoryControls();
+    return true;
+  }
+
+  function recordSnapshot(label, snapshot, mergeKey = '') {
+    const history = projectHistory();
+    const now = Date.now();
+    const last = history.undo.at(-1);
+    if (!(mergeKey && last?.mergeKey === mergeKey && now - last.time < 900)) {
+      history.undo.push({ label, snapshot, mergeKey, time: now });
+      if (history.undo.length > 80) history.undo.shift();
+    } else {
+      last.time = now;
+    }
+    history.redo = [];
+  }
+
+  function restoreProjectSnapshot(snapshot) {
+    state = normalizeLoaded(JSON.parse(snapshot));
+    currentProjectRecord().data = state;
+    if (selectedPinNumber && !selectedPin()) selectedPinNumber = null;
+    saveState();
+    render();
+  }
+
+  function undo() {
+    const history = projectHistory();
+    const entry = history.undo.pop();
+    if (!entry) return;
+    history.redo.push({ label: entry.label, snapshot: JSON.stringify(state), time: Date.now() });
+    restoreProjectSnapshot(entry.snapshot);
+  }
+
+  function redo() {
+    const history = projectHistory();
+    const entry = history.redo.pop();
+    if (!entry) return;
+    history.undo.push({ label: entry.label, snapshot: JSON.stringify(state), time: Date.now() });
+    restoreProjectSnapshot(entry.snapshot);
+  }
+
+  function renderHistoryControls() {
+    const history = projectHistory();
+    elements.undoBtn.disabled = history.undo.length === 0;
+    elements.redoBtn.disabled = history.redo.length === 0;
+    elements.undoBtn.title = history.undo.length ? `撤销：${history.undo.at(-1).label} · Ctrl+Z` : '没有可撤销的操作';
+    elements.redoBtn.title = history.redo.length ? `重做：${history.redo.at(-1).label} · Ctrl+Y` : '没有可重做的操作';
+  }
+
+  function planIssues() {
+    const issues = [];
+    const pkg = currentPackage();
+    const conflicts = conflictMap();
+    conflicts.forEach((pins, signal) => issues.push({
+      severity: 'error',
+      title: `${signal} 被重复安排`,
+      detail: `同时出现在 Pin ${pins.join('、Pin ')}。除非硬件设计明确需要，否则应只保留一个。`
+    }));
+
+    const labels = new Map();
+    const connectors = new Map();
+    pkg.pins.forEach(pin => {
+      if (pin.fixed) return;
+      const value = assignmentFor(pin.number);
+      if (value.alias.trim()) {
+        const key = value.alias.trim().toLowerCase();
+        if (!labels.has(key)) labels.set(key, []);
+        labels.get(key).push(pin.number);
+      }
+      if (value.connector?.trim()) {
+        const key = value.connector.trim().toLowerCase();
+        if (!connectors.has(key)) connectors.set(key, []);
+        connectors.get(key).push(pin.number);
+      }
+    });
+    labels.forEach((pins, label) => {
+      if (pins.length > 1) issues.push({ severity: 'warning', title: `自定义标签“${label}”重复`, detail: `出现在 Pin ${pins.join('、Pin ')}，导出网络标签时可能混淆。` });
+    });
+    connectors.forEach((pins, connector) => {
+      if (pins.length > 1) issues.push({ severity: 'info', title: `连接器标记“${connector}”被多次使用`, detail: `对应 Pin ${pins.join('、Pin ')}。如果它表示同一个端子，请确认这是有意安排。` });
+    });
+
+    resourceCatalog().forEach(group => group.instances.forEach(instance => {
+      const health = resourceCompleteness(group, instance);
+      if (!health.active || !health.required.length || health.complete) return;
+      issues.push({
+        severity: 'warning',
+        title: `${instance.display || instance.id} 必需信号不完整`,
+        detail: `已开始安排该外设，但仍缺 ${health.missing.map(item => item.suffix).join('、')}。`
+      });
+    }));
+
+    const availableDebug = new Set(pkg.pins.flatMap(pin => pin.functions.map(fn => fn.signal)).filter(signal => /SWDIO|SWCLK/.test(signal)));
+    const assignedDebug = new Set(Object.values(assignments()).map(value => value.function).filter(signal => availableDebug.has(signal)));
+    if (availableDebug.size && assignedDebug.size < Math.min(2, availableDebug.size)) {
+      issues.push({ severity: 'info', title: '调试接口尚未完整标记', detail: '当前封装存在 SWDIO/SWCLK 候选功能。若板上需要下载和调试，请确认对应连接。' });
+    }
+
+    const fixedPins = pkg.pins.filter(pin => pin.fixed);
+    issues.push({ severity: 'info', title: `${fixedPins.length} 个固定电源相关引脚`, detail: `固定引脚已在封装图中标记。本工具不验证去耦、电源排序、模拟地或参考电压设计。` });
+    return issues;
+  }
+
+  function renderCheckButton() {
+    const actionable = planIssues().filter(issue => issue.severity !== 'info').length;
+    elements.checkBadge.textContent = actionable ? String(actionable) : '';
+    elements.checkBtn.classList.toggle('primary', actionable > 0);
+  }
+
+  function showCheckDialog() {
+    const issues = planIssues();
+    const counts = { error: 0, warning: 0, info: 0 };
+    issues.forEach(issue => { counts[issue.severity] += 1; });
+    const summary = document.createElement('div');
+    summary.className = 'issue-summary';
+    [['错误', counts.error], ['提醒', counts.warning], ['信息', counts.info]].forEach(([label, count]) => {
+      const item = document.createElement('div');
+      item.className = 'issue-count';
+      const span = document.createElement('span');
+      span.textContent = label;
+      const strong = document.createElement('strong');
+      strong.textContent = String(count);
+      item.append(span, strong);
+      summary.appendChild(item);
+    });
+    const list = document.createElement('div');
+    list.className = 'issue-list';
+    issues.forEach(issue => {
+      const item = document.createElement('div');
+      item.className = `issue-item ${issue.severity}`;
+      const title = document.createElement('strong');
+      title.textContent = issue.title;
+      const detail = document.createElement('span');
+      detail.textContent = issue.detail;
+      item.append(title, detail);
+      list.appendChild(item);
+    });
+    elements.checkDialogBody.replaceChildren(summary, list);
+    elements.checkDialog.showModal();
+  }
+
+  function showAboutDialog() {
+    const project = currentProjectRecord();
+    const section = document.createElement('section');
+    section.className = 'modal-section';
+    const notice = document.createElement('div');
+    notice.className = 'legal-notice';
+    notice.textContent = '本软件是应电2514制作的非官方第三方学习与规划工具，与 Texas Instruments Incorporated（TI）不存在隶属、授权或认可关系。TI、MSPM0及相关产品名称属于其权利人。本工具不替代数据手册、勘误表或电气设计审查。';
+    const grid = document.createElement('dl');
+    grid.className = 'about-grid';
+    const rows = [
+      ['版本', APP_META.version],
+      ['作者', APP_META.author],
+      ['当前工程', project.name],
+      ['芯片', state.activeDevice],
+      ['封装', currentPackage().label],
+      ['存储结构', `v${SCHEMA_VERSION}`],
+      ['许可证', '免费学习版：允许分发未修改的二进制副本，禁止冒充官方或移除声明'],
+      ['第三方组件', 'Electron 31.7.7、Chromium 及其依赖；完整许可证随发行物保留']
+    ];
+    rows.forEach(([term, description]) => {
+      const dt = document.createElement('dt'); dt.textContent = term;
+      const dd = document.createElement('dd'); dd.textContent = description;
+      grid.append(dt, dd);
+    });
+    section.append(notice, grid);
+    const sourceSection = document.createElement('section');
+    sourceSection.className = 'modal-section';
+    const heading = document.createElement('h3');
+    heading.textContent = '数据来源';
+    sourceSection.appendChild(heading);
+    DEVICE_ORDER.forEach(device => {
+      const source = DEVICE_DATA[device].source;
+      const paragraph = document.createElement('p');
+      paragraph.textContent = `${device}：${source.document}，${source.revision}，页 ${source.pages}。${source.url || ''}`;
+      sourceSection.appendChild(paragraph);
+    });
+    const licenseSection = document.createElement('section');
+    licenseSection.className = 'modal-section';
+    const licenseHeading = document.createElement('h3');
+    licenseHeading.textContent = '使用说明';
+    const licenseText = document.createElement('p');
+    licenseText.textContent = '允许为学习、教学和非商业用途免费使用及传播未修改的软件。软件按现状提供，不保证引脚规划、电气连接或量产设计正确。商业使用、修改后再发布或品牌合作应另行确认授权。';
+    licenseSection.append(licenseHeading, licenseText);
+    elements.aboutDialogBody.replaceChildren(section, sourceSection, licenseSection);
+    elements.aboutDialog.showModal();
+  }
 
   function conflictMap() {
     const bySignal = new Map();
@@ -292,7 +562,7 @@
     const semantic = [];
     if (signals.some(signal => /^(TIMA|TIMG)/.test(signal))) semantic.push('timer 定时器 pwm capture compare 捕获 比较');
     if (signals.some(signal => /^TIMG[89]_(C0|C1|IDX)$/.test(signal))) semantic.push('qei encoder 编码器 hall 霍尔');
-    return [pin.number, pin.name, value.function, value.alias, value.note, ...signals, ...semantic].join(' ');
+    return [pin.number, pin.name, value.function, value.alias, value.connector, value.note, ...signals, ...semantic].join(' ');
   }
 
   function activeResourceMatch(pin) {
@@ -316,6 +586,89 @@
       ? userTextMatches(value)
       : textMatchesQuery(pinSearchText(pin));
     return filterMatch && categoryMatch && resourceMatch && searchMatch;
+  }
+
+  function uniqueProjectName(base) {
+    const names = new Set(workspace.projects.map(project => project.name.toLowerCase()));
+    if (!names.has(base.toLowerCase())) return base;
+    let index = 2;
+    while (names.has(`${base} ${index}`.toLowerCase())) index += 1;
+    return `${base} ${index}`;
+  }
+
+  function renderProjectSelect() {
+    elements.projectSelect.replaceChildren(...workspace.projects.map(project => {
+      const option = document.createElement('option');
+      option.value = project.id;
+      option.textContent = project.name;
+      option.selected = project.id === workspace.activeProjectId;
+      return option;
+    }));
+  }
+
+  function createNewProject() {
+    const suggested = uniqueProjectName('新工程');
+    projectDialogMode = 'new';
+    elements.projectDialogTitle.textContent = '新建工程';
+    elements.projectNameInput.value = suggested;
+    elements.projectDialog.showModal();
+    elements.projectNameInput.focus();
+    elements.projectNameInput.select();
+  }
+
+  function renameCurrentProject() {
+    const project = currentProjectRecord();
+    projectDialogMode = 'rename';
+    elements.projectDialogTitle.textContent = '重命名工程';
+    elements.projectNameInput.value = project.name;
+    elements.projectDialog.showModal();
+    elements.projectNameInput.focus();
+    elements.projectNameInput.select();
+  }
+
+  function duplicateCurrentProject() {
+    const source = currentProjectRecord();
+    const project = createProject(uniqueProjectName(`${source.name} 副本`), normalizeLoaded(JSON.parse(JSON.stringify(state))));
+    workspace.projects.push(project);
+    workspace.activeProjectId = project.id;
+    state = project.data;
+    resetTransientSelection();
+    saveState();
+    render();
+  }
+
+  function deleteCurrentProject() {
+    if (workspace.projects.length === 1) {
+      window.alert('至少需要保留一个工程。');
+      return;
+    }
+    const project = currentProjectRecord();
+    if (!window.confirm(`确定删除工程“${project.name}”吗？正式发布文件不会受影响。`)) return;
+    const index = workspace.projects.findIndex(item => item.id === project.id);
+    workspace.projects.splice(index, 1);
+    historyByProject.delete(project.id);
+    const next = workspace.projects[Math.min(index, workspace.projects.length - 1)];
+    workspace.activeProjectId = next.id;
+    state = next.data;
+    resetTransientSelection();
+    saveState();
+    render();
+  }
+
+  function closeMenus() {
+    elements.projectMenu.classList.add('hidden');
+    elements.exportMenu.classList.add('hidden');
+    elements.projectMenuBtn.setAttribute('aria-expanded', 'false');
+    elements.exportMenuBtn.setAttribute('aria-expanded', 'false');
+  }
+
+  function toggleMenu(button, menu) {
+    const opening = menu.classList.contains('hidden');
+    closeMenus();
+    if (opening) {
+      menu.classList.remove('hidden');
+      button.setAttribute('aria-expanded', 'true');
+    }
   }
 
   function renderDeviceSelect() {
@@ -369,9 +722,11 @@
   function assignSignalToPin(pin, signal) {
     if (!pin.functions.some(fn => fn.signal === signal)) return false;
     const key = String(pin.number);
-    assignments()[key] = { ...assignmentFor(pin.number), function: signal };
+    const changed = commitMutation(`安排 ${signal} 到 Pin ${pin.number}`, () => {
+      assignments()[key] = { ...assignmentFor(pin.number), function: signal };
+    }, { render: false });
+    if (!changed) return false;
     selectedPinNumber = pin.number;
-    saveState();
     return true;
   }
 
@@ -385,8 +740,8 @@
     button.className = 'pin-button';
     button.dataset.pin = String(pin.number);
     button.style.setProperty('--pin-color', CATEGORY_COLORS[category] || CATEGORY_COLORS.Other);
-    button.setAttribute('aria-label', `Pin ${pin.number} ${pin.name}${value.function ? ` ${value.function}` : ''}${value.alias ? ` ${value.alias}` : ''}`);
-    button.title = `Pin ${pin.number} · ${pin.name}${value.function ? ` · ${value.function}` : ''}${value.alias ? ` · ${value.alias}` : ''}`;
+    button.setAttribute('aria-label', `Pin ${pin.number} ${pin.name}${value.function ? ` ${value.function}` : ''}${value.alias ? ` ${value.alias}` : ''}${value.connector ? ` ${value.connector}` : ''}`);
+    button.title = `Pin ${pin.number} · ${pin.name}${value.function ? ` · ${value.function}` : ''}${value.alias ? ` · ${value.alias}` : ''}${value.connector ? ` · ${value.connector}` : ''}`;
     if (pin.fixed) button.classList.add('fixed');
     if (pin.number === selectedPinNumber) button.classList.add('selected');
     if (!pinMatches(pin, conflicts)) button.classList.add('dimmed');
@@ -475,6 +830,26 @@
     return new Set(Object.values(assignments()).map(value => value.function).filter(signal => signalMatchesInstance(signal, instance)));
   }
 
+  function resourceRequiredSuffixes(group, instance) {
+    if (group.key === 'UART') return ['TX', 'RX'];
+    if (group.key === 'I2C') return ['SCL', 'SDA'];
+    if (group.key === 'SPI') return ['SCK', 'PICO', 'POCI'];
+    if (group.key === 'CAN') return ['TX', 'RX'];
+    if (group.key === 'Timer' && /QEI/.test(instance.feature || '')) return ['C0', 'C1'];
+    return [];
+  }
+
+  function resourceCompleteness(group, instance) {
+    const available = signalsForInstance(instance).map(fn => fn.signal);
+    const assigned = assignedSignals(instance);
+    const required = resourceRequiredSuffixes(group, instance).map(suffix => {
+      const signal = available.find(item => item === `${instance.id}_${suffix}` || item.endsWith(`_${suffix}`)) || `${instance.id}_${suffix}`;
+      return { suffix, signal, available: available.includes(signal), assigned: assigned.has(signal) };
+    });
+    const missing = required.filter(item => !item.assigned);
+    return { required, missing, complete: required.length > 0 && missing.length === 0, active: assigned.size > 0, assignedCount: assigned.size, availableCount: available.length };
+  }
+
   function preserveSidebarScroll(update) {
     const sidebar = elements.resourcePanel.closest('.sidebar');
     const scrollTop = sidebar ? sidebar.scrollTop : 0;
@@ -509,16 +884,19 @@
         list.className = 'resource-instances';
         visibleInstances.forEach(instance => {
           const signals = signalsForInstance(instance);
-          const assigned = assignedSignals(instance).size;
+          const health = resourceCompleteness(group, instance);
           const button = document.createElement('button');
           button.type = 'button';
           button.className = `resource-instance${instance.id === selectedResourceId ? ' active' : ''}`;
           button.dataset.resource = instance.id;
           const name = document.createElement('span');
-          name.innerHTML = `${instance.display || instance.id}${instance.feature ? ` <span class="resource-instance-feature">${instance.feature}</span>` : ''}`;
+          const healthText = health.required.length && health.active
+            ? `<span class="resource-health${health.complete ? '' : ' incomplete'}">${health.complete ? '完整' : `缺 ${health.missing.length}`}</span>`
+            : '';
+          name.innerHTML = `${instance.display || instance.id}${instance.feature ? ` <span class="resource-instance-feature">${instance.feature}</span>` : ''}${healthText}`;
           const meta = document.createElement('span');
           meta.className = 'resource-instance-meta';
-          meta.textContent = `${assigned}/${signals.length}`;
+          meta.textContent = `${health.assignedCount}/${signals.length}`;
           button.append(name, meta);
           button.addEventListener('click', () => {
             button.blur();
@@ -553,11 +931,20 @@
     const selected = resourceInstance(selectedResourceId);
     elements.resourceDetail.classList.toggle('hidden', !selected);
     if (!selected) return;
-    const { instance } = selected;
+    const { group, instance } = selected;
+    const health = resourceCompleteness(group, instance);
     elements.resourceDetailTitle.textContent = `${instance.display || instance.id}${instance.feature ? ` · ${instance.feature}` : ''}`;
-    elements.resourceDetailNote.textContent = /^TIMG[89]$/.test(instance.id)
+    const baseNote = /^TIMG[89]$/.test(instance.id)
       ? 'QEI/Hall 模式使用 C0 作为 A 相、C1 作为 B 相，IDX 作为可选 Z 索引。先选信号，再点封装图中的候选引脚。'
       : '选择一个官方信号，再点击封装图中高亮的候选引脚完成安排。';
+    const completenessNote = health.required.length
+      ? health.complete
+        ? ' 必需信号已完整安排。'
+        : health.active
+          ? ` 尚缺：${health.missing.map(item => item.suffix).join('、')}。`
+          : ` 建议至少安排：${health.required.map(item => item.suffix).join('、')}。`
+      : '';
+    elements.resourceDetailNote.textContent = baseNote + completenessNote;
     const nodes = signalsForInstance(instance).map(fn => {
       const pins = currentPackage().pins.filter(pin => pin.functions.some(item => item.signal === fn.signal));
       const assignedPins = currentPackage().pins.filter(pin => assignmentFor(pin.number).function === fn.signal).map(pin => pin.number);
@@ -644,6 +1031,7 @@
     elements.pinStatus.textContent = isMeaningfulAssignment(value) ? '已安排' : '未安排';
     buildFunctionSelect(pin, value);
     elements.aliasInput.value = value.alias;
+    elements.connectorInput.value = value.connector || '';
     elements.noteInput.value = value.note;
     elements.functionInfo.classList.toggle('hidden', !fn);
     if (fn) elements.functionInfo.textContent = `${fn.category} · ${fn.signalType || '未标注方向'} · ${fn.iomuxManaged ? `IOMUX PF ${fn.pf}` : fn.pfLabel || 'Non-IOMUX'}`;
@@ -651,16 +1039,20 @@
     if (conflictPins.length >= 2) elements.conflictBox.textContent = `${value.function} 同时安排在 Pin ${conflictPins.join('、Pin ')}。这是提示性冲突，请自行确认是否有意重复。`;
   }
 
-  function updateSelectedAssignment(patch, refreshInspector = true) {
+  function updateSelectedAssignment(patch, refreshInspector = true, mergeKey = '') {
     const pin = selectedPin();
     if (!pin || pin.fixed) return;
     const key = String(pin.number);
-    const next = { ...assignmentFor(pin.number), ...patch };
-    isMeaningfulAssignment(next) ? assignments()[key] = next : delete assignments()[key];
-    saveState();
+    let next;
+    const changed = commitMutation(`编辑 Pin ${pin.number}`, () => {
+      next = { ...assignmentFor(pin.number), ...patch };
+      isMeaningfulAssignment(next) ? assignments()[key] = next : delete assignments()[key];
+    }, { render: false, mergeKey });
+    if (!changed) return;
     if (refreshInspector) render();
     else {
       renderStats(); renderCategories(); renderResources(); renderStage();
+      renderCheckButton();
       elements.pinStatus.textContent = isMeaningfulAssignment(next) ? '已安排' : '未安排';
     }
   }
@@ -745,16 +1137,19 @@
 
   function render() {
     applyThemeAndLayout();
+    renderProjectSelect();
     renderDeviceSelect();
     renderPackageSelect();
     const source = currentDeviceData().source;
-    elements.sourceFooter.textContent = `数据来源：TI ${source.document}，${source.revision}，页 ${source.pages}。`;
+    elements.sourceFooter.textContent = `非 TI 官方工具 · 数据来源：${source.document}，${source.revision}，页 ${source.pages} · v${APP_META.version}`;
     renderSidebarMode();
     renderStats();
     renderCategories();
     renderResources();
     renderStage();
     renderInspector();
+    renderHistoryControls();
+    renderCheckButton();
     elements.filterTabs.querySelectorAll('[data-filter]').forEach(button => button.classList.toggle('active', button.dataset.filter === activeFilter));
     requestAnimationFrame(() => currentView().initialized ? applyView() : fitView(false));
   }
@@ -777,10 +1172,24 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  function exportJson() {
-    const deviceState = currentDeviceState();
-    const payload = { schemaVersion: SCHEMA_VERSION, device: state.activeDevice, exportedAt: new Date().toISOString(), activePackage: deviceState.activePackage, theme: state.theme, layout: state.layout, packages: deviceState.packages, views: deviceState.views };
-    downloadFile(`${state.activeDevice.toLowerCase()}-pin-plan.json`, JSON.stringify(payload, null, 2), 'application/json;charset=utf-8');
+  function safeFileName(value) {
+    return String(value || 'project').trim().replace(/[<>:"/\\|?*\x00-\x1f]+/g, '-').replace(/\s+/g, '-').slice(0, 64) || 'project';
+  }
+
+  function exportProjectJson() {
+    const project = currentProjectRecord();
+    const payload = {
+      schemaVersion: SCHEMA_VERSION,
+      kind: 'mspm0-pin-project',
+      exportedAt: new Date().toISOString(),
+      project: { ...project, data: state }
+    };
+    downloadFile(`${safeFileName(project.name)}-mspm0-project.json`, JSON.stringify(payload, null, 2), 'application/json;charset=utf-8');
+  }
+
+  function exportWorkspaceJson() {
+    const payload = { ...workspace, exportedAt: new Date().toISOString(), kind: 'mspm0-pin-workspace' };
+    downloadFile('mspm0-pin-planner-workspace.json', JSON.stringify(payload, null, 2), 'application/json;charset=utf-8');
   }
 
   function csvEscape(value) {
@@ -790,44 +1199,148 @@
 
   function exportCsv() {
     const pkg = currentPackage();
-    const rows = [['Device', 'Package', 'Physical Pin', 'Pin Name', 'Selected Function', 'Custom Label', 'Note', 'Category', 'Signal Type', 'IOMUX PF', 'IOMUX Register', 'Buffer Type']];
+    const rows = [['Project', 'Device', 'Package', 'Physical Pin', 'Pin Name', 'Selected Function', 'Custom Label', 'Connector', 'Note', 'Category', 'Signal Type', 'IOMUX PF', 'IOMUX Register', 'Buffer Type']];
     pkg.pins.forEach(pin => {
       const value = assignmentFor(pin.number);
       const fn = selectedFunction(pin, value);
-      rows.push([state.activeDevice, pkg.code, pin.number, pin.name, pin.fixed ? pin.name : value.function, value.alias, value.note, pin.fixed ? 'Power' : fn?.category || '', fn?.signalType || '', fn ? (fn.iomuxManaged ? fn.pf : fn.pfLabel) : '', pin.iomuxRegister, pin.bufferType]);
+      rows.push([currentProjectRecord().name, state.activeDevice, pkg.code, pin.number, pin.name, pin.fixed ? pin.name : value.function, value.alias, value.connector, value.note, pin.fixed ? 'Power' : fn?.category || '', fn?.signalType || '', fn ? (fn.iomuxManaged ? fn.pf : fn.pfLabel) : '', pin.iomuxRegister, pin.bufferType]);
     });
     downloadFile(`${state.activeDevice.toLowerCase()}-${pkg.code.toLowerCase()}-pin-plan.csv`, '\ufeff' + rows.map(row => row.map(csvEscape).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
+  }
+
+  function resourceForSignal(signal) {
+    for (const group of resourceCatalog()) {
+      const instance = group.instances.find(item => signalMatchesInstance(signal, item));
+      if (instance) return { group, instance };
+    }
+    return null;
+  }
+
+  function exportGroupedCsv() {
+    const header = ['Peripheral Group', 'Instance', 'Signal', 'Pin', 'GPIO', 'Custom Label', 'Connector', 'Note'];
+    const body = [];
+    currentPackage().pins.forEach(pin => {
+      if (pin.fixed) return;
+      const value = assignmentFor(pin.number);
+      if (!value.function) return;
+      const resource = resourceForSignal(value.function);
+      body.push([resource?.group.label || selectedFunction(pin, value)?.category || 'Other', resource?.instance.display || resource?.instance.id || '', value.function, pin.number, pin.name, value.alias, value.connector, value.note]);
+    });
+    body.sort((a, b) => `${a[0]}-${a[1]}-${a[2]}`.localeCompare(`${b[0]}-${b[1]}-${b[2]}`, undefined, { numeric: true }));
+    const rows = [header, ...body];
+    downloadFile(`${safeFileName(currentProjectRecord().name)}-peripherals.csv`, '\ufeff' + rows.map(row => row.map(csvEscape).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
+  }
+
+  function exportConnectorCsv() {
+    const rows = [['Connector', 'Physical Pin', 'GPIO', 'Function', 'Net Label', 'Note']];
+    currentPackage().pins.forEach(pin => {
+      if (pin.fixed) return;
+      const value = assignmentFor(pin.number);
+      if (!value.connector?.trim()) return;
+      rows.push([value.connector, pin.number, pin.name, value.function, value.alias || value.function || pin.name, value.note]);
+    });
+    rows.splice(1, rows.length - 1, ...rows.slice(1).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true })));
+    downloadFile(`${safeFileName(currentProjectRecord().name)}-connectors.csv`, '\ufeff' + rows.map(row => row.map(csvEscape).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
+  }
+
+  function exportKicadCsv() {
+    const rows = [['Physical Pin', 'GPIO', 'Net Label', 'Selected Function', 'Connector']];
+    currentPackage().pins.forEach(pin => {
+      if (pin.fixed) return;
+      const value = assignmentFor(pin.number);
+      if (!isMeaningfulAssignment(value)) return;
+      rows.push([pin.number, pin.name, value.alias || value.function || pin.name, value.function, value.connector]);
+    });
+    downloadFile(`${safeFileName(currentProjectRecord().name)}-kicad-net-labels.csv`, '\ufeff' + rows.map(row => row.map(csvEscape).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+  }
+
+  function printReport() {
+    const project = currentProjectRecord();
+    const pkg = currentPackage();
+    const issues = planIssues().filter(issue => issue.severity !== 'info');
+    const assignedRows = pkg.pins.filter(pin => pin.fixed || isMeaningfulAssignment(assignmentFor(pin.number))).map(pin => {
+      const value = assignmentFor(pin.number);
+      return `<tr><td>${pin.number}</td><td>${escapeHtml(pin.name)}</td><td>${escapeHtml(pin.fixed ? pin.name : value.function)}</td><td>${escapeHtml(value.alias)}</td><td>${escapeHtml(value.connector)}</td><td>${escapeHtml(value.note)}</td></tr>`;
+    }).join('');
+    const issueRows = issues.length
+      ? issues.map(issue => `<p class="print-warning"><strong>${escapeHtml(issue.title)}</strong>：${escapeHtml(issue.detail)}</p>`).join('')
+      : '<p>未发现错误或缺失提醒。</p>';
+    elements.printReport.innerHTML = `
+      <h1>MSPM0 引脚规划报告</h1>
+      <p>工程：${escapeHtml(project.name)} · 芯片：${escapeHtml(state.activeDevice)} · 封装：${escapeHtml(pkg.label)}</p>
+      <p>生成时间：${escapeHtml(new Date().toLocaleString())} · 软件版本：${escapeHtml(APP_META.version)}</p>
+      <p>非 TI 官方工具。本报告仅用于规划，不替代数据手册和电气设计审查。</p>
+      <h2>检查摘要</h2>${issueRows}
+      <h2>引脚安排</h2>
+      <table><thead><tr><th>Pin</th><th>GPIO</th><th>功能</th><th>标签</th><th>连接器</th><th>备注</th></tr></thead><tbody>${assignedRows}</tbody></table>`;
+    window.print();
+  }
+
+  function runExport(action) {
+    const actions = {
+      json: exportProjectJson,
+      workspace: exportWorkspaceJson,
+      csv: exportCsv,
+      grouped: exportGroupedCsv,
+      connector: exportConnectorCsv,
+      kicad: exportKicadCsv,
+      print: printReport
+    };
+    closeMenus();
+    actions[action]?.();
+  }
+
+  function dataFromLegacyExport(parsed) {
+    if (!DEVICE_ORDER.includes(parsed.device) || ![1, 2, 3].includes(parsed.schemaVersion)) throw new Error('文件不是兼容的 MSPM0G 引脚规划 JSON。');
+    if ([1, 2].includes(parsed.schemaVersion) && parsed.device !== 'MSPM0G3519') throw new Error('旧版 JSON 只支持 MSPM0G3519。');
+    const data = createEmptyState();
+    const device = parsed.device;
+    const deviceState = data.devices[device];
+    const codes = DEVICE_CONFIG[device].packageOrder;
+    let skipped = 0;
+    codes.forEach(code => {
+      const result = sanitizeAssignments(device, code, parsed.packages?.[code]?.assignments || {});
+      deviceState.packages[code].assignments = result.assignments;
+      skipped += result.skipped;
+      if (parsed.schemaVersion >= 2 && parsed.views?.[code]) deviceState.views[code] = sanitizeView(device, code, parsed.views[code]);
+      if (parsed.schemaVersion === 1 && parsed.zoom?.[code]) deviceState.views[code] = sanitizeView(device, code, null, parsed.zoom[code]);
+    });
+    deviceState.activePackage = codes.includes(parsed.activePackage) ? parsed.activePackage : deviceState.activePackage;
+    if (parsed.schemaVersion >= 2) {
+      data.theme = parsed.theme === 'dark' ? 'dark' : data.theme;
+      data.layout.leftWidth = Math.min(460, Math.max(190, Number(parsed.layout?.leftWidth) || data.layout.leftWidth));
+      data.layout.rightWidth = Math.min(540, Math.max(260, Number(parsed.layout?.rightWidth) || data.layout.rightWidth));
+    }
+    data.activeDevice = device;
+    return { data, skipped };
   }
 
   async function importJson(file) {
     try {
       const parsed = JSON.parse(await file.text());
-      if (!DEVICE_ORDER.includes(parsed.device) || ![1, 2, 3].includes(parsed.schemaVersion)) throw new Error('文件不是兼容的 MSPM0G 引脚规划 JSON。');
-      if ([1, 2].includes(parsed.schemaVersion) && parsed.device !== 'MSPM0G3519') throw new Error('旧版 JSON 只支持 MSPM0G3519。');
-      const device = parsed.device;
-      const deviceState = state.devices[device];
-      const codes = DEVICE_CONFIG[device].packageOrder;
+      const imported = [];
       let skipped = 0;
-      codes.forEach(code => {
-        const result = sanitizeAssignments(device, code, parsed.packages?.[code]?.assignments || {});
-        deviceState.packages[code].assignments = result.assignments;
-        skipped += result.skipped;
-        if (parsed.schemaVersion >= 2 && parsed.views?.[code]) deviceState.views[code] = sanitizeView(device, code, parsed.views[code]);
-        if (parsed.schemaVersion === 1 && parsed.zoom?.[code]) deviceState.views[code] = sanitizeView(device, code, null, parsed.zoom[code]);
-      });
-      deviceState.activePackage = codes.includes(parsed.activePackage) ? parsed.activePackage : deviceState.activePackage;
-      if (parsed.schemaVersion >= 2) {
-        state.theme = parsed.theme === 'dark' ? 'dark' : state.theme;
-        state.layout.leftWidth = Math.min(460, Math.max(190, Number(parsed.layout?.leftWidth) || state.layout.leftWidth));
-        state.layout.rightWidth = Math.min(540, Math.max(260, Number(parsed.layout?.rightWidth) || state.layout.rightWidth));
+      if (parsed?.schemaVersion === SCHEMA_VERSION && parsed.kind === 'mspm0-pin-project' && parsed.project) {
+        imported.push(normalizeProject({ ...parsed.project, id: createId(), name: uniqueProjectName(parsed.project.name || file.name.replace(/\.json$/i, '')) }));
+      } else if (parsed?.version === SCHEMA_VERSION && parsed.kind === 'mspm0-pin-workspace' && Array.isArray(parsed.projects)) {
+        parsed.projects.slice(0, 40).forEach(project => imported.push(normalizeProject({ ...project, id: createId(), name: uniqueProjectName(project.name || '导入工程') })));
+      } else {
+        const legacy = dataFromLegacyExport(parsed);
+        skipped = legacy.skipped;
+        imported.push(createProject(uniqueProjectName(file.name.replace(/\.json$/i, '') || '导入工程'), legacy.data));
       }
-      state.activeDevice = device;
-      selectedPinNumber = null;
-      selectedResourceId = '';
-      selectedSignal = '';
+      if (!imported.length) throw new Error('文件中没有可导入的工程。');
+      workspace.projects.push(...imported);
+      workspace.activeProjectId = imported[0].id;
+      state = imported[0].data;
+      resetTransientSelection();
       saveState();
       render();
-      window.alert(skipped ? `导入完成，忽略了 ${skipped} 条不兼容记录。` : '导入完成。');
+      window.alert(`${imported.length} 个工程已导入为新工程${skipped ? `，忽略 ${skipped} 条不兼容记录` : ''}。`);
     } catch (error) {
       window.alert(error.message || 'JSON 导入失败。');
     } finally {
@@ -844,6 +1357,36 @@
     elements.searchInput.value = '';
   }
 
+  elements.projectSelect.addEventListener('change', () => activateProject(elements.projectSelect.value));
+  elements.projectMenuBtn.addEventListener('click', event => { event.stopPropagation(); toggleMenu(elements.projectMenuBtn, elements.projectMenu); });
+  elements.projectMenu.addEventListener('click', event => {
+    const button = event.target.closest('[data-project-action]');
+    if (!button) return;
+    closeMenus();
+    const actions = { new: createNewProject, rename: renameCurrentProject, duplicate: duplicateCurrentProject, delete: deleteCurrentProject };
+    actions[button.dataset.projectAction]?.();
+  });
+  elements.projectForm.addEventListener('submit', event => {
+    event.preventDefault();
+    const name = elements.projectNameInput.value.trim();
+    if (!name) return;
+    if (projectDialogMode === 'new') {
+      const project = createProject(uniqueProjectName(name));
+      workspace.projects.push(project);
+      workspace.activeProjectId = project.id;
+      state = project.data;
+      resetTransientSelection();
+      saveState();
+      render();
+    } else {
+      const project = currentProjectRecord();
+      project.name = name.slice(0, 48);
+      project.updatedAt = new Date().toISOString();
+      saveState();
+      renderProjectSelect();
+    }
+    elements.projectDialog.close();
+  });
   elements.deviceSelect.addEventListener('change', () => {
     state.activeDevice = elements.deviceSelect.value;
     expandedGroups = new Set(['Timer']);
@@ -922,6 +1465,26 @@
     applyThemeAndLayout();
     saveState();
   });
+  elements.undoBtn.addEventListener('click', undo);
+  elements.redoBtn.addEventListener('click', redo);
+  elements.exportMenuBtn.addEventListener('click', event => { event.stopPropagation(); toggleMenu(elements.exportMenuBtn, elements.exportMenu); });
+  elements.exportMenu.addEventListener('click', event => {
+    const button = event.target.closest('[data-export]');
+    if (button) runExport(button.dataset.export);
+  });
+  elements.checkBtn.addEventListener('click', showCheckDialog);
+  elements.aboutBtn.addEventListener('click', showAboutDialog);
+  document.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click', () => document.getElementById(button.dataset.closeDialog)?.close()));
+  document.addEventListener('click', event => {
+    if (!event.target.closest('.menu-wrap')) closeMenus();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeMenus();
+    const editing = event.target.matches?.('input, textarea, select');
+    if (editing || !(event.ctrlKey || event.metaKey)) return;
+    if (event.key.toLowerCase() === 'z' && !event.shiftKey) { event.preventDefault(); undo(); }
+    if (event.key.toLowerCase() === 'y' || (event.key.toLowerCase() === 'z' && event.shiftKey)) { event.preventDefault(); redo(); }
+  });
 
   function beginResize(event, side) {
     resizeState = {
@@ -963,27 +1526,24 @@
   window.addEventListener('mousemove', moveResize);
   window.addEventListener('mouseup', endResize);
   elements.functionSelect.addEventListener('change', () => updateSelectedAssignment({ function: elements.functionSelect.value }));
-  elements.aliasInput.addEventListener('input', () => updateSelectedAssignment({ alias: elements.aliasInput.value }, false));
-  elements.noteInput.addEventListener('input', () => updateSelectedAssignment({ note: elements.noteInput.value }, false));
+  elements.aliasInput.addEventListener('input', () => updateSelectedAssignment({ alias: elements.aliasInput.value }, false, `alias-${selectedPinNumber}`));
+  elements.connectorInput.addEventListener('input', () => updateSelectedAssignment({ connector: elements.connectorInput.value }, false, `connector-${selectedPinNumber}`));
+  elements.noteInput.addEventListener('input', () => updateSelectedAssignment({ note: elements.noteInput.value }, false, `note-${selectedPinNumber}`));
   elements.clearPinBtn.addEventListener('click', () => {
     const pin = selectedPin();
     if (!pin) return;
-    delete assignments()[String(pin.number)];
-    saveState();
-    render();
+    commitMutation(`清除 Pin ${pin.number}`, () => { delete assignments()[String(pin.number)]; });
   });
   elements.importBtn.addEventListener('click', () => elements.importFile.click());
   elements.importFile.addEventListener('change', () => { const file = elements.importFile.files?.[0]; if (file) importJson(file); });
-  elements.exportJsonBtn.addEventListener('click', exportJson);
-  elements.exportCsvBtn.addEventListener('click', exportCsv);
   elements.resetBtn.addEventListener('click', () => {
     const pkg = currentPackage();
     if (!window.confirm(`确定清空 ${state.activeDevice} ${pkg.label} 的全部引脚安排吗？其他芯片和封装不会受影响。`)) return;
-    currentDeviceState().packages[currentDeviceState().activePackage].assignments = {};
     selectedPinNumber = null;
     selectedSignal = '';
-    saveState();
-    render();
+    commitMutation(`清空 ${state.activeDevice} ${pkg.label}`, () => {
+      currentDeviceState().packages[currentDeviceState().activePackage].assignments = {};
+    });
   });
   new ResizeObserver(() => { if (!currentView().initialized) fitView(false); }).observe(elements.canvasScroller);
 

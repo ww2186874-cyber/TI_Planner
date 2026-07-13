@@ -39,7 +39,11 @@ const expressions = {
     url: location.href,
     devices: [...document.querySelectorAll('#deviceSelect option')].map(option => option.value),
     packages: [...document.querySelectorAll('#packageSelect option')].map(option => option.value),
-    bridge: typeof window.mspm0Desktop?.saveFile === 'function'
+    bridge: typeof window.mspm0Desktop?.saveFile === 'function',
+    projectActions: document.querySelectorAll('[data-project-action]').length,
+    exportActions: document.querySelectorAll('[data-export]').length,
+    hasAbout: Boolean(document.querySelector('#aboutBtn')),
+    hasCheck: Boolean(document.querySelector('#checkBtn'))
   }))()`,
   write: `(() => {
     const device = document.querySelector('#deviceSelect');
@@ -48,16 +52,92 @@ const expressions = {
     const pkg = document.querySelector('#packageSelect');
     pkg.value = 'PM';
     pkg.dispatchEvent(new Event('change', { bubbles: true }));
-    const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v3') || '{}');
-    return { activeDevice: document.querySelector('#deviceSelect').value, activePackage: document.querySelector('#packageSelect').value, saved: Boolean(stored.version), storedDevice: stored.activeDevice, storedPackage: stored.devices?.MSPM0G3507?.activePackage };
+    const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v4') || '{}');
+    const project = stored.projects?.find(item => item.id === stored.activeProjectId);
+    return { activeDevice: document.querySelector('#deviceSelect').value, activePackage: document.querySelector('#packageSelect').value, saved: stored.version === 4, storedDevice: project?.data?.activeDevice, storedPackage: project?.data?.devices?.MSPM0G3507?.activePackage };
   })()`,
   restore: `(() => ({
     activeDevice: document.querySelector('#deviceSelect').value,
     activePackage: document.querySelector('#packageSelect').value,
-    saved: Boolean(localStorage.getItem('mspm0g-pin-planner-v3')),
-    storedDevice: JSON.parse(localStorage.getItem('mspm0g-pin-planner-v3') || '{}').activeDevice,
-    storedPackage: JSON.parse(localStorage.getItem('mspm0g-pin-planner-v3') || '{}').devices?.MSPM0G3507?.activePackage
+    saved: JSON.parse(localStorage.getItem('mspm0g-pin-planner-v4') || '{}').version === 4,
+    storedDevice: (() => { const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v4') || '{}'); return stored.projects?.find(item => item.id === stored.activeProjectId)?.data?.activeDevice; })(),
+    storedPackage: (() => { const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v4') || '{}'); return stored.projects?.find(item => item.id === stored.activeProjectId)?.data?.devices?.MSPM0G3507?.activePackage; })()
   }))()`,
+  'import-v4': `(async () => {
+    const alerts = [];
+    const originalAlert = window.alert;
+    window.alert = message => alerts.push(String(message));
+    const payload = {
+      schemaVersion: 4,
+      kind: 'mspm0-pin-project',
+      project: {
+        id: 'fixture-v4-project',
+        name: '新版导入测试',
+        data: {
+          version: 3,
+          activeDevice: 'MSPM0G3507',
+          theme: 'dark',
+          layout: { leftWidth: 280, rightWidth: 360 },
+          devices: {
+            MSPM0G3507: {
+              activePackage: 'PT',
+              packages: { PT: { assignments: { '1': { function: 'UART0_TX', alias: '新版导入', connector: 'J2-1', note: 'v4 compatibility test' } } } },
+              views: {}
+            }
+          }
+        }
+      }
+    };
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([JSON.stringify(payload)], 'import-v4.json', { type: 'application/json' }));
+    const input = document.querySelector('#importFile');
+    Object.defineProperty(input, 'files', { configurable: true, value: transfer.files });
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise(resolve => setTimeout(resolve, 150));
+    window.alert = originalAlert;
+    return {
+      activeProject: document.querySelector('#projectSelect option:checked')?.textContent,
+      activeDevice: document.querySelector('#deviceSelect').value,
+      activePackage: document.querySelector('#packageSelect').value,
+      pin: document.querySelector('[aria-label^="Pin 1 PA0"]')?.getAttribute('aria-label'),
+      alert: alerts[0]
+    };
+  })()`,
+  'import-v3': `(async () => {
+    const alerts = [];
+    const originalAlert = window.alert;
+    window.alert = message => alerts.push(String(message));
+    const payload = {
+      schemaVersion: 3,
+      device: 'MSPM0G3507',
+      activePackage: 'PT',
+      packages: { PT: { assignments: { '1': { function: 'UART0_TX', alias: '旧版导入', connector: 'J1-1', note: 'v3 compatibility test' } } } },
+      views: {}
+    };
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([JSON.stringify(payload)], 'import-v3.json', { type: 'application/json' }));
+    const input = document.querySelector('#importFile');
+    Object.defineProperty(input, 'files', { configurable: true, value: transfer.files });
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise(resolve => setTimeout(resolve, 150));
+    window.alert = originalAlert;
+    return {
+      activeProject: document.querySelector('#projectSelect option:checked')?.textContent,
+      activeDevice: document.querySelector('#deviceSelect').value,
+      activePackage: document.querySelector('#packageSelect').value,
+      pin: document.querySelector('[aria-label^="Pin 1 PA0"]')?.getAttribute('aria-label'),
+      alert: alerts[0]
+    };
+  })()`,
+  print: `(() => {
+    let printCalls = 0;
+    const originalPrint = window.print;
+    window.print = () => { printCalls += 1; };
+    document.querySelector('[data-export="print"]').click();
+    const report = document.querySelector('#printReport').textContent;
+    window.print = originalPrint;
+    return { printCalls, report };
+  })()`,
   close: `(() => { setTimeout(() => window.close(), 100); return true; })()`
 };
 
@@ -72,9 +152,19 @@ async function main() {
     if (result.url !== 'app://mspm0/index.html') throw new Error('Unexpected application URL');
     if (!result.bridge) throw new Error('Desktop save bridge is unavailable');
     if (!result.devices.includes('MSPM0G3507') || !result.devices.includes('MSPM0G3519')) throw new Error('Device list is incomplete');
+    if (result.projectActions !== 4 || result.exportActions !== 7 || !result.hasAbout || !result.hasCheck) throw new Error('Candidate feature controls are incomplete');
   }
   if (mode === 'restore' && (result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'PM' || !result.saved)) {
     throw new Error('Desktop state was not restored');
+  }
+  if (mode === 'import-v4' && (result.activeProject !== '新版导入测试' || result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'PT' || !result.pin?.includes('UART0_TX') || !result.pin?.includes('新版导入'))) {
+    throw new Error('Version 4 project import failed');
+  }
+  if (mode === 'import-v3' && (result.activeProject !== 'import-v3' || result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'PT' || !result.pin?.includes('UART0_TX') || !result.pin?.includes('旧版导入'))) {
+    throw new Error('Version 3 project import failed');
+  }
+  if (mode === 'print' && (result.printCalls !== 1 || !result.report.includes('MSPM0 引脚规划报告') || !result.report.includes('非 TI 官方工具'))) {
+    throw new Error('Print report generation failed');
   }
 }
 

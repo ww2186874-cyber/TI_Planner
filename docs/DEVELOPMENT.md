@@ -3,18 +3,18 @@
 ## 工作流程
 
 1. 修改 `web/` 中的源码或芯片数据。
-2. 运行 `run-dev.cmd`，在 Electron 开发窗口中验证功能。
-3. 对存储结构有改动时，为旧版 `localStorage` 增加迁移逻辑。
-4. 修改 `desktop/package.json` 的版本号。
-5. 运行 `build-portable.cmd` 生成候选 EXE并测试。
-6. 用户确认效果后运行 `create-release.cmd`，归档正式版本。
-7. 按 `RELEASE_CHECKLIST.md` 检查，并由 Codex提交 Git 记录和版本标签。
+2. 运行 `build-web.cmd`，先检查离线 HTML 的界面和逻辑。
+3. 涉及桌面保存、内部地址、图标或窗口行为时运行 `run-dev.cmd`。
+4. 对存储结构有改动时，为旧版 `localStorage` 增加迁移逻辑并更新烟雾测试。
+5. 运行 `build-folder.cmd` 生成启动更快的候选软件供确认。
+6. 用户确认后把候选版本改为正式版本，再运行 `create-release.cmd`。
+7. 按 `RELEASE_CHECKLIST.md` 检查，并由 Codex提交 Git 记录和正式版本标签。
 
 ## 构建链路
 
 `web/build.js` 会把模板、交互脚本和两颗芯片的数据合并成单文件 HTML：
 
-`web/* -> outputs/mspm0g3519-pin-planner.html -> desktop/app/index.html -> portable EXE`
+`web/* -> outputs/mspm0g3519-pin-planner.html -> desktop/app/index.html -> folder build / portable EXE`
 
 `desktop/app/index.html` 是自动生成文件。Electron 使用固定的 `app://mspm0/index.html` 地址加载它，从而让应用升级或移动位置后仍能读取当前电脑上的已有进度。
 
@@ -31,6 +31,7 @@
 - `outputs/` 是候选构建区；同一版本重复构建时可能覆盖其中的文件。
 - `releases/vX.Y.Z/` 保存正式发布的 EXE、HTML、哈希和发布说明。
 - `create-release.cmd` 检测到相同版本已经存在时会停止，防止覆盖旧版本。
+- 预发布版本使用 `X.Y.Z-beta.N`，可以提交 Git，但不创建正式版本标签。
 - 普通小修复提升补丁版本，例如 `1.0.0 -> 1.0.1`。
 - 新功能提升次版本，例如 `1.0.1 -> 1.1.0`。
 - 不兼容的大改动提升主版本，例如 `1.1.0 -> 2.0.0`。
@@ -59,6 +60,7 @@
 ## 常见问题
 
 - 单文件便携版启动较慢：每次启动需要解压 Chromium，属于 portable 目标的正常代价。
+- 文件夹版启动更快：直接运行文件夹中的 `MSPM0 引脚规划器.exe`，但传播时必须复制整个文件夹。
 - 首次构建慢：需要下载 Electron 和打包工具，之后会使用工作区缓存。
 - Windows 提示未知发布者：当前版本没有商业代码签名。
 - 打包路径错误：保持工作区路径简短；当前 D 盘路径比原临时路径更适合 NSIS。

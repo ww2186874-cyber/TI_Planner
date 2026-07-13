@@ -3,7 +3,9 @@
   "source": {
     "document": "MSPM0Gx51x Mixed-Signal Microcontrollers With CAN-FD Interface",
     "revision": "SLASFA2B, revised October 2025",
-    "pages": "10-37"
+    "pages": "10-37",
+    "url": "https://www.ti.com/lit/ds/symlink/mspm0g3519.pdf",
+    "retrieved": "2026-07-14"
   },
   "packages": {
     "PT": {

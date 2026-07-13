@@ -3,7 +3,9 @@
   "source": {
     "document": "MSPM0G350x Mixed-Signal Microcontrollers With CAN-FD Interface",
     "revision": "SLASEX6C, revised October 2025",
-    "pages": "11-23"
+    "pages": "11-23",
+    "url": "https://www.ti.com/lit/ds/symlink/mspm0g3507.pdf",
+    "retrieved": "2026-07-14"
   },
   "packages": {
     "PM": {

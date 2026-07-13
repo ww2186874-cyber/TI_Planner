@@ -17,6 +17,11 @@ $required = @(
   'README.md',
   'desktop\package.json',
   'web\app.js',
+  'web\data-validation.js',
+  'web\validate-data.js',
+  'legal\LICENSE.md',
+  'legal\THIRD_PARTY_NOTICES.md',
+  'legal\DATA_SOURCES.md',
   'memory\PROJECT_STATE.md',
   'memory\DECISIONS.md',
   'memory\LESSONS.md',
@@ -41,16 +46,16 @@ if (-not (Test-Path -LiteralPath $releaseDir)) {
 }
 
 $allowedRootNames = @(
-  '.cache', '.git', '.pnpm-store', '.tmp', 'desktop', 'docs', 'memory', 'outputs', 'releases', 'scripts', 'web',
+  '.cache', '.git', '.pnpm-store', '.tmp', 'desktop', 'docs', 'legal', 'memory', 'outputs', 'releases', 'scripts', 'web',
   '.gitignore', 'AGENTS.md', 'CHANGELOG.md', 'README.md', 'build-portable.cmd', 'build-web.cmd',
-  'create-release.cmd', 'install-dependencies.cmd', 'run-dev.cmd', 'workspace-check.cmd'
+  'build-folder.cmd', 'create-release.cmd', 'install-dependencies.cmd', 'run-dev.cmd', 'workspace-check.cmd'
 )
 $unexpected = Get-ChildItem -LiteralPath $root -Force | Where-Object { $allowedRootNames -notcontains $_.Name }
 foreach ($item in $unexpected) { $warnings.Add("Unexpected root item: $($item.Name)") }
 
 $git = Find-Git
 $status = @(& $git -C $root status --porcelain)
-$trackedGenerated = @(& $git -C $root ls-files 'outputs/*' 'desktop/app/index.html' 'desktop/node_modules/*' '.cache/*' '.pnpm-store/*') |
+$trackedGenerated = @(& $git -C $root ls-files 'outputs/*' 'desktop/app/*' 'desktop/node_modules/*' '.cache/*' '.pnpm-store/*') |
   Where-Object { $_ -ne 'outputs/.gitkeep' }
 foreach ($item in $trackedGenerated) { $errors.Add("Generated or cached file is tracked by Git: $item") }
 
