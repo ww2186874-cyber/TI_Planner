@@ -39,6 +39,20 @@
 
 `outputs/` 是临时构建区，可以被同版本的下一次构建覆盖；`releases/` 是正式版本库，不允许覆盖已有版本。正式发布前必须先修改 `desktop/package.json` 中的版本号。
 
+每个正式版本统一保存在一个目录中，例如：
+
+```text
+releases/v1.1.0/
+  MSPM0-Pin-Planner-1.1.0-Portable.exe
+  MSPM0-Pin-Planner-1.1.0-Folder/
+  mspm0g3519-pin-planner.html
+  SHA256.txt
+  FOLDER-SHA256.txt
+  RELEASE_NOTES.md
+```
+
+单文件 EXE、快速启动文件夹版和离线 HTML 属于同一个软件版本。传播文件夹版时必须复制整个 `*-Folder/` 目录。
+
 日常功能修改优先检查离线 HTML；需要验证桌面保存窗口、内部地址或应用图标时再运行 Electron。候选阶段优先生成文件夹版，它启动更快；用户确认后再生成并归档正式单文件便携版。
 
 项目根目录的 `AGENTS.md` 是给 Codex 的固定工作规则。以后创建新的 Codex 任务时，应把 `<USER_HOME>\Desktop\MSPM0` 选为工作区，这样新窗口会自动读取 `memory/` 并按照相同流程工作。

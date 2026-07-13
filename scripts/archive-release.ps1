@@ -25,7 +25,7 @@ Copy-Item -LiteralPath $folderPath -Destination $releaseDir -Recurse
 
 $exeHash = (Get-FileHash -LiteralPath $exePath -Algorithm SHA256).Hash
 $htmlHash = (Get-FileHash -LiteralPath $htmlPath -Algorithm SHA256).Hash
-$hashText = "$exeHash  $exeName`r`n$htmlHash  $htmlName`r`n"
+$hashText = "$exeHash  $exeName`r`n$htmlHash  $htmlName"
 Set-Content -LiteralPath (Join-Path $releaseDir 'SHA256.txt') -Value $hashText -Encoding UTF8
 $folderManifest = Get-ChildItem -LiteralPath (Join-Path $releaseDir $folderName) -Recurse -File | ForEach-Object {
   $relative = $_.FullName.Substring((Join-Path $releaseDir $folderName).Length + 1)
@@ -38,7 +38,10 @@ $notes = @(
   "# MSPM0 Pin Planner v$version",
   '',
   "- Release date: $date",
-  '- Windows x64 single-file portable build',
+  "- Single-file portable build: $exeName",
+  "- Fast-start folder build: $folderName",
+  "- Offline web build: $htmlName",
+  '- Copy the entire folder build when using or distributing it; do not copy only its EXE.',
   '- This build is not commercially code-signed',
   '- See the project CHANGELOG.md for details'
 )
