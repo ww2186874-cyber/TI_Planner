@@ -1,0 +1,49 @@
+{
+  "name": "mspm0-pin-planner-desktop",
+  "version": "1.0.0",
+  "description": "Portable desktop wrapper for the MSPM0 pin planner",
+  "author": "应电2514",
+  "main": "main.js",
+  "private": true,
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@11.7.0",
+  "scripts": {
+    "prepare:web": "node ../web/build.js && node scripts/prepare-app.js",
+    "start": "pnpm run prepare:web && electron .",
+    "build:portable": "pnpm run prepare:web && electron-builder --win portable --x64 && node scripts/copy-artifact.js"
+  },
+  "devDependencies": {
+    "electron": "31.7.7",
+    "electron-builder": "24.13.3"
+  },
+  "build": {
+    "appId": "com.yingdian2514.mspm0pinplanner",
+    "productName": "MSPM0 引脚规划器",
+    "electronDist": "node_modules/electron/dist",
+    "asar": true,
+    "compression": "normal",
+    "npmRebuild": false,
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "build/icon.ico",
+      "app/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "MSPM0-Pin-Planner-${version}-Portable.${ext}"
+    }
+  }
+}

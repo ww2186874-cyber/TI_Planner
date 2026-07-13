@@ -1,0 +1,13 @@
+.cache/
+.pnpm-store/
+desktop/node_modules/
+desktop/dist/
+desktop/app/index.html
+desktop/.test-user-data/
+desktop/.portable-test-user-data/
+desktop/.move-test/
+outputs/*
+!outputs/.gitkeep
+releases/*/*.exe
+releases/*/*.html
+*.log

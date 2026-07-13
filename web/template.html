@@ -1,0 +1,1505 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>MSPM0G 引脚规划器</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #eef2f5;
+      --surface: #ffffff;
+      --surface-soft: #f7f9fb;
+      --line: #d5dde3;
+      --line-strong: #aebbc5;
+      --text: #1d2933;
+      --muted: #657580;
+      --primary: #176b87;
+      --primary-soft: #e1f0f5;
+      --danger: #b4232c;
+      --danger-soft: #fdebec;
+      --warning: #a15c00;
+      --warning-soft: #fff1d6;
+      --success: #12715b;
+      --success-soft: #dff4ec;
+      --info-line: #bdd8e2;
+      --info-bg: #edf7fa;
+      --info-text: #29424d;
+      --pin-unassigned: #aeb8bf;
+      --pin-gpio: #0f9f79;
+      --pin-uart: #2563eb;
+      --pin-i2c: #0891b2;
+      --pin-spi: #7c3aed;
+      --pin-can: #dc2626;
+      --pin-timer: #d97706;
+      --pin-adc: #0d9488;
+      --pin-dac: #db2777;
+      --pin-comparator: #9333ea;
+      --pin-clock: #0284c7;
+      --pin-system: #475569;
+      --pin-power: #be123c;
+      --pin-other: #78716c;
+      --shadow: 0 12px 34px rgba(32, 49, 59, 0.12);
+      --radius: 8px;
+      --canvas: #e7ecef;
+      --canvas-grid: #dbe2e6;
+      --chip: #26343c;
+      --chip-inset: #1f2a31;
+      --left-panel-width: 250px;
+      --right-panel-width: 330px;
+    }
+
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #0f1519;
+      --surface: #172025;
+      --surface-soft: #202b31;
+      --line: #34434b;
+      --line-strong: #52636d;
+      --text: #e6edf1;
+      --muted: #9cafb9;
+      --primary: #54b7d5;
+      --primary-soft: #173943;
+      --danger: #ff7b83;
+      --danger-soft: #42252a;
+      --warning: #f5b45b;
+      --warning-soft: #44351f;
+      --success: #5bd0ad;
+      --success-soft: #193a32;
+      --info-line: #376675;
+      --info-bg: #16313a;
+      --info-text: #e6edf1;
+      --pin-unassigned: #58666f;
+      --pin-gpio: #34d399;
+      --pin-uart: #60a5fa;
+      --pin-i2c: #22d3ee;
+      --pin-spi: #a78bfa;
+      --pin-can: #f87171;
+      --pin-timer: #fbbf24;
+      --pin-adc: #2dd4bf;
+      --pin-dac: #f472b6;
+      --pin-comparator: #c084fc;
+      --pin-clock: #38bdf8;
+      --pin-system: #94a3b8;
+      --pin-power: #fb7185;
+      --pin-other: #a8a29e;
+      --canvas: #10181c;
+      --canvas-grid: #223038;
+      --chip: #202b31;
+      --chip-inset: #172025;
+      --shadow: 0 12px 34px rgba(0, 0, 0, 0.32);
+    }
+
+    * { box-sizing: border-box; }
+
+    * {
+      scrollbar-color: var(--line-strong) var(--surface-soft);
+      scrollbar-width: thin;
+    }
+
+    *::-webkit-scrollbar { width: 10px; height: 10px; }
+    *::-webkit-scrollbar-track { background: var(--surface-soft); }
+    *::-webkit-scrollbar-thumb { border: 2px solid var(--surface-soft); border-radius: 6px; background: var(--line-strong); }
+    *::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+    html, body {
+      min-width: 320px;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      letter-spacing: 0;
+    }
+
+    button, input, select, textarea { font: inherit; letter-spacing: 0; }
+    button { cursor: pointer; }
+
+    .app {
+      width: 100%;
+      height: 100vh;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 68px;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--surface) 96%, transparent);
+      box-shadow: 0 3px 14px rgba(30, 48, 58, 0.08);
+      backdrop-filter: blur(8px);
+    }
+
+    .brand {
+      min-width: 215px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 1.22rem;
+      line-height: 1.2;
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .package-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 390px;
+    }
+
+    .select-control {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+    }
+
+    .select-control:first-child { flex: 1.1; }
+    .select-control:last-child { flex: 1; }
+
+    .package-control label {
+      color: var(--muted);
+      font-size: 0.82rem;
+      white-space: nowrap;
+    }
+
+    select, input[type="text"], input[type="search"], textarea {
+      width: 100%;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      color: var(--text);
+      background: var(--surface);
+      outline: none;
+      transition: border-color 140ms ease, box-shadow 140ms ease;
+    }
+
+    select, input[type="text"], input[type="search"] {
+      min-height: 38px;
+      padding: 7px 10px;
+    }
+
+    textarea {
+      min-height: 88px;
+      padding: 9px 10px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    select:focus, input:focus, textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(23, 107, 135, 0.14);
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      min-height: 38px;
+      padding: 7px 11px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      color: var(--text);
+      background: var(--surface);
+      font-weight: 650;
+      transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+    }
+
+    .btn:hover { border-color: var(--primary); background: var(--surface-soft); }
+    .btn:active { transform: translateY(1px); }
+    .btn.primary { border-color: var(--primary); color: #fff; background: var(--primary); }
+    .btn.primary:hover { background: #105d77; }
+    .btn.danger { color: var(--danger); }
+    .btn.small { min-height: 32px; padding: 5px 9px; font-size: 0.8rem; }
+
+    .save-state {
+      min-width: 58px;
+      color: var(--success);
+      font-size: 0.76rem;
+      text-align: right;
+    }
+
+    .workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: var(--left-panel-width) 7px minmax(360px, 1fr) 7px var(--right-panel-width);
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .sidebar, .inspector {
+      min-width: 0;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 16px;
+      background: var(--surface);
+      scrollbar-gutter: stable;
+    }
+
+    .sidebar { grid-column: 1; overflow-anchor: none; }
+    .center { grid-column: 3; }
+    .inspector { grid-column: 5; }
+
+    .panel-resizer {
+      position: relative;
+      z-index: 8;
+      min-width: 7px;
+      background: var(--line);
+      cursor: col-resize;
+      touch-action: none;
+      transition: background 120ms ease;
+    }
+
+    .panel-resizer:hover, .panel-resizer.dragging { background: var(--primary); }
+    .panel-resizer.left { grid-column: 2; }
+    .panel-resizer.right { grid-column: 4; }
+    .panel-resizer::after { content: ""; position: absolute; inset: 0 -3px; }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 0 0 12px;
+      font-size: 0.92rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .stat {
+      padding: 9px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface-soft);
+    }
+
+    .stat span { display: block; color: var(--muted); font-size: 0.7rem; }
+    .stat strong { display: block; margin-top: 3px; font-size: 1.05rem; }
+
+    .filter-tabs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+      margin: 10px 0 15px;
+    }
+
+    .sidebar-view-tabs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .sidebar-view-btn {
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: #435762;
+      background: var(--surface);
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .sidebar-view-btn.active {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--primary-soft);
+    }
+
+    .filter-btn, .category-btn {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      background: var(--surface);
+    }
+
+    .filter-btn {
+      min-height: 34px;
+      padding: 5px 7px;
+      font-size: 0.78rem;
+    }
+
+    .filter-btn.active, .category-btn.active {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--primary-soft);
+    }
+
+    .category-list {
+      display: grid;
+      gap: 5px;
+      max-height: calc(100vh - 430px);
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .category-btn {
+      display: grid;
+      grid-template-columns: 10px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 6px 8px;
+      text-align: left;
+      font-size: 0.78rem;
+    }
+
+    .category-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--category-color);
+    }
+
+    .category-count { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+    .resource-summary {
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-size: 0.72rem;
+      line-height: 1.5;
+    }
+
+    .resource-list {
+      display: grid;
+      gap: 7px;
+      overflow-anchor: none;
+      padding-right: 2px;
+    }
+
+    .resource-group {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 7px;
+    }
+
+    .resource-group:last-child { border-bottom: 0; }
+
+    .resource-group-title, .resource-instance, .resource-signal {
+      width: 100%;
+      border: 0;
+      color: var(--text);
+      background: transparent;
+      text-align: left;
+    }
+
+    .resource-group-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 34px;
+      padding: 5px 4px;
+      font-size: 0.8rem;
+      font-weight: 750;
+    }
+
+    .resource-group-title span:last-child,
+    .resource-instance-meta,
+    .resource-signal-meta {
+      color: var(--muted);
+      font-size: 0.68rem;
+      font-weight: 500;
+    }
+
+    .resource-instances { display: grid; gap: 3px; }
+
+    .resource-instance {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      min-height: 32px;
+      padding: 6px 7px 6px 13px;
+      border-radius: 5px;
+      font-family: Consolas, monospace;
+      font-size: 0.76rem;
+    }
+
+    .resource-instance:hover, .resource-signal:hover { background: var(--surface-soft); }
+    .resource-instance.active, .resource-signal.active { color: var(--primary); background: var(--primary-soft); }
+    .resource-instance-feature { color: var(--warning); font-family: "Segoe UI", "Microsoft YaHei", sans-serif; font-size: 0.65rem; }
+
+    .resource-detail {
+      margin-bottom: 9px;
+      padding-bottom: 9px;
+      border-bottom: 1px solid var(--line);
+      overflow-anchor: none;
+    }
+
+    .resource-detail-title { margin: 0 0 4px; font-size: 0.82rem; }
+    .resource-detail-note { margin: 0 0 7px; color: var(--muted); font-size: 0.69rem; line-height: 1.45; }
+    .resource-signals { display: grid; gap: 3px; }
+
+    .resource-signal {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 6px;
+      min-height: 34px;
+      padding: 6px 7px;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      font-size: 0.73rem;
+    }
+
+    .resource-signal.active { border-color: var(--primary); }
+    .resource-signal-role { display: block; color: var(--muted); font-size: 0.65rem; }
+    .resource-signal-name { display: block; margin-top: 1px; font-family: Consolas, monospace; font-weight: 700; }
+    .resource-empty { padding: 18px 4px; color: var(--muted); font-size: 0.76rem; line-height: 1.6; text-align: center; }
+
+    .center {
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      background: var(--canvas);
+    }
+
+    .canvas-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      min-height: 52px;
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-soft);
+    }
+
+    .canvas-title {
+      min-width: 0;
+      flex: 1 1 220px;
+    }
+
+    .canvas-title strong { display: block; font-size: 0.9rem; }
+    .canvas-title span { display: block; margin-top: 2px; color: var(--muted); font-size: 0.73rem; }
+
+    .zoom-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 0.76rem;
+      white-space: nowrap;
+    }
+
+    .zoom-control input { width: 130px; accent-color: var(--primary); }
+
+    .canvas-actions { display: flex; flex: 1 1 430px; align-items: center; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
+
+    .canvas-scroller {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      overscroll-behavior: contain;
+      background-color: var(--canvas);
+      background-image: linear-gradient(var(--canvas-grid) 1px, transparent 1px), linear-gradient(90deg, var(--canvas-grid) 1px, transparent 1px);
+      background-size: 24px 24px;
+      cursor: default;
+      touch-action: none;
+      user-select: none;
+    }
+
+    .canvas-scroller.panning { cursor: grabbing; }
+
+    .stage-scale {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: max-content;
+      height: max-content;
+      transform-origin: top left;
+      will-change: transform;
+    }
+
+    .package-stage {
+      --step: 44px;
+      --core-size: calc(var(--side-count) * var(--step));
+      display: grid;
+      grid-template-columns: 218px var(--core-size) 218px;
+      grid-template-rows: 142px var(--core-size) 142px;
+      gap: 8px;
+      width: max-content;
+      padding: 18px;
+    }
+
+    .side { display: grid; gap: 0; }
+    .side.top { grid-column: 2; grid-row: 1; grid-template-columns: repeat(var(--side-count), var(--step)); }
+    .side.bottom { grid-column: 2; grid-row: 3; grid-template-columns: repeat(var(--side-count), var(--step)); }
+    .side.left { grid-column: 1; grid-row: 2; grid-template-rows: repeat(var(--side-count), var(--step)); }
+    .side.right { grid-column: 3; grid-row: 2; grid-template-rows: repeat(var(--side-count), var(--step)); }
+
+    .chip-core {
+      position: relative;
+      grid-column: 2;
+      grid-row: 2;
+      display: grid;
+      place-items: center;
+      border: 3px solid #455660;
+      background: var(--chip);
+      color: #fff;
+      box-shadow: inset 0 0 0 8px var(--chip-inset), 0 14px 36px rgba(0, 0, 0, 0.24);
+    }
+
+    .chip-label { text-align: center; }
+    .chip-label strong { display: block; font-size: 1.55rem; }
+    .chip-label span { display: block; margin-top: 7px; color: #b9c8d0; }
+    .chip-label small { display: block; margin-top: 12px; color: #8fa3ae; }
+
+    .pin-one-marker {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.52);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.3);
+    }
+
+    .package-stage[data-rotation="90"] .pin-one-marker { right: 20px; left: auto; }
+    .package-stage[data-rotation="180"] .pin-one-marker { right: 20px; bottom: 20px; left: auto; top: auto; }
+    .package-stage[data-rotation="270"] .pin-one-marker { bottom: 20px; top: auto; }
+
+    .pin-button {
+      position: relative;
+      display: grid;
+      overflow: visible;
+      border: 0;
+      color: var(--text);
+      background: transparent;
+      text-align: left;
+      transition: opacity 130ms ease;
+    }
+
+    .pin-pad {
+      position: absolute;
+      overflow: hidden;
+      border: 1px solid #9eacb5;
+      background: var(--surface);
+      border-color: color-mix(in srgb, var(--pin-color, var(--pin-unassigned)) 42%, var(--line-strong));
+      background: color-mix(in srgb, var(--pin-color, var(--pin-unassigned)) 13%, var(--surface));
+      transition: border-color 130ms ease, box-shadow 130ms ease, background 130ms ease;
+    }
+
+    .pin-pad::before { content: ""; position: absolute; background: var(--pin-color, #9aa7af); }
+
+    .pin-external-label {
+      min-width: 0;
+      color: var(--text);
+      font-size: 0.65rem;
+      line-height: 1.2;
+      pointer-events: none;
+    }
+
+    .pin-function-label { display: block; overflow: hidden; font-family: Consolas, monospace; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .pin-custom-label { display: block; margin-top: 2px; overflow: hidden; color: var(--primary); text-overflow: ellipsis; white-space: nowrap; }
+
+    .side.left .pin-button, .side.right .pin-button {
+      width: 218px;
+      height: var(--step);
+    }
+
+    .side.left .pin-pad, .side.right .pin-pad { top: 0; width: 70px; height: var(--step); }
+    .side.left .pin-pad { padding: 4px 7px 4px 11px; }
+    .side.right .pin-pad { padding: 4px 11px 4px 7px; }
+    .side.left .pin-pad { right: 0; }
+    .side.right .pin-pad { left: 0; }
+    .side.left .pin-pad::before, .side.right .pin-pad::before { top: 0; bottom: 0; width: 5px; }
+    .side.left .pin-pad::before { left: 0; }
+    .side.right .pin-pad::before { right: 0; }
+    .side.left .pin-external-label, .side.right .pin-external-label { position: absolute; top: 7px; width: 138px; }
+    .side.left .pin-external-label { right: 78px; text-align: right; }
+    .side.right .pin-external-label { left: 78px; text-align: left; }
+
+    .side.top .pin-button, .side.bottom .pin-button {
+      width: var(--step);
+      height: 142px;
+      text-align: center;
+    }
+
+    .side.top .pin-pad, .side.bottom .pin-pad { left: 0; width: var(--step); height: 70px; }
+    .side.top .pin-pad { padding: 8px 3px 5px; }
+    .side.bottom .pin-pad { padding: 5px 3px 8px; }
+    .side.top .pin-pad { bottom: 0; }
+    .side.bottom .pin-pad { top: 0; }
+    .side.top .pin-pad::before, .side.bottom .pin-pad::before { left: 0; right: 0; height: 5px; }
+    .side.top .pin-pad::before { top: 0; }
+    .side.bottom .pin-pad::before { bottom: 0; }
+    .side.top .pin-external-label, .side.bottom .pin-external-label {
+      position: absolute;
+      left: 5px;
+      width: 132px;
+      transform: rotate(-90deg);
+      transform-origin: left top;
+      text-align: left;
+    }
+    .side.top .pin-external-label { top: 64px; }
+    .side.bottom .pin-external-label { top: 137px; }
+
+    .pin-button:hover { z-index: 2; }
+    .pin-button:hover .pin-pad { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(23,107,135,.16); }
+    .pin-button.selected { z-index: 3; }
+    .pin-button.selected .pin-pad { border-color: var(--primary); background: var(--primary-soft); box-shadow: 0 0 0 3px rgba(23,107,135,.2); }
+    .pin-button.dimmed { opacity: 0.2; }
+    .pin-button.conflict .pin-pad { border-color: var(--danger); background: var(--danger-soft); }
+    .pin-button.fixed { color: var(--danger); }
+    .pin-button.fixed .pin-pad { background: var(--danger-soft); }
+    .pin-button.candidate .pin-pad { border-color: var(--success); background: var(--success-soft); box-shadow: 0 0 0 2px rgba(18,113,91,.2); }
+    .pin-button.candidate .pin-external-label { color: var(--success); }
+    .pin-button.candidate-occupied .pin-pad { border-color: var(--warning); background: var(--warning-soft); }
+
+    .pin-number { display: block; color: var(--muted); font-size: 0.62rem; font-weight: 700; }
+    .pin-name { display: block; margin-top: 1px; font-family: Consolas, monospace; font-size: 0.72rem; font-weight: 800; }
+    .side.top .pin-name, .side.bottom .pin-name { margin-top: 4px; }
+
+    .inspector-empty {
+      display: grid;
+      place-items: center;
+      min-height: 240px;
+      padding: 20px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .pin-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .pin-heading h2 { margin: 0; font-size: 1.08rem; }
+    .pin-heading p { margin: 4px 0 0; color: var(--muted); font-size: 0.78rem; }
+
+    .status-badge {
+      padding: 4px 7px;
+      border-radius: 999px;
+      color: var(--primary);
+      background: var(--primary-soft);
+      font-size: 0.7rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 7px;
+      margin-bottom: 14px;
+    }
+
+    .detail {
+      min-width: 0;
+      padding: 7px 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface-soft);
+    }
+
+    .detail span { display: block; color: var(--muted); font-size: 0.66rem; }
+    .detail strong { display: block; margin-top: 3px; overflow-wrap: anywhere; font-size: 0.78rem; }
+
+    .field { margin-top: 13px; }
+    .field label { display: block; margin-bottom: 6px; color: var(--text); font-size: 0.78rem; font-weight: 700; }
+    .field-hint { margin: 5px 0 0; color: var(--muted); font-size: 0.68rem; line-height: 1.45; }
+
+    .function-info, .conflict-box, .fixed-box {
+      margin-top: 13px;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 0.76rem;
+      line-height: 1.55;
+    }
+
+    .function-info { border: 1px solid var(--info-line); color: var(--info-text); background: var(--info-bg); }
+    .conflict-box { border: 1px solid #e5adb1; color: #7f2028; background: var(--danger-soft); }
+    .fixed-box { border: 1px solid #e4cda2; color: #70420a; background: var(--warning-soft); }
+
+    .inspector-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    .source-footer {
+      flex: none;
+      padding: 7px 14px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      background: var(--surface-soft);
+      font-size: 0.68rem;
+      text-align: center;
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 900px) {
+      .workspace { grid-template-columns: 220px minmax(0, 1fr); }
+      .inspector { grid-column: 1 / -1; min-height: auto; border-top: 1px solid var(--line); border-left: 0; }
+      .category-list { max-height: 360px; }
+    }
+
+    @media (max-width: 700px) {
+      .topbar { position: static; align-items: stretch; flex-direction: column; }
+      .package-control { min-width: 0; }
+      .toolbar { justify-content: flex-start; }
+      .save-state { text-align: left; }
+      .workspace { display: block; }
+      .sidebar, .inspector { min-height: auto; border: 0; border-bottom: 1px solid var(--line); }
+      .category-list { max-height: 250px; }
+      .canvas-scroller { min-height: 520px; }
+      .canvas-toolbar { align-items: flex-start; flex-direction: column; }
+      .canvas-actions { width: 100%; justify-content: flex-start; }
+      .zoom-control { width: 100%; }
+      .zoom-control input { flex: 1; width: auto; }
+      .resource-list { max-height: 420px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <h1>MSPM0G 引脚规划器</h1>
+        <p>TI 官方引脚复用数据 · 仅用于规划，不生成初始化代码</p>
+      </div>
+
+      <div class="package-control">
+        <div class="select-control">
+          <label for="deviceSelect">芯片型号</label>
+          <select id="deviceSelect" aria-label="选择芯片型号"></select>
+        </div>
+        <div class="select-control">
+          <label for="packageSelect">LQFP 封装</label>
+          <select id="packageSelect" aria-label="选择 LQFP 封装"></select>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <button class="btn" id="themeToggleBtn" type="button">夜间模式</button>
+        <button class="btn" id="importBtn" type="button">导入 JSON</button>
+        <button class="btn" id="exportJsonBtn" type="button">导出 JSON</button>
+        <button class="btn" id="exportCsvBtn" type="button">导出 CSV</button>
+        <button class="btn danger" id="resetBtn" type="button">清空当前封装</button>
+        <span class="save-state" id="saveState">已保存</span>
+      </div>
+      <input class="hidden" id="importFile" type="file" accept="application/json,.json">
+    </header>
+
+    <main class="workspace">
+      <aside class="sidebar">
+        <div class="sidebar-view-tabs" id="sidebarViewTabs" aria-label="规划视图">
+          <button class="sidebar-view-btn active" type="button" data-view="pins">引脚</button>
+          <button class="sidebar-view-btn" type="button" data-view="resources">外设资源</button>
+        </div>
+        <h2 class="panel-title"><span id="sidebarTitle">引脚筛选</span><span id="packagePinCount"></span></h2>
+        <div class="stats-grid">
+          <div class="stat"><span>已安排</span><strong id="assignedCount">0</strong></div>
+          <div class="stat"><span>未安排</span><strong id="unassignedCount">0</strong></div>
+          <div class="stat"><span>固定引脚</span><strong id="fixedCount">0</strong></div>
+          <div class="stat"><span>冲突</span><strong id="conflictCount">0</strong></div>
+        </div>
+
+        <input id="searchInput" type="search" placeholder="搜索引脚、TIMER、QEI、PWM 或标签" aria-label="搜索引脚和外设">
+
+        <div id="pinPanel">
+          <div class="filter-tabs" id="filterTabs" aria-label="引脚状态筛选">
+            <button class="filter-btn active" type="button" data-filter="all">全部</button>
+            <button class="filter-btn" type="button" data-filter="assigned">已安排</button>
+            <button class="filter-btn" type="button" data-filter="unassigned">未安排</button>
+            <button class="filter-btn" type="button" data-filter="conflict">有冲突</button>
+          </div>
+
+          <h2 class="panel-title">信号类别</h2>
+          <div class="category-list" id="categoryList"></div>
+        </div>
+
+        <div id="resourcePanel" class="hidden">
+          <p class="resource-summary" id="resourceSummary"></p>
+          <div class="resource-detail hidden" id="resourceDetail">
+            <h3 class="resource-detail-title" id="resourceDetailTitle"></h3>
+            <p class="resource-detail-note" id="resourceDetailNote"></p>
+            <div class="resource-signals" id="resourceSignals"></div>
+          </div>
+          <div class="resource-list" id="resourceList"></div>
+        </div>
+      </aside>
+
+      <div class="panel-resizer left" id="leftResizer" role="separator" aria-label="调整左侧菜单宽度" aria-orientation="vertical"></div>
+
+      <section class="center">
+        <div class="canvas-toolbar">
+          <div class="canvas-title">
+            <strong id="canvasTitle">PZ-100 LQFP</strong>
+            <span id="canvasSubtitle">点击封装四周的引脚进行安排</span>
+          </div>
+          <div class="canvas-actions">
+            <button class="btn small" id="rotateCcwBtn" type="button" aria-label="芯片逆时针旋转 90 度">逆时针</button>
+            <button class="btn small" id="rotateCwBtn" type="button" aria-label="芯片顺时针旋转 90 度">顺时针</button>
+            <button class="btn small" id="fitViewBtn" type="button">适配窗口</button>
+            <button class="btn small" id="centerViewBtn" type="button">居中</button>
+            <label class="zoom-control">缩放
+              <input id="zoomSlider" type="range" min="35" max="180" step="1" value="80">
+              <span id="zoomValue">80%</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="canvas-scroller" id="canvasScroller">
+          <div class="stage-scale" id="stageScale">
+            <div class="package-stage" id="packageStage">
+              <div class="side top" id="topPins"></div>
+              <div class="side right" id="rightPins"></div>
+              <div class="side bottom" id="bottomPins"></div>
+              <div class="side left" id="leftPins"></div>
+              <div class="chip-core">
+                <span class="pin-one-marker" role="img" aria-label="Pin 1 方向标记"></span>
+                <div class="chip-label">
+                  <strong id="chipDevice">MSPM0G3519</strong>
+                  <span id="chipPackage">PZ · 100-pin LQFP</span>
+                  <small id="chipSummary">0 pins assigned</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="panel-resizer right" id="rightResizer" role="separator" aria-label="调整右侧菜单宽度" aria-orientation="vertical"></div>
+
+      <aside class="inspector">
+        <div class="inspector-empty" id="inspectorEmpty">选择封装图上的一个引脚，在这里安排复用功能、自定义标签和备注。</div>
+        <div id="inspectorContent" class="hidden">
+          <div class="pin-heading">
+            <div>
+              <h2 id="pinTitle">Pin 1 · PA0</h2>
+              <p id="pinSubtitle">PZ-100 LQFP</p>
+            </div>
+            <span class="status-badge" id="pinStatus">未安排</span>
+          </div>
+
+          <div class="detail-grid">
+            <div class="detail"><span>物理脚号</span><strong id="physicalPin"></strong></div>
+            <div class="detail"><span>引脚名称</span><strong id="logicalPin"></strong></div>
+            <div class="detail"><span>IOMUX</span><strong id="iomuxRegister"></strong></div>
+            <div class="detail"><span>缓冲类型</span><strong id="bufferType"></strong></div>
+          </div>
+
+          <div id="editableFields">
+            <div class="field">
+              <label for="functionSelect">官方复用功能</label>
+              <select id="functionSelect"></select>
+            </div>
+            <div class="function-info hidden" id="functionInfo"></div>
+
+            <div class="field">
+              <label for="aliasInput">自定义标签</label>
+              <input id="aliasInput" type="text" maxlength="48" placeholder="例如：编码器A、OLED_SCL、状态灯">
+              <p class="field-hint">显示在封装图引脚旁，不改变 TI 官方复用功能。</p>
+            </div>
+
+            <div class="field">
+              <label for="noteInput">备注</label>
+              <textarea id="noteInput" maxlength="240" placeholder="记录电平、连接器、上拉电阻等信息"></textarea>
+            </div>
+
+            <div class="conflict-box hidden" id="conflictBox"></div>
+
+            <div class="inspector-actions">
+              <button class="btn small danger" id="clearPinBtn" type="button">清除该引脚</button>
+            </div>
+          </div>
+
+          <div class="fixed-box hidden" id="fixedBox"></div>
+        </div>
+      </aside>
+    </main>
+
+    <footer class="source-footer" id="sourceFooter"></footer>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const PIN_DATA = __PIN_DATA__;
+      const STORAGE_KEY = 'mspm0g3519-pin-planner-v1';
+      const SCHEMA_VERSION = 1;
+      const PACKAGE_ORDER = ['PT', 'PM', 'PN', 'PZ'];
+      const CATEGORY_COLORS = {
+        'GPIO': '#64748b',
+        'UART': '#2563eb',
+        'I2C': '#059669',
+        'SPI': '#7c3aed',
+        'CAN': '#dc2626',
+        'Timer / Clock': '#d97706',
+        'ADC': '#0f766e',
+        'DAC': '#db2777',
+        'Comparator': '#9333ea',
+        'Clock': '#0891b2',
+        'System': '#475569',
+        'Power': '#b4232c',
+        'Other': '#64748b'
+      };
+
+      const elements = {
+        packageSelect: document.getElementById('packageSelect'),
+        importBtn: document.getElementById('importBtn'),
+        importFile: document.getElementById('importFile'),
+        exportJsonBtn: document.getElementById('exportJsonBtn'),
+        exportCsvBtn: document.getElementById('exportCsvBtn'),
+        resetBtn: document.getElementById('resetBtn'),
+        saveState: document.getElementById('saveState'),
+        packagePinCount: document.getElementById('packagePinCount'),
+        assignedCount: document.getElementById('assignedCount'),
+        unassignedCount: document.getElementById('unassignedCount'),
+        fixedCount: document.getElementById('fixedCount'),
+        conflictCount: document.getElementById('conflictCount'),
+        searchInput: document.getElementById('searchInput'),
+        filterTabs: document.getElementById('filterTabs'),
+        categoryList: document.getElementById('categoryList'),
+        canvasTitle: document.getElementById('canvasTitle'),
+        canvasSubtitle: document.getElementById('canvasSubtitle'),
+        zoomSlider: document.getElementById('zoomSlider'),
+        zoomValue: document.getElementById('zoomValue'),
+        stageScale: document.getElementById('stageScale'),
+        packageStage: document.getElementById('packageStage'),
+        topPins: document.getElementById('topPins'),
+        rightPins: document.getElementById('rightPins'),
+        bottomPins: document.getElementById('bottomPins'),
+        leftPins: document.getElementById('leftPins'),
+        chipPackage: document.getElementById('chipPackage'),
+        chipSummary: document.getElementById('chipSummary'),
+        inspectorEmpty: document.getElementById('inspectorEmpty'),
+        inspectorContent: document.getElementById('inspectorContent'),
+        pinTitle: document.getElementById('pinTitle'),
+        pinSubtitle: document.getElementById('pinSubtitle'),
+        pinStatus: document.getElementById('pinStatus'),
+        physicalPin: document.getElementById('physicalPin'),
+        logicalPin: document.getElementById('logicalPin'),
+        iomuxRegister: document.getElementById('iomuxRegister'),
+        bufferType: document.getElementById('bufferType'),
+        editableFields: document.getElementById('editableFields'),
+        functionSelect: document.getElementById('functionSelect'),
+        functionInfo: document.getElementById('functionInfo'),
+        aliasInput: document.getElementById('aliasInput'),
+        noteInput: document.getElementById('noteInput'),
+        conflictBox: document.getElementById('conflictBox'),
+        clearPinBtn: document.getElementById('clearPinBtn'),
+        fixedBox: document.getElementById('fixedBox')
+      };
+
+      let saveTimer = null;
+      let selectedPinNumber = null;
+      let activeFilter = 'all';
+      let activeCategory = 'All';
+      let state = loadState();
+
+      function createEmptyState() {
+        return {
+          version: SCHEMA_VERSION,
+          device: PIN_DATA.device,
+          activePackage: 'PZ',
+          zoom: { PT: 100, PM: 90, PN: 80, PZ: 70 },
+          packages: Object.fromEntries(PACKAGE_ORDER.map((code) => [code, { assignments: {} }]))
+        };
+      }
+
+      function loadState() {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
+          if (!parsed || parsed.version !== SCHEMA_VERSION || parsed.device !== PIN_DATA.device) return createEmptyState();
+          const empty = createEmptyState();
+          empty.activePackage = PACKAGE_ORDER.includes(parsed.activePackage) ? parsed.activePackage : 'PZ';
+          PACKAGE_ORDER.forEach((code) => {
+            empty.zoom[code] = Number(parsed.zoom?.[code]) || empty.zoom[code];
+            empty.packages[code].assignments = sanitizeAssignments(code, parsed.packages?.[code]?.assignments || {}).assignments;
+          });
+          return empty;
+        } catch (error) {
+          return createEmptyState();
+        }
+      }
+
+      function sanitizeAssignments(packageCode, assignments) {
+        const packagePins = new Map(PIN_DATA.packages[packageCode].pins.map((pin) => [String(pin.number), pin]));
+        const output = {};
+        let skipped = 0;
+        Object.entries(assignments || {}).forEach(([number, value]) => {
+          const pin = packagePins.get(String(number));
+          if (!pin || pin.fixed || typeof value !== 'object' || value === null) { skipped += 1; return; }
+          const allowed = new Set(pin.functions.map((item) => item.signal));
+          const selectedFunction = allowed.has(value.function) ? value.function : '';
+          output[String(pin.number)] = {
+            function: selectedFunction,
+            alias: String(value.alias || '').slice(0, 48),
+            note: String(value.note || '').slice(0, 240)
+          };
+        });
+        return { assignments: output, skipped };
+      }
+
+      function saveState() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        elements.saveState.textContent = '已保存';
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => { elements.saveState.textContent = '自动保存'; }, 1200);
+      }
+
+      function currentPackage() {
+        return PIN_DATA.packages[state.activePackage];
+      }
+
+      function assignments() {
+        return state.packages[state.activePackage].assignments;
+      }
+
+      function assignmentFor(pinNumber) {
+        return assignments()[String(pinNumber)] || { function: '', alias: '', note: '' };
+      }
+
+      function selectedPin() {
+        return currentPackage().pins.find((pin) => pin.number === selectedPinNumber) || null;
+      }
+
+      function selectedFunction(pin, assignment) {
+        return pin.functions.find((item) => item.signal === assignment.function) || null;
+      }
+
+      function isMeaningfulAssignment(value) {
+        return Boolean(value.function || value.alias.trim() || value.note.trim());
+      }
+
+      function conflictMap() {
+        const bySignal = new Map();
+        currentPackage().pins.forEach((pin) => {
+          if (pin.fixed) return;
+          const value = assignmentFor(pin.number);
+          if (!value.function || value.function === pin.name) return;
+          if (!bySignal.has(value.function)) bySignal.set(value.function, []);
+          bySignal.get(value.function).push(pin.number);
+        });
+        return new Map([...bySignal].filter(([, pins]) => pins.length > 1));
+      }
+
+      function categoryForPin(pin) {
+        if (pin.fixed) return 'Power';
+        const value = assignmentFor(pin.number);
+        const fn = selectedFunction(pin, value);
+        return fn?.category || 'GPIO';
+      }
+
+      function pinSearchText(pin) {
+        const value = assignmentFor(pin.number);
+        return [
+          pin.number, pin.name, value.function, value.alias, value.note,
+          ...pin.functions.map((item) => item.signal)
+        ].join(' ').toLowerCase();
+      }
+
+      function pinMatches(pin, conflicts) {
+        const value = assignmentFor(pin.number);
+        const assigned = pin.fixed || isMeaningfulAssignment(value);
+        const conflict = conflicts.has(value.function);
+        const filterMatch = activeFilter === 'all'
+          || (activeFilter === 'assigned' && assigned)
+          || (activeFilter === 'unassigned' && !assigned)
+          || (activeFilter === 'conflict' && conflict);
+        const categoryMatch = activeCategory === 'All'
+          || (value.function ? selectedFunction(pin, value)?.category === activeCategory : pin.functions.some((item) => item.category === activeCategory));
+        const query = elements.searchInput.value.trim().toLowerCase();
+        const searchMatch = !query || pinSearchText(pin).includes(query);
+        return filterMatch && categoryMatch && searchMatch;
+      }
+
+      function renderPackageSelect() {
+        elements.packageSelect.innerHTML = '';
+        PACKAGE_ORDER.forEach((code) => {
+          const option = document.createElement('option');
+          option.value = code;
+          option.textContent = PIN_DATA.packages[code].label;
+          option.selected = code === state.activePackage;
+          elements.packageSelect.appendChild(option);
+        });
+      }
+
+      function sidePins(pins) {
+        const total = pins.length;
+        const quarter = total / 4;
+        const byNumber = new Map(pins.map((pin) => [pin.number, pin]));
+        const range = (start, end, step) => {
+          const result = [];
+          for (let value = start; step > 0 ? value <= end : value >= end; value += step) result.push(byNumber.get(value));
+          return result;
+        };
+        return {
+          left: range(1, quarter, 1),
+          bottom: range(quarter + 1, quarter * 2, 1),
+          right: range(quarter * 3, quarter * 2 + 1, -1),
+          top: range(total, quarter * 3 + 1, -1)
+        };
+      }
+
+      function makePinButton(pin, conflicts) {
+        const value = assignmentFor(pin.number);
+        const fn = selectedFunction(pin, value);
+        const category = pin.fixed ? 'Power' : fn?.category || 'GPIO';
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'pin-button';
+        button.dataset.pin = String(pin.number);
+        button.style.setProperty('--pin-color', CATEGORY_COLORS[category] || CATEGORY_COLORS.Other);
+        button.title = `Pin ${pin.number} · ${pin.name}${value.function ? ` · ${value.function}` : ''}`;
+        if (pin.fixed) button.classList.add('fixed');
+        if (pin.number === selectedPinNumber) button.classList.add('selected');
+        if (!pinMatches(pin, conflicts)) button.classList.add('dimmed');
+        if (value.function && conflicts.has(value.function)) button.classList.add('conflict');
+
+        const number = document.createElement('span');
+        number.className = 'pin-number';
+        number.textContent = `PIN ${pin.number}`;
+        const name = document.createElement('span');
+        name.className = 'pin-name';
+        name.textContent = pin.name;
+        const assignment = document.createElement('span');
+        assignment.className = 'pin-assignment';
+        assignment.textContent = pin.fixed ? pin.name : value.alias || value.function || '—';
+        button.append(number, name, assignment);
+        button.addEventListener('click', () => {
+          selectedPinNumber = pin.number;
+          render();
+        });
+        return button;
+      }
+
+      function renderStage() {
+        const pkg = currentPackage();
+        const sides = sidePins(pkg.pins);
+        const conflicts = conflictMap();
+        const sideCount = pkg.pinCount / 4;
+        elements.packageStage.style.setProperty('--side-count', String(sideCount));
+        elements.topPins.replaceChildren(...sides.top.map((pin) => makePinButton(pin, conflicts)));
+        elements.rightPins.replaceChildren(...sides.right.map((pin) => makePinButton(pin, conflicts)));
+        elements.bottomPins.replaceChildren(...sides.bottom.map((pin) => makePinButton(pin, conflicts)));
+        elements.leftPins.replaceChildren(...sides.left.map((pin) => makePinButton(pin, conflicts)));
+
+        const assigned = pkg.pins.filter((pin) => !pin.fixed && isMeaningfulAssignment(assignmentFor(pin.number))).length;
+        elements.canvasTitle.textContent = pkg.label;
+        elements.canvasSubtitle.textContent = `${pkg.pinCount} 个物理引脚 · ${pkg.pins.filter((pin) => !pin.fixed).length} 个可规划引脚`;
+        elements.chipPackage.textContent = `${pkg.code} · ${pkg.pinCount}-pin LQFP`;
+        elements.chipSummary.textContent = `${assigned} pins assigned${conflicts.size ? ` · ${conflicts.size} conflicts` : ''}`;
+      }
+
+      function renderCategories() {
+        const counts = new Map();
+        currentPackage().pins.forEach((pin) => {
+          new Set(pin.functions.map((item) => item.category)).forEach((category) => counts.set(category, (counts.get(category) || 0) + 1));
+        });
+        const categories = ['All', ...Object.keys(CATEGORY_COLORS).filter((category) => counts.has(category))];
+        elements.categoryList.innerHTML = '';
+        categories.forEach((category) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = `category-btn${category === activeCategory ? ' active' : ''}`;
+          button.style.setProperty('--category-color', category === 'All' ? '#9aa7af' : CATEGORY_COLORS[category]);
+          const dot = document.createElement('span');
+          dot.className = 'category-dot';
+          const label = document.createElement('span');
+          label.textContent = category === 'All' ? '全部类别' : category;
+          const count = document.createElement('span');
+          count.className = 'category-count';
+          count.textContent = category === 'All' ? currentPackage().pins.length : counts.get(category);
+          button.append(dot, label, count);
+          button.addEventListener('click', () => { activeCategory = category; render(); });
+          elements.categoryList.appendChild(button);
+        });
+      }
+
+      function renderStats() {
+        const pkg = currentPackage();
+        const conflicts = conflictMap();
+        const configurable = pkg.pins.filter((pin) => !pin.fixed);
+        const assigned = configurable.filter((pin) => isMeaningfulAssignment(assignmentFor(pin.number))).length;
+        elements.packagePinCount.textContent = `${pkg.pinCount} pins`;
+        elements.assignedCount.textContent = assigned;
+        elements.unassignedCount.textContent = configurable.length - assigned;
+        elements.fixedCount.textContent = pkg.pins.length - configurable.length;
+        elements.conflictCount.textContent = [...conflicts.values()].reduce((sum, pins) => sum + pins.length, 0);
+      }
+
+      function buildFunctionSelect(pin, value) {
+        elements.functionSelect.innerHTML = '';
+        const empty = document.createElement('option');
+        empty.value = '';
+        empty.textContent = '未安排';
+        elements.functionSelect.appendChild(empty);
+
+        const groups = new Map();
+        pin.functions.forEach((fn) => {
+          if (!groups.has(fn.category)) groups.set(fn.category, []);
+          groups.get(fn.category).push(fn);
+        });
+        groups.forEach((functions, category) => {
+          const group = document.createElement('optgroup');
+          group.label = category;
+          functions.forEach((fn) => {
+            const option = document.createElement('option');
+            option.value = fn.signal;
+            option.textContent = `${fn.signal}${fn.signalType ? ` · ${fn.signalType}` : ''}`;
+            option.selected = fn.signal === value.function;
+            group.appendChild(option);
+          });
+          elements.functionSelect.appendChild(group);
+        });
+        elements.functionSelect.value = value.function;
+      }
+
+      function renderInspector() {
+        const pin = selectedPin();
+        elements.inspectorEmpty.classList.toggle('hidden', Boolean(pin));
+        elements.inspectorContent.classList.toggle('hidden', !pin);
+        if (!pin) return;
+
+        const pkg = currentPackage();
+        const value = assignmentFor(pin.number);
+        const fn = selectedFunction(pin, value);
+        const conflicts = conflictMap();
+        const conflictPins = value.function ? conflicts.get(value.function) || [] : [];
+
+        elements.pinTitle.textContent = `Pin ${pin.number} · ${pin.name}`;
+        elements.pinSubtitle.textContent = pkg.label;
+        elements.physicalPin.textContent = String(pin.number);
+        elements.logicalPin.textContent = pin.name;
+        elements.iomuxRegister.textContent = pin.iomuxRegister || '—';
+        elements.bufferType.textContent = pin.bufferType || '—';
+        elements.editableFields.classList.toggle('hidden', pin.fixed);
+        elements.fixedBox.classList.toggle('hidden', !pin.fixed);
+
+        if (pin.fixed) {
+          elements.pinStatus.textContent = '固定功能';
+          elements.fixedBox.textContent = `${pin.name} 是该封装的固定电源相关引脚，不参与复用规划。`;
+          return;
+        }
+
+        elements.pinStatus.textContent = isMeaningfulAssignment(value) ? '已安排' : '未安排';
+        buildFunctionSelect(pin, value);
+        elements.aliasInput.value = value.alias;
+        elements.noteInput.value = value.note;
+        elements.functionInfo.classList.toggle('hidden', !fn);
+        if (fn) {
+          elements.functionInfo.textContent = `${fn.category} · ${fn.signalType || '未标注方向'} · ${fn.iomuxManaged ? `IOMUX PF ${fn.pf}` : fn.pfLabel || 'Non-IOMUX'}`;
+        }
+        elements.conflictBox.classList.toggle('hidden', conflictPins.length < 2);
+        if (conflictPins.length >= 2) {
+          elements.conflictBox.textContent = `${value.function} 同时安排在 Pin ${conflictPins.join('、Pin ')}。这是提示性冲突，请自行确认是否有意重复。`;
+        }
+      }
+
+      function updateSelectedAssignment(patch, refreshInspector = true) {
+        const pin = selectedPin();
+        if (!pin || pin.fixed) return;
+        const key = String(pin.number);
+        const next = { ...assignmentFor(pin.number), ...patch };
+        if (isMeaningfulAssignment(next)) assignments()[key] = next;
+        else delete assignments()[key];
+        saveState();
+        if (refreshInspector) {
+          render();
+        } else {
+          renderStats();
+          renderCategories();
+          renderStage();
+          elements.pinStatus.textContent = isMeaningfulAssignment(next) ? '已安排' : '未安排';
+        }
+      }
+
+      function updateZoom() {
+        const zoom = Number(state.zoom[state.activePackage]) || 100;
+        const scale = zoom / 100;
+        elements.zoomSlider.value = String(zoom);
+        elements.zoomValue.textContent = `${zoom}%`;
+        elements.packageStage.style.transform = `scale(${scale})`;
+        const rect = elements.packageStage.getBoundingClientRect();
+        const unscaledWidth = elements.packageStage.offsetWidth;
+        const unscaledHeight = elements.packageStage.offsetHeight;
+        elements.stageScale.style.width = `${unscaledWidth * scale}px`;
+        elements.stageScale.style.height = `${unscaledHeight * scale}px`;
+      }
+
+      function render() {
+        renderPackageSelect();
+        renderStats();
+        renderCategories();
+        renderStage();
+        renderInspector();
+        updateZoom();
+        elements.filterTabs.querySelectorAll('.filter-btn').forEach((button) => button.classList.toggle('active', button.dataset.filter === activeFilter));
+      }
+
+      function downloadFile(name, content, type) {
+        const blob = new Blob([content], { type });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = name;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      function exportJson() {
+        const payload = {
+          schemaVersion: SCHEMA_VERSION,
+          device: PIN_DATA.device,
+          exportedAt: new Date().toISOString(),
+          activePackage: state.activePackage,
+          packages: state.packages
+        };
+        downloadFile('mspm0g3519-pin-plan.json', JSON.stringify(payload, null, 2), 'application/json;charset=utf-8');
+      }
+
+      function csvEscape(value) {
+        const text = String(value ?? '');
+        return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+      }
+
+      function exportCsv() {
+        const pkg = currentPackage();
+        const rows = [[
+          'Package', 'Physical Pin', 'Pin Name', 'Selected Function', 'Project Alias', 'Note',
+          'Category', 'Signal Type', 'IOMUX PF', 'IOMUX Register', 'Buffer Type'
+        ]];
+        pkg.pins.forEach((pin) => {
+          const value = assignmentFor(pin.number);
+          const fn = selectedFunction(pin, value);
+          rows.push([
+            pkg.code, pin.number, pin.name, pin.fixed ? pin.name : value.function, value.alias, value.note,
+            pin.fixed ? 'Power' : fn?.category || '', fn?.signalType || '', fn ? (fn.iomuxManaged ? fn.pf : fn.pfLabel) : '',
+            pin.iomuxRegister, pin.bufferType
+          ]);
+        });
+        const csv = '\ufeff' + rows.map((row) => row.map(csvEscape).join(',')).join('\r\n');
+        downloadFile(`mspm0g3519-${pkg.code.toLowerCase()}-pin-plan.csv`, csv, 'text/csv;charset=utf-8');
+      }
+
+      async function importJson(file) {
+        try {
+          const parsed = JSON.parse(await file.text());
+          if (parsed.device !== PIN_DATA.device || parsed.schemaVersion !== SCHEMA_VERSION) throw new Error('文件不是兼容的 MSPM0G3519 引脚规划 JSON。');
+          let skipped = 0;
+          PACKAGE_ORDER.forEach((code) => {
+            const result = sanitizeAssignments(code, parsed.packages?.[code]?.assignments || {});
+            state.packages[code].assignments = result.assignments;
+            skipped += result.skipped;
+          });
+          state.activePackage = PACKAGE_ORDER.includes(parsed.activePackage) ? parsed.activePackage : state.activePackage;
+          selectedPinNumber = null;
+          saveState();
+          render();
+          window.alert(skipped ? `导入完成，忽略了 ${skipped} 条不兼容记录。` : '导入完成。');
+        } catch (error) {
+          window.alert(error.message || 'JSON 导入失败。');
+        } finally {
+          elements.importFile.value = '';
+        }
+      }
+
+      elements.packageSelect.addEventListener('change', () => {
+        state.activePackage = elements.packageSelect.value;
+        selectedPinNumber = null;
+        activeFilter = 'all';
+        activeCategory = 'All';
+        elements.searchInput.value = '';
+        saveState();
+        render();
+      });
+
+      elements.searchInput.addEventListener('input', render);
+      elements.filterTabs.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-filter]');
+        if (!button) return;
+        activeFilter = button.dataset.filter;
+        render();
+      });
+
+      elements.zoomSlider.addEventListener('input', () => {
+        state.zoom[state.activePackage] = Number(elements.zoomSlider.value);
+        saveState();
+        updateZoom();
+      });
+
+      elements.functionSelect.addEventListener('change', () => updateSelectedAssignment({ function: elements.functionSelect.value }));
+      elements.aliasInput.addEventListener('input', () => updateSelectedAssignment({ alias: elements.aliasInput.value }, false));
+      elements.noteInput.addEventListener('input', () => updateSelectedAssignment({ note: elements.noteInput.value }, false));
+      elements.clearPinBtn.addEventListener('click', () => {
+        const pin = selectedPin();
+        if (!pin) return;
+        delete assignments()[String(pin.number)];
+        saveState();
+        render();
+      });
+
+      elements.importBtn.addEventListener('click', () => elements.importFile.click());
+      elements.importFile.addEventListener('change', () => {
+        const file = elements.importFile.files?.[0];
+        if (file) importJson(file);
+      });
+      elements.exportJsonBtn.addEventListener('click', exportJson);
+      elements.exportCsvBtn.addEventListener('click', exportCsv);
+      elements.resetBtn.addEventListener('click', () => {
+        const pkg = currentPackage();
+        if (!window.confirm(`确定清空 ${pkg.label} 的全部引脚安排吗？其他封装不会受影响。`)) return;
+        state.packages[state.activePackage].assignments = {};
+        selectedPinNumber = null;
+        saveState();
+        render();
+      });
+
+      render();
+      saveState();
+    })();
+  </script>
+</body>
+</html>
