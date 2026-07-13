@@ -404,9 +404,6 @@
     .category-list {
       display: grid;
       gap: 5px;
-      max-height: calc(100vh - 430px);
-      overflow: auto;
-      padding-right: 2px;
     }
 
     .category-btn {
@@ -879,7 +876,6 @@
     @media (max-width: 900px) {
       .workspace { grid-template-columns: 220px minmax(0, 1fr); }
       .inspector { grid-column: 1 / -1; min-height: auto; border-top: 1px solid var(--line); border-left: 0; }
-      .category-list { max-height: 360px; }
     }
 
     @media (max-width: 700px) {
@@ -894,7 +890,6 @@
       .save-state { text-align: left; }
       .workspace { display: block; }
       .sidebar, .inspector { min-height: auto; border: 0; border-bottom: 1px solid var(--line); }
-      .category-list { max-height: 250px; }
       .canvas-scroller { min-height: 520px; }
       .canvas-toolbar { align-items: flex-start; flex-direction: column; }
       .canvas-actions { width: 100%; justify-content: flex-start; }

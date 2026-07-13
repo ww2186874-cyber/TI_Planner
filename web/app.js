@@ -431,7 +431,7 @@
     section.className = 'modal-section';
     const notice = document.createElement('div');
     notice.className = 'legal-notice';
-    notice.textContent = '本软件是应电2514制作的非官方第三方学习与规划工具，与 Texas Instruments Incorporated（TI）不存在隶属、授权或认可关系。TI、MSPM0及相关产品名称属于其权利人。本工具不替代数据手册、勘误表或电气设计审查。';
+    notice.textContent = '本软件是天津职业技术师范大学 电子创新协会制作的非官方第三方学习与规划工具，与 Texas Instruments Incorporated（TI）不存在隶属、授权或认可关系。TI、MSPM0及相关产品名称属于其权利人。本工具不替代数据手册、勘误表或电气设计审查。';
     const grid = document.createElement('dl');
     grid.className = 'about-grid';
     const rows = [
