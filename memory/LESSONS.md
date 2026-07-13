@@ -1,0 +1,60 @@
+# 踩坑与经验
+
+## Electron 和打包
+
+### Windows 无法创建 winCodeSign 中的 macOS 符号链接
+
+- 现象：electron-builder 解压 `winCodeSign-2.6.0.7z` 时因为两个 `.dylib` 符号链接失败。
+- 根因：普通 Windows 用户没有创建符号链接权限，这两个文件只用于 macOS。
+- 解决：`scripts/prepare-builder-cache.ps1` 预先解压并排除 `darwin` 目录。
+- 预防：不要删除 `.cache/electron-builder/`；打包前保留缓存准备步骤。
+
+### 过长路径导致 NSIS 构建失败
+
+- 现象：原始 Codex 任务目录过长，NSIS include 路径处理失败。
+- 解决：正式工作区迁移到较短的 `<USER_HOME>\Desktop\MSPM0`。
+- 预防：不要把正式工程再次嵌套进多层日期或任务目录。
+
+### 新版 electron-builder 依赖下载受阻
+
+- 现象：较新版本包含需要 GitHub SSH 的依赖，当前网络无法获取。
+- 解决：锁定 `electron-builder 24.13.3` 和 `electron 31.7.7`。
+- 预防：升级构建工具必须先在独立分支验证，不直接改正式锁文件。
+
+### 国内网络下载
+
+- Electron 使用 `https://npmmirror.com/mirrors/electron/`。
+- builder 二进制使用 `https://npmmirror.com/mirrors/electron-builder-binaries/`。
+- 镜像和缓存路径由 `scripts/common.ps1` 固定。
+
+## Windows 和脚本
+
+### Windows PowerShell 5 读取 UTF-8 无 BOM 脚本会乱码
+
+- 现象：自动化脚本中的中文字符串被错误解码，甚至破坏 PowerShell 语法。
+- 解决：自动化 `.ps1` 中使用 ASCII 文本；中文放在 Markdown 文档中。
+- 预防：新增 PowerShell 脚本保持 ASCII，除非明确使用带 BOM 的编码。
+
+### pnpm 子进程找不到 Node
+
+- 根因：Codex 自带 Node 不一定在系统 PATH 中。
+- 解决：`scripts/common.ps1` 自动寻找 Codex Node/pnpm，并把 Node 目录临时加入 PATH。
+
+## 测试和数据
+
+### 调试端口就绪不代表页面 DOM 已加载
+
+- 现象：自动烟雾测试首次读到空标题和空芯片列表。
+- 解决：等待页面标题和设备选项出现后再断言。
+- 预防：远程调试测试不得只等待 `/json` 接口可访问。
+
+### 强制结束进程可能丢失刚写入的 localStorage
+
+- 现象：`taskkill /F` 后刚写入状态未必已由 Chromium 刷盘。
+- 解决：持久化测试使用正常关闭窗口。
+- 预防：只把强制结束作为最后清理手段，不用于数据持久化验证。
+
+### 搜索自定义标签与功能别名必须分开
+
+- 搜索标签时只应命中实际包含该标签的已编辑引脚。
+- `编码器/QEI/TIMER` 等功能别名可以命中外设候选，但不能把未编辑引脚误当成标签匹配。

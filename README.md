@@ -11,6 +11,7 @@
 - `scripts/`：依赖安装、开发运行和打包脚本。
 - `.pnpm-store/`、`.cache/`、`desktop/node_modules/`：本机开发依赖与缓存。保留它们可以减少以后下载和打包时间。
 - `docs/`：开发、发布和数据兼容说明。
+- `memory/`：跨 Codex 任务保存的项目状态、决策、踩坑经验和交接信息。
 
 ## 常用操作
 
@@ -19,6 +20,7 @@
 3. 双击 `build-web.cmd`：只生成离线 HTML，不生成 EXE。
 4. 双击 `install-dependencies.cmd`：重新安装或校验 Electron 开发依赖。
 5. 双击 `create-release.cmd`：在效果确认后生成正式 EXE，并归档到 `releases/v版本号/`。
+6. 双击 `workspace-check.cmd`：只读检查 Git、版本、目录结构、缓存和发布归档是否正常。
 
 脚本会优先使用 Codex 自带的 Node.js 和 pnpm，也支持系统中已经安装的 Node.js/pnpm。Electron 下载使用国内镜像，缓存固定保存在本工作区。
 
@@ -36,6 +38,6 @@
 
 `outputs/` 是临时构建区，可以被同版本的下一次构建覆盖；`releases/` 是正式版本库，不允许覆盖已有版本。正式发布前必须先修改 `desktop/package.json` 中的版本号。
 
-项目根目录的 `AGENTS.md` 是给 Codex 的固定工作规则。以后创建新的 Codex 任务时，应把 `<USER_HOME>\Desktop\MSPM0` 选为工作区，这样新窗口会自动按照相同流程工作。
+项目根目录的 `AGENTS.md` 是给 Codex 的固定工作规则。以后创建新的 Codex 任务时，应把 `<USER_HOME>\Desktop\MSPM0` 选为工作区，这样新窗口会自动读取 `memory/` 并按照相同流程工作。
 
-详细流程见 `docs/DEVELOPMENT.md` 和 `docs/RELEASE_CHECKLIST.md`。
+详细流程见 `docs/DEVELOPMENT.md`、`docs/WORKSPACE_HYGIENE.md` 和 `docs/RELEASE_CHECKLIST.md`。
