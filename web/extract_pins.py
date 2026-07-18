@@ -1,6 +1,7 @@
 import json
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 import pdfplumber
@@ -11,6 +12,8 @@ PACKAGE_COLUMNS = {
     "PM": {"column": 5, "pins": 64, "label": "PM-64 LQFP"},
     "PN": {"column": 6, "pins": 80, "label": "PN-80 LQFP"},
     "PZ": {"column": 7, "pins": 100, "label": "PZ-100 LQFP"},
+    "RGZ": {"column": 3, "pins": 48, "label": "RGZ-48 VQFN"},
+    "RHB": {"column": 0, "pins": 32, "label": "RHB-32 VQFN"},
 }
 
 
@@ -162,6 +165,8 @@ def extract(pdf_path):
             "document": "MSPM0Gx51x Mixed-Signal Microcontrollers With CAN-FD Interface",
             "revision": "SLASFA2B, revised October 2025",
             "pages": "10-37",
+            "url": "https://www.ti.com/lit/ds/symlink/mspm0g3519.pdf",
+            "retrieved": date.today().isoformat(),
         },
         "packages": packages,
     }

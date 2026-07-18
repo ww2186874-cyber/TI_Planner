@@ -17,8 +17,8 @@ const devices = Object.fromEntries(Object.entries(dataPaths).map(([device, dataP
 const app = fs.readFileSync(appPath, 'utf8');
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
 const requiredPackages = {
-  MSPM0G3519: { PT: 48, PM: 64, PN: 80, PZ: 100 },
-  MSPM0G3507: { PT: 48, PM: 64 }
+  MSPM0G3519: { RHB: 32, RGZ: 48, PT: 48, PM: 64, PN: 80, PZ: 100 },
+  MSPM0G3507: { RHB: 32, RGZ: 48, PT: 48, PM: 64 }
 };
 
 for (const [device, packages] of Object.entries(requiredPackages)) {

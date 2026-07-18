@@ -50,11 +50,12 @@ const expressions = {
     device.value = 'MSPM0G3507';
     device.dispatchEvent(new Event('change', { bubbles: true }));
     const pkg = document.querySelector('#packageSelect');
-    pkg.value = 'PM';
+    const packages = [...pkg.options].map(option => option.value);
+    pkg.value = 'RHB';
     pkg.dispatchEvent(new Event('change', { bubbles: true }));
     const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v4') || '{}');
     const project = stored.projects?.find(item => item.id === stored.activeProjectId);
-    return { activeDevice: document.querySelector('#deviceSelect').value, activePackage: document.querySelector('#packageSelect').value, saved: stored.version === 4, storedDevice: project?.data?.activeDevice, storedPackage: project?.data?.devices?.MSPM0G3507?.activePackage };
+    return { activeDevice: document.querySelector('#deviceSelect').value, activePackage: document.querySelector('#packageSelect').value, packages, saved: stored.version === 4, storedDevice: project?.data?.activeDevice, storedPackage: project?.data?.devices?.MSPM0G3507?.activePackage };
   })()`,
   restore: `(() => ({
     activeDevice: document.querySelector('#deviceSelect').value,
@@ -99,6 +100,7 @@ const expressions = {
       activeProject: document.querySelector('#projectSelect option:checked')?.textContent,
       activeDevice: document.querySelector('#deviceSelect').value,
       activePackage: document.querySelector('#packageSelect').value,
+      packages: [...document.querySelectorAll('#packageSelect option')].map(option => option.value),
       pin: document.querySelector('[aria-label^="Pin 1 PA0"]')?.getAttribute('aria-label'),
       alert: alerts[0]
     };
@@ -125,6 +127,7 @@ const expressions = {
       activeProject: document.querySelector('#projectSelect option:checked')?.textContent,
       activeDevice: document.querySelector('#deviceSelect').value,
       activePackage: document.querySelector('#packageSelect').value,
+      packages: [...document.querySelectorAll('#packageSelect option')].map(option => option.value),
       pin: document.querySelector('[aria-label^="Pin 1 PA0"]')?.getAttribute('aria-label'),
       alert: alerts[0]
     };
@@ -152,15 +155,19 @@ async function main() {
     if (result.url !== 'app://mspm0/index.html') throw new Error('Unexpected application URL');
     if (!result.bridge) throw new Error('Desktop save bridge is unavailable');
     if (!result.devices.includes('MSPM0G3507') || !result.devices.includes('MSPM0G3519')) throw new Error('Device list is incomplete');
+    if (!result.packages.includes('RHB') || !result.packages.includes('RGZ')) throw new Error('MSPM0G3519 VQFN package list is incomplete');
     if (result.projectActions !== 4 || result.exportActions !== 7 || !result.hasAbout || !result.hasCheck) throw new Error('Candidate feature controls are incomplete');
   }
-  if (mode === 'restore' && (result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'PM' || !result.saved)) {
+  if (mode === 'write' && (result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'RHB' || !result.packages.includes('RGZ') || !result.saved)) {
+    throw new Error('MSPM0G3507 VQFN state was not saved');
+  }
+  if (mode === 'restore' && (result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'RHB' || !result.saved)) {
     throw new Error('Desktop state was not restored');
   }
-  if (mode === 'import-v4' && (result.activeProject !== '新版导入测试' || result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'PT' || !result.pin?.includes('UART0_TX') || !result.pin?.includes('新版导入'))) {
+  if (mode === 'import-v4' && (result.activeProject !== '新版导入测试' || result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'PT' || !result.packages.includes('RHB') || !result.packages.includes('RGZ') || !result.pin?.includes('UART0_TX') || !result.pin?.includes('新版导入'))) {
     throw new Error('Version 4 project import failed');
   }
-  if (mode === 'import-v3' && (result.activeProject !== 'import-v3' || result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'PT' || !result.pin?.includes('UART0_TX') || !result.pin?.includes('旧版导入'))) {
+  if (mode === 'import-v3' && (result.activeProject !== 'import-v3' || result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'PT' || !result.packages.includes('RHB') || !result.packages.includes('RGZ') || !result.pin?.includes('UART0_TX') || !result.pin?.includes('旧版导入'))) {
     throw new Error('Version 3 project import failed');
   }
   if (mode === 'print' && (result.printCalls !== 1 || !result.report.includes('MSPM0 引脚规划报告') || !result.report.includes('非 TI 官方工具'))) {

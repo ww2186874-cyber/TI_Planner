@@ -2,7 +2,7 @@
 
 const EXPECTATIONS = {
   MSPM0G3519: {
-    packages: { PT: [48, 45], PM: [64, 61], PN: [80, 75], PZ: [100, 95] },
+    packages: { RHB: [32, 29], RGZ: [48, 45], PT: [48, 45], PM: [64, 61], PN: [80, 75], PZ: [100, 95] },
     uart: ['UART0', 'UART1', 'UART3', 'UART4', 'UART5', 'UART6', 'UART7'],
     i2c: ['I2C0', 'I2C1', 'I2C2'],
     spi: ['SPI0', 'SPI1', 'SPI2'],
@@ -10,7 +10,7 @@ const EXPECTATIONS = {
     qei: ['TIMG8', 'TIMG9']
   },
   MSPM0G3507: {
-    packages: { PT: [48, 45], PM: [64, 61] },
+    packages: { RHB: [32, 29], RGZ: [48, 45], PT: [48, 45], PM: [64, 61] },
     uart: ['UART0', 'UART1', 'UART2', 'UART3'],
     i2c: ['I2C0', 'I2C1'],
     spi: ['SPI0', 'SPI1'],
@@ -18,6 +18,17 @@ const EXPECTATIONS = {
     qei: ['TIMG8']
   }
 };
+
+const RHB_PIN_NAMES = [
+  'PA0', 'PA1', 'NRST', 'VDD', 'VSS',
+  ...Array.from({ length: 26 }, (_, index) => `PA${index + 2}`),
+  'VCORE'
+];
+
+function pinDefinition(pin) {
+  const { number, ...definition } = pin;
+  return definition;
+}
 
 function validateDevices(devices) {
   const errors = [];
@@ -61,6 +72,25 @@ function validateDevices(devices) {
         });
       }
       packageSummary[packageCode] = { pins: pinCount, configurable: configurable.length, fixed: pinCount - configurable.length };
+    }
+
+    assert(
+      JSON.stringify(device.packages.RGZ.pins) === JSON.stringify(device.packages.PT.pins),
+      `${deviceName}: RGZ pin data must match PT pin data`
+    );
+    assert(
+      device.packages.RHB.pins.every((pin, index) => pin.name === RHB_PIN_NAMES[index]),
+      `${deviceName}: RHB physical pin mapping does not match the official package diagram`
+    );
+    for (const rhbPin of device.packages.RHB.pins) {
+      const ptPin = device.packages.PT.pins.find(pin => pin.name === rhbPin.name);
+      assert(Boolean(ptPin), `${deviceName}: PT source pin ${rhbPin.name} is missing for RHB`);
+      if (ptPin) {
+        assert(
+          JSON.stringify(pinDefinition(rhbPin)) === JSON.stringify(pinDefinition(ptPin)),
+          `${deviceName}: RHB ${rhbPin.name} does not match the same-device PT function data`
+        );
+      }
     }
 
     const expectPrefix = instance => assert([...allSignals].some(signal => signal.startsWith(`${instance}_`)), `${deviceName}: peripheral instance ${instance} has no signals`);

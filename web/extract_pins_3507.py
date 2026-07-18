@@ -1,14 +1,17 @@
 import json
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 import pdfplumber
 
 
 PACKAGE_COLUMNS = {
-    "PM": {"column": 4, "pins": 64, "label": "PM-64 LQFP"},
-    "PT": {"column": 5, "pins": 48, "label": "PT-48 LQFP"},
+    "PM": {"column": 4, "signalColumn": 2, "pins": 64, "label": "PM-64 LQFP"},
+    "PT": {"column": 5, "signalColumn": 3, "pins": 48, "label": "PT-48 LQFP"},
+    "RGZ": {"column": 5, "signalColumn": 3, "pins": 48, "label": "RGZ-48 VQFN"},
+    "RHB": {"column": 6, "signalColumn": 4, "pins": 32, "label": "RHB-32 VQFN"},
 }
 
 
@@ -71,8 +74,8 @@ def signal_metadata(document):
                     "signalType": normalize_type(row[6], signal),
                     "description": clean(row[7]),
                     "packagePins": {
-                        "PM": package_numbers(row[2]),
-                        "PT": package_numbers(row[3]),
+                        package: package_numbers(row[details["signalColumn"]])
+                        for package, details in PACKAGE_COLUMNS.items()
                     },
                 }
     return metadata
@@ -190,7 +193,9 @@ def extract(pdf_path):
         "source": {
             "document": "MSPM0G350x Mixed-Signal Microcontrollers With CAN-FD Interface",
             "revision": "SLASEX6C, revised October 2025",
-            "pages": "11-23",
+            "pages": "8-23",
+            "url": "https://www.ti.com/lit/ds/symlink/mspm0g3507.pdf",
+            "retrieved": date.today().isoformat(),
         },
         "packages": packages,
     }

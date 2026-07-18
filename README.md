@@ -13,6 +13,11 @@
 - `docs/`：开发、发布和数据兼容说明。
 - `memory/`：跨 Codex 任务保存的项目状态、决策、踩坑经验和交接信息。
 
+## 当前支持
+
+- `MSPM0G3519`：RHB-32 VQFN、RGZ-48 VQFN、PT-48 LQFP、PM-64 LQFP、PN-80 LQFP、PZ-100 LQFP。
+- `MSPM0G3507`：RHB-32 VQFN、RGZ-48 VQFN、PT-48 LQFP、PM-64 LQFP。
+
 ## 常用操作
 
 1. 双击 `run-dev.cmd`：构建最新网页并启动开发版软件。

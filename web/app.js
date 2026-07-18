@@ -11,8 +11,8 @@
   const PROJECT_DATA_VERSION = 3;
   const DEVICE_ORDER = ['MSPM0G3519', 'MSPM0G3507'];
   const DEVICE_CONFIG = {
-    MSPM0G3519: { defaultPackage: 'PZ', packageOrder: ['PT', 'PM', 'PN', 'PZ'], defaultZoom: { PT: 100, PM: 90, PN: 80, PZ: 70 } },
-    MSPM0G3507: { defaultPackage: 'PM', packageOrder: ['PT', 'PM'], defaultZoom: { PT: 100, PM: 90 } }
+    MSPM0G3519: { defaultPackage: 'PZ', packageOrder: ['RHB', 'RGZ', 'PT', 'PM', 'PN', 'PZ'], defaultZoom: { RHB: 100, RGZ: 100, PT: 100, PM: 90, PN: 80, PZ: 70 } },
+    MSPM0G3507: { defaultPackage: 'PM', packageOrder: ['RHB', 'RGZ', 'PT', 'PM'], defaultZoom: { RHB: 100, RGZ: 100, PT: 100, PM: 90 } }
   };
   const CATEGORY_COLORS = {
     Unassigned: 'var(--pin-unassigned)', GPIO: 'var(--pin-gpio)', UART: 'var(--pin-uart)',
@@ -803,7 +803,7 @@
       ? `正在安排 ${selectedSignal}：点击绿色候选引脚，橙色表示将替换已有安排`
       : `${pkg.pinCount} 个物理引脚 · ${pkg.pins.filter(pin => !pin.fixed).length} 个可规划引脚 · 滚轮缩放 / 右键拖动`;
     elements.chipDevice.textContent = state.activeDevice;
-    elements.chipPackage.textContent = `${pkg.code} · ${pkg.pinCount}-pin LQFP`;
+    elements.chipPackage.textContent = pkg.label;
     elements.chipSummary.textContent = `${assigned} pins assigned · ${view.rotation}°${conflicts.size ? ` · ${conflicts.size} conflicts` : ''}`;
   }
 
