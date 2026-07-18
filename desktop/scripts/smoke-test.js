@@ -105,6 +105,99 @@ const expressions = {
       .map(pin => pin.querySelector('.pin-name')?.textContent);
     return { query: input.value, matches };
   })()`,
+  release: `(() => {
+    const change = element => element.dispatchEvent(new Event('change', { bubbles: true }));
+    const input = element => element.dispatchEvent(new Event('input', { bubbles: true }));
+    const projectAction = action => document.querySelector('[data-project-action="' + action + '"]').click();
+    const submitProjectName = name => {
+      const field = document.querySelector('#projectNameInput');
+      field.value = name;
+      document.querySelector('#projectForm').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    };
+
+    const projectSelect = document.querySelector('#projectSelect');
+    const originalProjectId = projectSelect.value;
+    projectAction('new');
+    submitProjectName('发布验收');
+    const testProjectId = projectSelect.value;
+
+    const device = document.querySelector('#deviceSelect');
+    device.value = 'MSPM0G3507';
+    change(device);
+    const pkg = document.querySelector('#packageSelect');
+    pkg.value = 'RHB';
+    change(pkg);
+
+    projectAction('rename');
+    submitProjectName('发布验收重命名');
+    projectAction('duplicate');
+    const duplicatedProject = projectSelect.options[projectSelect.selectedIndex].textContent;
+    const projectCountAfterDuplicate = projectSelect.options.length;
+    const originalConfirm = window.confirm;
+    window.confirm = () => true;
+    projectAction('delete');
+    window.confirm = originalConfirm;
+
+    projectSelect.value = originalProjectId;
+    change(projectSelect);
+    const originalState = { device: device.value, package: pkg.value };
+    projectSelect.value = testProjectId;
+    change(projectSelect);
+
+    const pin = document.querySelector('[aria-label^="Pin 1 PA0"]');
+    pin.click();
+    const functionSelect = document.querySelector('#functionSelect');
+    const selectedFunction = [...functionSelect.options].find(option => option.value)?.value;
+    functionSelect.value = selectedFunction;
+    change(functionSelect);
+    const assignedAfterEdit = Number(document.querySelector('#assignedCount').textContent);
+    document.querySelector('#undoBtn').click();
+    const functionAfterUndo = document.querySelector('#functionSelect').value;
+    document.querySelector('#redoBtn').click();
+    const functionAfterRedo = document.querySelector('#functionSelect').value;
+
+    const alias = document.querySelector('#aliasInput');
+    alias.value = '发布测试';
+    input(alias);
+    const connector = document.querySelector('#connectorInput');
+    connector.value = 'J99-1';
+    input(connector);
+    const note = document.querySelector('#noteInput');
+    note.value = 'release smoke test';
+    input(note);
+
+    const themeBefore = document.documentElement.dataset.theme;
+    document.querySelector('#themeToggleBtn').click();
+    const themeAfter = document.documentElement.dataset.theme;
+    const rotationBefore = document.querySelector('#packageStage').dataset.rotation;
+    document.querySelector('#rotateCwBtn').click();
+    const rotationAfter = document.querySelector('#packageStage').dataset.rotation;
+    const zoom = document.querySelector('#zoomSlider');
+    zoom.value = '125';
+    input(zoom);
+    document.querySelector('#checkBtn').click();
+
+    return {
+      projectCountAfterDuplicate,
+      projectCountAfterDelete: projectSelect.options.length,
+      duplicatedProject,
+      selectedProject: projectSelect.options[projectSelect.selectedIndex].textContent,
+      originalState,
+      testState: { device: device.value, package: pkg.value },
+      selectedFunction,
+      assignedAfterEdit,
+      functionAfterUndo,
+      functionAfterRedo,
+      pinLabel: document.querySelector('[data-pin="1"]').getAttribute('aria-label'),
+      themeBefore,
+      themeAfter,
+      rotationBefore,
+      rotationAfter,
+      zoom: document.querySelector('#zoomValue').textContent,
+      checkOpen: document.querySelector('#checkDialog').open,
+      checkText: document.querySelector('#checkDialog').textContent
+    };
+  })()`,
   'import-v4': `(async () => {
     const alerts = [];
     const originalAlert = window.alert;
@@ -221,6 +314,29 @@ async function main() {
   }
   if (mode === 'search' && (result.query !== 'PB1' || result.matches.length !== 1 || result.matches[0] !== 'PB1')) {
     throw new Error(`GPIO search returned unexpected pins: ${JSON.stringify(result.matches)}`);
+  }
+  if (mode === 'release' && (
+    result.projectCountAfterDuplicate !== 3
+    || result.projectCountAfterDelete !== 2
+    || !result.duplicatedProject.includes('副本')
+    || result.selectedProject !== '发布验收重命名'
+    || result.originalState.device !== 'MSPM0G3519'
+    || result.originalState.package !== 'PZ'
+    || result.testState.device !== 'MSPM0G3507'
+    || result.testState.package !== 'RHB'
+    || !result.selectedFunction
+    || result.assignedAfterEdit !== 1
+    || result.functionAfterUndo !== ''
+    || result.functionAfterRedo !== result.selectedFunction
+    || !result.pinLabel.includes('发布测试')
+    || !result.pinLabel.includes('J99-1')
+    || result.themeBefore === result.themeAfter
+    || result.rotationBefore === result.rotationAfter
+    || result.zoom !== '125%'
+    || !result.checkOpen
+    || !result.checkText.includes('规划检查')
+  )) {
+    throw new Error(`Release workflow smoke test failed: ${JSON.stringify(result)}`);
   }
   if (mode === 'import-v4' && (result.activeProject !== '新版导入测试' || result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'PT' || !result.packages.includes('RHB') || !result.packages.includes('RGZ') || !result.pin?.includes('UART0_TX') || !result.pin?.includes('新版导入'))) {
     throw new Error('Version 4 project import failed');
