@@ -64,6 +64,33 @@ const expressions = {
     storedDevice: (() => { const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v4') || '{}'); return stored.projects?.find(item => item.id === stored.activeProjectId)?.data?.activeDevice; })(),
     storedPackage: (() => { const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v4') || '{}'); return stored.projects?.find(item => item.id === stored.activeProjectId)?.data?.devices?.MSPM0G3507?.activePackage; })()
   }))()`,
+  vqfn: `(() => {
+    const device = document.querySelector('#deviceSelect');
+    const pkg = document.querySelector('#packageSelect');
+    const capture = (deviceCode, packageCode) => {
+      device.value = deviceCode;
+      device.dispatchEvent(new Event('change', { bubbles: true }));
+      pkg.value = packageCode;
+      pkg.dispatchEvent(new Event('change', { bubbles: true }));
+      const pins = [...document.querySelectorAll('#packageStage button[aria-label^="Pin "]')];
+      return {
+        device: device.value,
+        package: pkg.value,
+        options: [...pkg.options].map(option => option.value),
+        title: document.querySelector('#canvasTitle')?.textContent,
+        chipPackage: document.querySelector('#chipPackage')?.textContent,
+        pinCount: pins.length,
+        firstPin: pins.find(pin => pin.getAttribute('aria-label')?.startsWith('Pin 1 '))?.getAttribute('aria-label'),
+        lastPin: pins.find(pin => pin.getAttribute('aria-label')?.startsWith('Pin ' + pins.length + ' '))?.getAttribute('aria-label')
+      };
+    };
+    return [
+      capture('MSPM0G3519', 'RHB'),
+      capture('MSPM0G3519', 'RGZ'),
+      capture('MSPM0G3507', 'RHB'),
+      capture('MSPM0G3507', 'RGZ')
+    ];
+  })()`,
   'import-v4': `(async () => {
     const alerts = [];
     const originalAlert = window.alert;
@@ -163,6 +190,20 @@ async function main() {
   }
   if (mode === 'restore' && (result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'RHB' || !result.saved)) {
     throw new Error('Desktop state was not restored');
+  }
+  if (mode === 'vqfn') {
+    const expected = [
+      ['MSPM0G3519', 'RHB', 32, 'PA0', 'VCORE'],
+      ['MSPM0G3519', 'RGZ', 48, 'PA0', 'VCORE'],
+      ['MSPM0G3507', 'RHB', 32, 'PA0', 'VCORE'],
+      ['MSPM0G3507', 'RGZ', 48, 'PA0', 'VCORE']
+    ];
+    expected.forEach(([device, packageCode, pinCount, firstPin, lastPin], index) => {
+      const item = result[index];
+      if (item?.device !== device || item?.package !== packageCode || item?.pinCount !== pinCount || !item?.options.includes('RHB') || !item?.options.includes('RGZ') || !item?.title?.includes(`${packageCode}-${pinCount} VQFN`) || item?.chipPackage !== `${packageCode}-${pinCount} VQFN` || !item?.firstPin?.includes(firstPin) || !item?.lastPin?.includes(lastPin)) {
+        throw new Error(`${device} ${packageCode} VQFN package smoke test failed`);
+      }
+    });
   }
   if (mode === 'import-v4' && (result.activeProject !== '新版导入测试' || result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'PT' || !result.packages.includes('RHB') || !result.packages.includes('RGZ') || !result.pin?.includes('UART0_TX') || !result.pin?.includes('新版导入'))) {
     throw new Error('Version 4 project import failed');
