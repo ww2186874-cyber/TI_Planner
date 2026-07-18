@@ -91,6 +91,20 @@ const expressions = {
       capture('MSPM0G3507', 'RGZ')
     ];
   })()`,
+  search: `(() => {
+    const device = document.querySelector('#deviceSelect');
+    device.value = 'MSPM0G3519';
+    device.dispatchEvent(new Event('change', { bubbles: true }));
+    const pkg = document.querySelector('#packageSelect');
+    pkg.value = 'PZ';
+    pkg.dispatchEvent(new Event('change', { bubbles: true }));
+    const input = document.querySelector('#searchInput');
+    input.value = 'PB1';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    const matches = [...document.querySelectorAll('#packageStage .pin-button:not(.dimmed)')]
+      .map(pin => pin.querySelector('.pin-name')?.textContent);
+    return { query: input.value, matches };
+  })()`,
   'import-v4': `(async () => {
     const alerts = [];
     const originalAlert = window.alert;
@@ -204,6 +218,9 @@ async function main() {
         throw new Error(`${device} ${packageCode} VQFN package smoke test failed`);
       }
     });
+  }
+  if (mode === 'search' && (result.query !== 'PB1' || result.matches.length !== 1 || result.matches[0] !== 'PB1')) {
+    throw new Error(`GPIO search returned unexpected pins: ${JSON.stringify(result.matches)}`);
   }
   if (mode === 'import-v4' && (result.activeProject !== '新版导入测试' || result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'PT' || !result.packages.includes('RHB') || !result.packages.includes('RGZ') || !result.pin?.includes('UART0_TX') || !result.pin?.includes('新版导入'))) {
     throw new Error('Version 4 project import failed');

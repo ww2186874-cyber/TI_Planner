@@ -539,7 +539,12 @@
     const variants = queryVariants();
     if (!variants.length) return true;
     const haystack = String(text).toLowerCase();
-    return variants.some(term => haystack.includes(term));
+    return variants.some(term => {
+      if (/^p[a-z]\d+$/.test(term)) {
+        return haystack.split(/[^a-z0-9]+/).includes(term);
+      }
+      return haystack.includes(term);
+    });
   }
 
   function rawQuery() {
