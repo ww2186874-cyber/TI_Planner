@@ -1350,7 +1350,16 @@
       window.alert(error.message || 'JSON 导入失败。');
     } finally {
       elements.importFile.value = '';
+      setTimeout(restoreImportFocus, 0);
     }
+  }
+
+  async function restoreImportFocus() {
+    try {
+      await window.mspm0Desktop?.focusWindow?.();
+    } catch { /* browser fallback below */ }
+    window.focus();
+    requestAnimationFrame(() => elements.searchInput.focus({ preventScroll: true }));
   }
 
   function resetTransientSelection() {

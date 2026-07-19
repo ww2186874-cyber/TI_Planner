@@ -40,6 +40,7 @@ const expressions = {
     devices: [...document.querySelectorAll('#deviceSelect option')].map(option => option.value),
     packages: [...document.querySelectorAll('#packageSelect option')].map(option => option.value),
     bridge: typeof window.mspm0Desktop?.saveFile === 'function',
+    focusBridge: typeof window.mspm0Desktop?.focusWindow === 'function',
     projectActions: document.querySelectorAll('[data-project-action]').length,
     exportActions: document.querySelectorAll('[data-export]').length,
     hasAbout: Boolean(document.querySelector('#aboutBtn')),
@@ -104,6 +105,38 @@ const expressions = {
     const matches = [...document.querySelectorAll('#packageStage .pin-button:not(.dimmed)')]
       .map(pin => pin.querySelector('.pin-name')?.textContent);
     return { query: input.value, matches };
+  })()`,
+  layout: `(() => {
+    const device = document.querySelector('#deviceSelect');
+    device.value = 'MSPM0G3507';
+    device.dispatchEvent(new Event('change', { bubbles: true }));
+    const pkg = document.querySelector('#packageSelect');
+    pkg.value = 'PM';
+    pkg.dispatchEvent(new Event('change', { bubbles: true }));
+    const pin = document.querySelector('[data-pin="17"]');
+    pin.click();
+    const functionSelect = document.querySelector('#functionSelect');
+    functionSelect.value = 'TIMG6_C0';
+    functionSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const alias = document.querySelector('#aliasInput');
+    alias.value = 'TMC2209_1_STEP';
+    alias.dispatchEvent(new Event('input', { bubbles: true }));
+    const button = document.querySelector('.side.bottom [data-pin="17"]');
+    const pad = button.querySelector('.pin-pad');
+    const label = button.querySelector('.pin-external-label');
+    const buttonRect = button.getBoundingClientRect();
+    const padRect = pad.getBoundingClientRect();
+    const labelRect = label.getBoundingClientRect();
+    return {
+      pin: button.getAttribute('aria-label'),
+      gap: labelRect.top - padRect.bottom,
+      contained: labelRect.bottom <= buttonRect.bottom + 0.5,
+      buttonHeight: buttonRect.height,
+      labelHeight: labelRect.height,
+      trackHeight: button.offsetHeight,
+      labelTrackLength: label.offsetWidth,
+      transform: getComputedStyle(label).transform
+    };
   })()`,
   release: `(() => {
     const change = element => element.dispatchEvent(new Event('change', { bubbles: true }));
@@ -230,13 +263,27 @@ const expressions = {
     input.dispatchEvent(new Event('change', { bubbles: true }));
     await new Promise(resolve => setTimeout(resolve, 150));
     window.alert = originalAlert;
+    const focusAfterImport = document.activeElement?.id;
+    const search = document.querySelector('#searchInput');
+    search.value = 'PA0';
+    search.dispatchEvent(new Event('input', { bubbles: true }));
+    const searchMatches = [...document.querySelectorAll('#packageStage .pin-button:not(.dimmed) .pin-name')].map(item => item.textContent);
+    search.value = '';
+    search.dispatchEvent(new Event('input', { bubbles: true }));
+    document.querySelector('[aria-label^="Pin 1 PA0"]')?.click();
+    const alias = document.querySelector('#aliasInput');
+    alias.value = '导入后输入';
+    alias.dispatchEvent(new Event('input', { bubbles: true }));
     return {
       activeProject: document.querySelector('#projectSelect option:checked')?.textContent,
       activeDevice: document.querySelector('#deviceSelect').value,
       activePackage: document.querySelector('#packageSelect').value,
       packages: [...document.querySelectorAll('#packageSelect option')].map(option => option.value),
       pin: document.querySelector('[aria-label^="Pin 1 PA0"]')?.getAttribute('aria-label'),
-      alert: alerts[0]
+      alert: alerts[0],
+      focusAfterImport,
+      searchMatches,
+      editedPin: document.querySelector('[data-pin="1"]')?.getAttribute('aria-label')
     };
   })()`,
   'import-v3': `(async () => {
@@ -287,7 +334,7 @@ async function main() {
   if (mode === 'inspect') {
     if (result.title !== 'MSPM0G 引脚规划器') throw new Error('Unexpected page title');
     if (result.url !== 'app://mspm0/index.html') throw new Error('Unexpected application URL');
-    if (!result.bridge) throw new Error('Desktop save bridge is unavailable');
+    if (!result.bridge || !result.focusBridge) throw new Error('Desktop bridge is incomplete');
     if (!result.devices.includes('MSPM0G3507') || !result.devices.includes('MSPM0G3519')) throw new Error('Device list is incomplete');
     if (!result.packages.includes('RHB') || !result.packages.includes('RGZ')) throw new Error('MSPM0G3519 VQFN package list is incomplete');
     if (result.projectActions !== 4 || result.exportActions !== 7 || !result.hasAbout || !result.hasCheck) throw new Error('Candidate feature controls are incomplete');
@@ -315,6 +362,9 @@ async function main() {
   if (mode === 'search' && (result.query !== 'PB1' || result.matches.length !== 1 || result.matches[0] !== 'PB1')) {
     throw new Error(`GPIO search returned unexpected pins: ${JSON.stringify(result.matches)}`);
   }
+  if (mode === 'layout' && (!result.pin.includes('TIMG6_C0') || !result.pin.includes('TMC2209_1_STEP') || result.gap < 3 || !result.contained || result.trackHeight !== 210 || result.labelTrackLength !== 132 || result.buttonHeight / result.labelHeight < 1.5)) {
+    throw new Error(`Bottom pin label layout failed: ${JSON.stringify(result)}`);
+  }
   if (mode === 'release' && (
     result.projectCountAfterDuplicate !== 3
     || result.projectCountAfterDelete !== 2
@@ -338,7 +388,7 @@ async function main() {
   )) {
     throw new Error(`Release workflow smoke test failed: ${JSON.stringify(result)}`);
   }
-  if (mode === 'import-v4' && (result.activeProject !== '新版导入测试' || result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'PT' || !result.packages.includes('RHB') || !result.packages.includes('RGZ') || !result.pin?.includes('UART0_TX') || !result.pin?.includes('新版导入'))) {
+  if (mode === 'import-v4' && (result.activeProject !== '新版导入测试' || result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'PT' || !result.packages.includes('RHB') || !result.packages.includes('RGZ') || !result.pin?.includes('UART0_TX') || result.focusAfterImport !== 'searchInput' || result.searchMatches.length !== 1 || result.searchMatches[0] !== 'PA0' || !result.editedPin?.includes('导入后输入'))) {
     throw new Error('Version 4 project import failed');
   }
   if (mode === 'import-v3' && (result.activeProject !== 'import-v3' || result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'PT' || !result.packages.includes('RHB') || !result.packages.includes('RGZ') || !result.pin?.includes('UART0_TX') || !result.pin?.includes('旧版导入'))) {

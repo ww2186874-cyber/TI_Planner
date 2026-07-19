@@ -56,6 +56,17 @@ async function saveExport(event, payload) {
   return { canceled: false };
 }
 
+function focusOwnerWindow(event) {
+  if (!isTrustedSender(event)) throw new Error('不允许来自外部页面的窗口操作请求。');
+  const owner = BrowserWindow.fromWebContents(event.sender);
+  if (!owner || owner.isDestroyed()) return false;
+  if (owner.isMinimized()) owner.restore();
+  owner.show();
+  owner.focus();
+  owner.webContents.focus();
+  return true;
+}
+
 function createWindow() {
   const window = new BrowserWindow({
     title: 'MSPM0 引脚规划器',
@@ -101,6 +112,7 @@ app.whenReady().then(async () => {
     return net.fetch(pathToFileURL(INDEX_PATH).toString());
   });
   ipcMain.handle('mspm0:save-file', saveExport);
+  ipcMain.handle('mspm0:focus-window', focusOwnerWindow);
   createWindow();
 
   app.on('activate', () => {
