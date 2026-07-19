@@ -25,6 +25,15 @@ const RHB_PIN_NAMES = [
   'VCORE'
 ];
 
+const OFFICIAL_DEFAULT_PINS = {
+  RHB: { NRST: 3, SWDIO: 23, SWCLK: 24 },
+  RGZ: { NRST: 4, SWDIO: 34, SWCLK: 35 },
+  PT: { NRST: 4, SWDIO: 34, SWCLK: 35 },
+  PM: { NRST: 38, SWDIO: 12, SWCLK: 13 },
+  PN: { NRST: 6, SWDIO: 56, SWCLK: 57 },
+  PZ: { NRST: 6, SWDIO: 71, SWCLK: 72 }
+};
+
 function pinDefinition(pin) {
   const { number, ...definition } = pin;
   return definition;
@@ -54,6 +63,11 @@ function validateDevices(devices) {
       const numbers = pkg.pins.map(pin => pin.number);
       assert(new Set(numbers).size === pinCount, `${deviceName} ${packageCode}: duplicate physical pin numbers`);
       assert(numbers.every((number, index) => number === index + 1), `${deviceName} ${packageCode}: physical pin numbers are not continuous`);
+      for (const [signal, expectedPin] of Object.entries(OFFICIAL_DEFAULT_PINS[packageCode])) {
+        const candidates = pkg.pins.filter(pin => !pin.fixed && pin.functions.some(fn => fn.signal === signal));
+        assert(candidates.length === 1, `${deviceName} ${packageCode}: ${signal} must be available on exactly one configurable pin`);
+        assert(candidates[0]?.number === expectedPin, `${deviceName} ${packageCode}: ${signal} expected on Pin ${expectedPin}, found Pin ${candidates[0]?.number ?? 'none'}`);
+      }
       const configurable = pkg.pins.filter(pin => !pin.fixed);
       assert(configurable.length === gpioCount, `${deviceName} ${packageCode}: expected ${gpioCount} configurable pins, found ${configurable.length}`);
       for (const pin of pkg.pins) {

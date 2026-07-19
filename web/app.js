@@ -10,6 +10,8 @@
   const SCHEMA_VERSION = 4;
   const PROJECT_DATA_VERSION = 3;
   const DEVICE_ORDER = ['MSPM0G3519', 'MSPM0G3507'];
+  const OFFICIAL_DEFAULT_SIGNALS = ['SWDIO', 'SWCLK', 'NRST'];
+  const DEBUG_SIGNALS = new Set(['SWDIO', 'SWCLK']);
   const DEVICE_CONFIG = {
     MSPM0G3519: { defaultPackage: 'PZ', packageOrder: ['RHB', 'RGZ', 'PT', 'PM', 'PN', 'PZ'], defaultZoom: { RHB: 100, RGZ: 100, PT: 100, PM: 90, PN: 80, PZ: 70 } },
     MSPM0G3507: { defaultPackage: 'PM', packageOrder: ['RHB', 'RGZ', 'PT', 'PM'], defaultZoom: { RHB: 100, RGZ: 100, PT: 100, PM: 90 } }
@@ -18,9 +20,10 @@
     Unassigned: 'var(--pin-unassigned)', GPIO: 'var(--pin-gpio)', UART: 'var(--pin-uart)',
     I2C: 'var(--pin-i2c)', SPI: 'var(--pin-spi)', CAN: 'var(--pin-can)',
     'Timer / Clock': 'var(--pin-timer)', ADC: 'var(--pin-adc)', DAC: 'var(--pin-dac)',
-    Comparator: 'var(--pin-comparator)', Clock: 'var(--pin-clock)', System: 'var(--pin-system)',
+    Comparator: 'var(--pin-comparator)', Clock: 'var(--pin-clock)', Debug: 'var(--pin-debug)', System: 'var(--pin-system)',
     Power: 'var(--pin-power)', Other: 'var(--pin-other)'
   };
+  const CATEGORY_LABELS = { Debug: 'Debug / 调试', System: 'System / 系统' };
 
   const timerAliases = ['timer', '定时器', 'pwm', 'capture', 'compare'];
   const commonAnalogResources = [
@@ -68,7 +71,7 @@
   const elements = Object.fromEntries([
     'projectSelect', 'projectMenuBtn', 'projectMenu', 'deviceSelect', 'packageSelect', 'undoBtn', 'redoBtn', 'themeToggleBtn', 'importBtn', 'importFile',
     'exportMenuBtn', 'exportMenu', 'checkBtn', 'checkBadge', 'aboutBtn', 'resetBtn', 'saveState',
-    'packagePinCount', 'assignedCount', 'unassignedCount', 'fixedCount', 'conflictCount', 'searchInput',
+    'packagePinCount', 'assignedCount', 'unassignedCount', 'fixedCount', 'systemCount', 'conflictCount', 'searchInput',
     'filterTabs', 'categoryList', 'sidebarViewTabs', 'sidebarTitle', 'pinPanel', 'resourcePanel', 'resourceSummary',
     'resourceList', 'resourceDetail', 'resourceDetailTitle', 'resourceDetailNote', 'resourceSignals', 'canvasTitle',
     'canvasSubtitle', 'zoomSlider', 'zoomValue', 'rotateCcwBtn', 'rotateCwBtn', 'fitViewBtn', 'centerViewBtn', 'canvasScroller', 'stageScale',
@@ -101,12 +104,26 @@
     return { zoom: DEVICE_CONFIG[device].defaultZoom[code], x: 0, y: 0, rotation: 0, initialized: false };
   }
 
+  function emptyAssignment(signal = '') {
+    return { function: signal, alias: '', connector: '', note: '' };
+  }
+
+  function defaultAssignments(device, code) {
+    const pins = DEVICE_DATA[device].packages[code].pins;
+    const output = {};
+    OFFICIAL_DEFAULT_SIGNALS.forEach(signal => {
+      const pin = pins.find(item => !item.fixed && item.functions.some(fn => fn.signal === signal));
+      if (pin) output[String(pin.number)] = emptyAssignment(signal);
+    });
+    return output;
+  }
+
   function createDeviceState(device) {
     const codes = DEVICE_CONFIG[device].packageOrder;
     return {
       activePackage: DEVICE_CONFIG[device].defaultPackage,
       views: Object.fromEntries(codes.map(code => [code, emptyView(device, code)])),
-      packages: Object.fromEntries(codes.map(code => [code, { assignments: {} }]))
+      packages: Object.fromEntries(codes.map(code => [code, { assignments: defaultAssignments(device, code) }]))
     };
   }
 
@@ -265,11 +282,16 @@
   function currentDeviceState() { return state.devices[state.activeDevice]; }
   function currentPackage() { return currentDeviceData().packages[currentDeviceState().activePackage]; }
   function assignments() { return currentDeviceState().packages[currentDeviceState().activePackage].assignments; }
-  function assignmentFor(number) { return assignments()[String(number)] || { function: '', alias: '', connector: '', note: '' }; }
+  function assignmentFor(number) { return assignments()[String(number)] || emptyAssignment(); }
   function selectedPin() { return currentPackage().pins.find(pin => pin.number === selectedPinNumber) || null; }
   function selectedFunction(pin, value) { return pin.functions.find(item => item.signal === value.function) || null; }
   function isMeaningfulAssignment(value) { return Boolean(value.function || value.alias.trim() || value.connector?.trim() || value.note.trim()); }
   function currentView() { return currentDeviceState().views[currentDeviceState().activePackage]; }
+  function functionCategory(fn) { return DEBUG_SIGNALS.has(fn?.signal) ? 'Debug' : fn?.category || ''; }
+  function categoryLabel(category) { return CATEGORY_LABELS[category] || category; }
+  function isPortPin(pin) { return /^P[A-Z]\d+$/.test(pin.name); }
+  function officialDefaultSignal(pin) { return OFFICIAL_DEFAULT_SIGNALS.find(signal => pin.functions.some(fn => fn.signal === signal)) || ''; }
+  function isOfficialDefaultAssignment(pin, value) { return value.function === officialDefaultSignal(pin); }
 
   function projectHistory(projectId = workspace.activeProjectId) {
     if (!historyByProject.has(projectId)) historyByProject.set(projectId, { undo: [], redo: [] });
@@ -380,6 +402,11 @@
     const assignedDebug = new Set(Object.values(assignments()).map(value => value.function).filter(signal => availableDebug.has(signal)));
     if (availableDebug.size && assignedDebug.size < Math.min(2, availableDebug.size)) {
       issues.push({ severity: 'info', title: '调试接口尚未完整标记', detail: '当前封装存在 SWDIO/SWCLK 候选功能。若板上需要下载和调试，请确认对应连接。' });
+    }
+
+    const resetPin = pkg.pins.find(pin => pin.functions.some(fn => fn.signal === 'NRST'));
+    if (resetPin && assignmentFor(resetPin.number).function !== 'NRST') {
+      issues.push({ severity: 'info', title: 'NRST 已偏离官方默认功能', detail: `Pin ${resetPin.number} 当前未选择 NRST。若改作 WAKE 或其他用途，请确认复位和下载调试方案。` });
     }
 
     const fixedPins = pkg.pins.filter(pin => pin.fixed);
@@ -585,7 +612,7 @@
       || (activeFilter === 'unassigned' && !assigned)
       || (activeFilter === 'conflict' && conflicts.has(value.function));
     const categoryMatch = activeCategory === 'All'
-      || (value.function ? selectedFunction(pin, value)?.category === activeCategory : pin.functions.some(item => item.category === activeCategory));
+      || (value.function ? functionCategory(selectedFunction(pin, value)) === activeCategory : pin.functions.some(item => functionCategory(item) === activeCategory));
     const resourceMatch = sidebarView !== 'resources' || activeResourceMatch(pin);
     const searchMatch = hasUserTextMatch()
       ? userTextMatches(value)
@@ -738,7 +765,7 @@
   function makePinButton(pin, conflicts) {
     const value = assignmentFor(pin.number);
     const fn = selectedFunction(pin, value);
-    const category = pin.fixed ? 'Power' : fn?.category || (isMeaningfulAssignment(value) ? 'GPIO' : 'Unassigned');
+    const category = pin.fixed ? 'Power' : functionCategory(fn) || (isMeaningfulAssignment(value) ? 'GPIO' : 'Unassigned');
     const candidate = Boolean(selectedSignal && pin.functions.some(item => item.signal === selectedSignal));
     const button = document.createElement('button');
     button.type = 'button';
@@ -803,10 +830,13 @@
     elements.bottomPins.replaceChildren(...sides.bottom.map(pin => makePinButton(pin, conflicts)));
     elements.leftPins.replaceChildren(...sides.left.map(pin => makePinButton(pin, conflicts)));
     const assigned = pkg.pins.filter(pin => !pin.fixed && isMeaningfulAssignment(assignmentFor(pin.number))).length;
+    const portPins = pkg.pins.filter(pin => !pin.fixed && isPortPin(pin));
+    const systemPins = pkg.pins.filter(pin => !pin.fixed && !isPortPin(pin));
+    const fixedPins = pkg.pins.filter(pin => pin.fixed);
     elements.canvasTitle.textContent = `${state.activeDevice} · ${pkg.label}`;
     elements.canvasSubtitle.textContent = selectedSignal
       ? `正在安排 ${selectedSignal}：点击绿色候选引脚，橙色表示将替换已有安排`
-      : `${pkg.pinCount} 个物理引脚 · ${pkg.pins.filter(pin => !pin.fixed).length} 个可规划引脚 · 滚轮缩放 / 右键拖动`;
+      : `${pkg.pinCount} 个物理引脚 · ${portPins.length} 个 GPIO/复用引脚 · ${systemPins.length} 个系统引脚 · ${fixedPins.length} 个电源/地`;
     elements.chipDevice.textContent = state.activeDevice;
     elements.chipPackage.textContent = pkg.label;
     elements.chipSummary.textContent = `${assigned} pins assigned · ${view.rotation}°${conflicts.size ? ` · ${conflicts.size} conflicts` : ''}`;
@@ -814,14 +844,14 @@
 
   function renderCategories() {
     const counts = new Map();
-    currentPackage().pins.forEach(pin => new Set(pin.functions.map(item => item.category)).forEach(category => counts.set(category, (counts.get(category) || 0) + 1)));
+    currentPackage().pins.forEach(pin => new Set(pin.functions.map(functionCategory)).forEach(category => counts.set(category, (counts.get(category) || 0) + 1)));
     const categories = ['All', ...Object.keys(CATEGORY_COLORS).filter(category => counts.has(category))];
     elements.categoryList.replaceChildren(...categories.map(category => {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = `category-btn${category === activeCategory ? ' active' : ''}`;
       button.style.setProperty('--category-color', category === 'All' ? '#9aa7af' : CATEGORY_COLORS[category]);
-      button.innerHTML = `<span class="category-dot"></span><span>${category === 'All' ? '全部类别' : category}</span><span class="category-count">${category === 'All' ? currentPackage().pins.length : counts.get(category)}</span>`;
+      button.innerHTML = `<span class="category-dot"></span><span>${category === 'All' ? '全部类别' : categoryLabel(category)}</span><span class="category-count">${category === 'All' ? currentPackage().pins.length : counts.get(category)}</span>`;
       button.addEventListener('click', () => { activeCategory = category; render(); });
       return button;
     }));
@@ -978,12 +1008,14 @@
   function renderStats() {
     const pkg = currentPackage();
     const configurable = pkg.pins.filter(pin => !pin.fixed);
+    const systemPins = configurable.filter(pin => !isPortPin(pin));
     const assigned = configurable.filter(pin => isMeaningfulAssignment(assignmentFor(pin.number))).length;
     const conflicts = conflictMap();
     elements.packagePinCount.textContent = `${pkg.pinCount} pins`;
     elements.assignedCount.textContent = assigned;
     elements.unassignedCount.textContent = configurable.length - assigned;
     elements.fixedCount.textContent = pkg.pins.length - configurable.length;
+    elements.systemCount.textContent = systemPins.length;
     elements.conflictCount.textContent = [...conflicts.values()].reduce((sum, pins) => sum + pins.length, 0);
   }
 
@@ -994,12 +1026,13 @@
     const nodes = [empty];
     const groups = new Map();
     pin.functions.forEach(fn => {
-      if (!groups.has(fn.category)) groups.set(fn.category, []);
-      groups.get(fn.category).push(fn);
+      const category = functionCategory(fn);
+      if (!groups.has(category)) groups.set(category, []);
+      groups.get(category).push(fn);
     });
     groups.forEach((functions, category) => {
       const group = document.createElement('optgroup');
-      group.label = category;
+      group.label = categoryLabel(category);
       functions.forEach(fn => {
         const option = document.createElement('option');
         option.value = fn.signal;
@@ -1033,13 +1066,13 @@
       elements.fixedBox.textContent = `${pin.name} 是该封装的固定电源相关引脚，不参与复用规划。`;
       return;
     }
-    elements.pinStatus.textContent = isMeaningfulAssignment(value) ? '已安排' : '未安排';
+    elements.pinStatus.textContent = isOfficialDefaultAssignment(pin, value) ? '官方默认 · 可修改' : isMeaningfulAssignment(value) ? '已安排' : '未安排';
     buildFunctionSelect(pin, value);
     elements.aliasInput.value = value.alias;
     elements.connectorInput.value = value.connector || '';
     elements.noteInput.value = value.note;
     elements.functionInfo.classList.toggle('hidden', !fn);
-    if (fn) elements.functionInfo.textContent = `${fn.category} · ${fn.signalType || '未标注方向'} · ${fn.iomuxManaged ? `IOMUX PF ${fn.pf}` : fn.pfLabel || 'Non-IOMUX'}`;
+    if (fn) elements.functionInfo.textContent = `${categoryLabel(functionCategory(fn))} · ${fn.signalType || '未标注方向'} · ${fn.iomuxManaged ? `IOMUX PF ${fn.pf}` : fn.pfLabel || 'Non-IOMUX'}`;
     elements.conflictBox.classList.toggle('hidden', conflictPins.length < 2);
     if (conflictPins.length >= 2) elements.conflictBox.textContent = `${value.function} 同时安排在 Pin ${conflictPins.join('、Pin ')}。这是提示性冲突，请自行确认是否有意重复。`;
   }
@@ -1058,7 +1091,7 @@
     else {
       renderStats(); renderCategories(); renderResources(); renderStage();
       renderCheckButton();
-      elements.pinStatus.textContent = isMeaningfulAssignment(next) ? '已安排' : '未安排';
+      elements.pinStatus.textContent = isOfficialDefaultAssignment(selectedPin(), next) ? '官方默认 · 可修改' : isMeaningfulAssignment(next) ? '已安排' : '未安排';
     }
   }
 
@@ -1208,7 +1241,7 @@
     pkg.pins.forEach(pin => {
       const value = assignmentFor(pin.number);
       const fn = selectedFunction(pin, value);
-      rows.push([currentProjectRecord().name, state.activeDevice, pkg.code, pin.number, pin.name, pin.fixed ? pin.name : value.function, value.alias, value.connector, value.note, pin.fixed ? 'Power' : fn?.category || '', fn?.signalType || '', fn ? (fn.iomuxManaged ? fn.pf : fn.pfLabel) : '', pin.iomuxRegister, pin.bufferType]);
+      rows.push([currentProjectRecord().name, state.activeDevice, pkg.code, pin.number, pin.name, pin.fixed ? pin.name : value.function, value.alias, value.connector, value.note, pin.fixed ? 'Power' : functionCategory(fn), fn?.signalType || '', fn ? (fn.iomuxManaged ? fn.pf : fn.pfLabel) : '', pin.iomuxRegister, pin.bufferType]);
     });
     downloadFile(`${state.activeDevice.toLowerCase()}-${pkg.code.toLowerCase()}-pin-plan.csv`, '\ufeff' + rows.map(row => row.map(csvEscape).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
   }
@@ -1229,7 +1262,7 @@
       const value = assignmentFor(pin.number);
       if (!value.function) return;
       const resource = resourceForSignal(value.function);
-      body.push([resource?.group.label || selectedFunction(pin, value)?.category || 'Other', resource?.instance.display || resource?.instance.id || '', value.function, pin.number, pin.name, value.alias, value.connector, value.note]);
+      body.push([resource?.group.label || functionCategory(selectedFunction(pin, value)) || 'Other', resource?.instance.display || resource?.instance.id || '', value.function, pin.number, pin.name, value.alias, value.connector, value.note]);
     });
     body.sort((a, b) => `${a[0]}-${a[1]}-${a[2]}`.localeCompare(`${b[0]}-${b[1]}-${b[2]}`, undefined, { numeric: true }));
     const rows = [header, ...body];

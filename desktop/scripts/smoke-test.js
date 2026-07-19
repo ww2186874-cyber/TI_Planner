@@ -65,6 +65,133 @@ const expressions = {
     storedDevice: (() => { const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v4') || '{}'); return stored.projects?.find(item => item.id === stored.activeProjectId)?.data?.activeDevice; })(),
     storedPackage: (() => { const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v4') || '{}'); return stored.projects?.find(item => item.id === stored.activeProjectId)?.data?.devices?.MSPM0G3507?.activePackage; })()
   }))()`,
+  defaults: `(() => {
+    const change = element => element.dispatchEvent(new Event('change', { bubbles: true }));
+    document.querySelector('[data-project-action="new"]').click();
+    document.querySelector('#projectNameInput').value = '官方默认接口测试';
+    document.querySelector('#projectForm').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+    const device = document.querySelector('#deviceSelect');
+    const pkg = document.querySelector('#packageSelect');
+    const packageCodes = {
+      MSPM0G3519: ['RHB', 'RGZ', 'PT', 'PM', 'PN', 'PZ'],
+      MSPM0G3507: ['RHB', 'RGZ', 'PT', 'PM']
+    };
+    const captures = [];
+    const buttonForFunction = signal => [...document.querySelectorAll('#packageStage .pin-button')]
+      .find(button => button.querySelector('.pin-function-label')?.textContent === signal);
+
+    Object.entries(packageCodes).forEach(([deviceCode, codes]) => {
+      device.value = deviceCode;
+      change(device);
+      codes.forEach(packageCode => {
+        pkg.value = packageCode;
+        change(pkg);
+        const swdio = buttonForFunction('SWDIO');
+        const swclk = buttonForFunction('SWCLK');
+        const nrst = buttonForFunction('NRST');
+        const power = [...document.querySelectorAll('#packageStage .pin-button.fixed')][0];
+        captures.push({
+          device: deviceCode,
+          package: packageCode,
+          assigned: Number(document.querySelector('#assignedCount').textContent),
+          systemCount: Number(document.querySelector('#systemCount').textContent),
+          swdioPin: Number(swdio?.dataset.pin),
+          swclkPin: Number(swclk?.dataset.pin),
+          nrstPin: Number(nrst?.dataset.pin),
+          swdioColor: swdio?.style.getPropertyValue('--pin-color'),
+          swclkColor: swclk?.style.getPropertyValue('--pin-color'),
+          nrstColor: nrst?.style.getPropertyValue('--pin-color'),
+          powerColor: power?.style.getPropertyValue('--pin-color'),
+          subtitle: document.querySelector('#canvasSubtitle').textContent
+        });
+      });
+    });
+
+    device.value = 'MSPM0G3507';
+    change(device);
+    pkg.value = 'PM';
+    change(pkg);
+    const swdio = buttonForFunction('SWDIO');
+    swdio.click();
+    const swdioOptions = [...document.querySelector('#functionSelect').options].map(option => option.value);
+    const swdioStatusBefore = document.querySelector('#pinStatus').textContent;
+    document.querySelector('#functionSelect').value = 'PA19';
+    change(document.querySelector('#functionSelect'));
+    const swdioAfter = document.querySelector('[data-pin="12"]');
+    const swdioEdit = {
+      label: swdioAfter.getAttribute('aria-label'),
+      color: swdioAfter.style.getPropertyValue('--pin-color'),
+      status: document.querySelector('#pinStatus').textContent
+    };
+
+    const nrst = buttonForFunction('NRST');
+    nrst.click();
+    const nrstOptions = [...document.querySelector('#functionSelect').options].map(option => option.value);
+    const nrstStatusBefore = document.querySelector('#pinStatus').textContent;
+    document.querySelector('#functionSelect').value = '';
+    change(document.querySelector('#functionSelect'));
+    const nrstAfter = document.querySelector('[data-pin="38"]');
+    const nrstEdit = {
+      label: nrstAfter.getAttribute('aria-label'),
+      color: nrstAfter.style.getPropertyValue('--pin-color'),
+      status: document.querySelector('#pinStatus').textContent
+    };
+
+    device.value = 'MSPM0G3519';
+    change(device);
+    pkg.value = 'PM';
+    change(pkg);
+    buttonForFunction('NRST').click();
+    const nrstAlternativeOptions = [...document.querySelector('#functionSelect').options].map(option => option.value);
+    document.querySelector('#functionSelect').value = 'WAKE';
+    change(document.querySelector('#functionSelect'));
+    const nrstAlternativePin = document.querySelector('[data-pin="38"]');
+    const nrstAlternative = {
+      label: nrstAlternativePin.getAttribute('aria-label'),
+      color: nrstAlternativePin.style.getPropertyValue('--pin-color'),
+      status: document.querySelector('#pinStatus').textContent
+    };
+
+    return {
+      captures,
+      swdioOptions,
+      nrstOptions,
+      nrstAlternativeOptions,
+      swdioStatusBefore,
+      nrstStatusBefore,
+      swdioEdit,
+      nrstEdit,
+      nrstAlternative,
+      categoryLabels: [...document.querySelectorAll('#categoryList .category-btn span:nth-child(2)')].map(item => item.textContent)
+    };
+  })()`,
+  'default-restore': `(() => {
+    const change = element => element.dispatchEvent(new Event('change', { bubbles: true }));
+    const device = document.querySelector('#deviceSelect');
+    const pkg = document.querySelector('#packageSelect');
+    device.value = 'MSPM0G3507';
+    change(device);
+    pkg.value = 'PM';
+    change(pkg);
+    const g3507 = {
+      assigned: Number(document.querySelector('#assignedCount').textContent),
+      swdio: document.querySelector('[data-pin="12"]').getAttribute('aria-label'),
+      swdioColor: document.querySelector('[data-pin="12"]').style.getPropertyValue('--pin-color'),
+      nrst: document.querySelector('[data-pin="38"]').getAttribute('aria-label'),
+      nrstColor: document.querySelector('[data-pin="38"]').style.getPropertyValue('--pin-color')
+    };
+    device.value = 'MSPM0G3519';
+    change(device);
+    pkg.value = 'PM';
+    change(pkg);
+    const g3519 = {
+      assigned: Number(document.querySelector('#assignedCount').textContent),
+      nrst: document.querySelector('[data-pin="38"]').getAttribute('aria-label'),
+      nrstColor: document.querySelector('[data-pin="38"]').style.getPropertyValue('--pin-color')
+    };
+    return { g3507, g3519 };
+  })()`,
   vqfn: `(() => {
     const device = document.querySelector('#deviceSelect');
     const pkg = document.querySelector('#packageSelect');
@@ -283,6 +410,7 @@ const expressions = {
       alert: alerts[0],
       focusAfterImport,
       searchMatches,
+      assigned: Number(document.querySelector('#assignedCount').textContent),
       editedPin: document.querySelector('[data-pin="1"]')?.getAttribute('aria-label')
     };
   })()`,
@@ -310,6 +438,7 @@ const expressions = {
       activePackage: document.querySelector('#packageSelect').value,
       packages: [...document.querySelectorAll('#packageSelect option')].map(option => option.value),
       pin: document.querySelector('[aria-label^="Pin 1 PA0"]')?.getAttribute('aria-label'),
+      assigned: Number(document.querySelector('#assignedCount').textContent),
       alert: alerts[0]
     };
   })()`,
@@ -345,6 +474,63 @@ async function main() {
   if (mode === 'restore' && (result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'RHB' || !result.saved)) {
     throw new Error('Desktop state was not restored');
   }
+  if (mode === 'defaults') {
+    const expectedPins = {
+      RHB: [23, 24, 3],
+      RGZ: [34, 35, 4],
+      PT: [34, 35, 4],
+      PM: [12, 13, 38],
+      PN: [56, 57, 6],
+      PZ: [71, 72, 6]
+    };
+    if (result.captures.length !== 10) throw new Error('Official default coverage is incomplete');
+    result.captures.forEach(item => {
+      const expected = expectedPins[item.package];
+      if (
+        item.assigned !== 3
+        || item.systemCount !== 1
+        || item.swdioPin !== expected[0]
+        || item.swclkPin !== expected[1]
+        || item.nrstPin !== expected[2]
+        || item.swdioColor !== 'var(--pin-debug)'
+        || item.swclkColor !== 'var(--pin-debug)'
+        || item.nrstColor !== 'var(--pin-system)'
+        || item.powerColor !== 'var(--pin-power)'
+        || new Set([item.swdioColor, item.nrstColor, item.powerColor]).size !== 3
+        || !item.subtitle.includes('1 个系统引脚')
+      ) throw new Error(`Official defaults failed for ${item.device} ${item.package}: ${JSON.stringify(item)}`);
+    });
+    if (
+      !result.swdioOptions.includes('SWDIO')
+      || !result.swdioOptions.includes('PA19')
+      || !result.nrstOptions.includes('NRST')
+      || result.nrstOptions.includes('WAKE')
+      || !result.nrstAlternativeOptions.includes('WAKE')
+      || result.swdioStatusBefore !== '官方默认 · 可修改'
+      || result.nrstStatusBefore !== '官方默认 · 可修改'
+      || !result.swdioEdit.label.includes('PA19 PA19')
+      || result.swdioEdit.color !== 'var(--pin-gpio)'
+      || result.swdioEdit.status !== '已安排'
+      || result.nrstEdit.label !== 'Pin 38 NRST'
+      || result.nrstEdit.color !== 'var(--pin-unassigned)'
+      || result.nrstEdit.status !== '未安排'
+      || !result.nrstAlternative.label.includes('NRST WAKE')
+      || result.nrstAlternative.color !== 'var(--pin-system)'
+      || result.nrstAlternative.status !== '已安排'
+      || !result.categoryLabels.includes('Debug / 调试')
+      || !result.categoryLabels.includes('System / 系统')
+    ) throw new Error(`Official defaults are not editable or categorized correctly: ${JSON.stringify(result)}`);
+  }
+  if (mode === 'default-restore' && (
+    result.g3507.assigned !== 2
+    || !result.g3507.swdio.includes('PA19 PA19')
+    || result.g3507.swdioColor !== 'var(--pin-gpio)'
+    || result.g3507.nrst !== 'Pin 38 NRST'
+    || result.g3507.nrstColor !== 'var(--pin-unassigned)'
+    || result.g3519.assigned !== 3
+    || !result.g3519.nrst.includes('NRST WAKE')
+    || result.g3519.nrstColor !== 'var(--pin-system)'
+  )) throw new Error(`Edited official defaults were not restored: ${JSON.stringify(result)}`);
   if (mode === 'vqfn') {
     const expected = [
       ['MSPM0G3519', 'RHB', 32, 'PA0', 'VCORE'],
@@ -375,7 +561,7 @@ async function main() {
     || result.testState.device !== 'MSPM0G3507'
     || result.testState.package !== 'RHB'
     || !result.selectedFunction
-    || result.assignedAfterEdit !== 1
+    || result.assignedAfterEdit !== 4
     || result.functionAfterUndo !== ''
     || result.functionAfterRedo !== result.selectedFunction
     || !result.pinLabel.includes('发布测试')
@@ -388,10 +574,10 @@ async function main() {
   )) {
     throw new Error(`Release workflow smoke test failed: ${JSON.stringify(result)}`);
   }
-  if (mode === 'import-v4' && (result.activeProject !== '新版导入测试' || result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'PT' || !result.packages.includes('RHB') || !result.packages.includes('RGZ') || !result.pin?.includes('UART0_TX') || result.focusAfterImport !== 'searchInput' || result.searchMatches.length !== 1 || result.searchMatches[0] !== 'PA0' || !result.editedPin?.includes('导入后输入'))) {
+  if (mode === 'import-v4' && (result.activeProject !== '新版导入测试' || result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'PT' || !result.packages.includes('RHB') || !result.packages.includes('RGZ') || !result.pin?.includes('UART0_TX') || result.assigned !== 1 || result.focusAfterImport !== 'searchInput' || result.searchMatches.length !== 1 || result.searchMatches[0] !== 'PA0' || !result.editedPin?.includes('导入后输入'))) {
     throw new Error('Version 4 project import failed');
   }
-  if (mode === 'import-v3' && (result.activeProject !== 'import-v3' || result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'PT' || !result.packages.includes('RHB') || !result.packages.includes('RGZ') || !result.pin?.includes('UART0_TX') || !result.pin?.includes('旧版导入'))) {
+  if (mode === 'import-v3' && (result.activeProject !== 'import-v3' || result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'PT' || !result.packages.includes('RHB') || !result.packages.includes('RGZ') || !result.pin?.includes('UART0_TX') || result.assigned !== 1 || !result.pin?.includes('旧版导入'))) {
     throw new Error('Version 3 project import failed');
   }
   if (mode === 'print' && (result.printCalls !== 1 || !result.report.includes('MSPM0 引脚规划报告') || !result.report.includes('非 TI 官方工具'))) {
