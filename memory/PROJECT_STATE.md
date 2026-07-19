@@ -2,10 +2,10 @@
 
 更新日期：2026-07-19
 
-- 当前正式版本：`1.2.0`
-- 当前候选版本：`1.2.1-beta.1`，已生成修复下边长标签布局和 JSON 导入后文本焦点的离线 HTML，等待用户确认
-- 最新 Git 标签：`v1.2.0`
-- 正式版本归档：`releases/v1.0.0`、`releases/v1.0.1`、`releases/v1.1.0`、`releases/v1.2.0`
+- 当前正式版本：`1.2.1`
+- 当前候选版本：无
+- 最新 Git 标签：`v1.2.1`
+- 正式版本归档：`releases/v1.0.0`、`releases/v1.0.1`、`releases/v1.1.0`、`releases/v1.2.0`、`releases/v1.2.1`
 - 当前图标：无文字芯片图形，保留引脚和 1 号脚定位圆点
 - 当前作者署名：`天津职业技术师范大学 电子创新协会`
 - 支持芯片：`MSPM0G3519`、`MSPM0G3507`
@@ -17,10 +17,10 @@
 - 当前正式工作区：`<USER_HOME>\Desktop\MSPM0`
 - 依赖和缓存应长期保留：`.pnpm-store/`、`.cache/`、`desktop/node_modules/`
 - 正式功能：多工程、撤销/重做、外设完整性、规划检查、连接器字段、扩展导出、关于与许可证、数据自动校验、快速启动文件夹版
-- 最近完整验证：`1.2.1-beta.1` Electron 开发版导入 v4 JSON后焦点自动回到搜索框，搜索只命中目标引脚且标签输入立即生效；下边长标签与引脚格无交叠并完整包含在 210 px 固定轨道内；正式 `1.2.0` 的完整发布验证继续有效
-- 当前候选产物：`outputs/mspm0g3519-pin-planner.html` 为 `1.2.1-beta.1` 候选；既有候选和正式构建继续保留
-- 当前正式产物：`releases/v1.2.0/MSPM0-Pin-Planner-1.2.0-Portable.exe`、`releases/v1.2.0/MSPM0-Pin-Planner-1.2.0-Folder/`、`releases/v1.2.0/mspm0g3519-pin-planner.html`
+- 最近完整验证：`1.2.1` 文件夹版和便携 EXE 均真实启动通过；v3/v4 导入、导入后焦点与即时搜索/编辑、`PB1` 精确搜索、VQFN 四种芯片/封装组合、210 px 上下标签轨道、打印报告及“天猛星”48 引脚实际工程导入均通过
+- 当前候选产物：无；`outputs/` 保留正式构建和既有候选产物
+- 当前正式产物：`releases/v1.2.1/MSPM0-Pin-Planner-1.2.1-Portable.exe`、`releases/v1.2.1/MSPM0-Pin-Planner-1.2.1-Folder/`、`releases/v1.2.1/mspm0g3519-pin-planner.html`
 - 项目长期记忆：已启用 `memory/`，由 `AGENTS.md` 强制新 Codex 任务读取和维护
 - 工作区体检：`workspace-check.cmd` 只读检查版本、Git、目录、缓存和发布归档
 
-工作区预期状态：Git干净；正式版本不可覆盖；`releases/v1.2.0/` 和 `v1.2.0` 标签存在，全部旧版归档继续保留；`outputs/` 保存 `1.2.1-beta.1` HTML及既有候选产物，尚未生成本候选文件夹版或便携 EXE。
+工作区预期状态：Git干净；正式版本不可覆盖；`releases/v1.2.1/` 和 `v1.2.1` 标签存在，全部旧版归档和标签继续保留；`outputs/` 保存 `1.2.1` 正式构建及既有候选产物。
