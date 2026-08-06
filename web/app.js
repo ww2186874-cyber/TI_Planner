@@ -155,7 +155,11 @@
     Object.entries(board.fixedDefaults || {}).forEach(([number, signal]) => {
       if (pins.get(number)?.functions.some(fn => fn.signal === signal)) target[number] = emptyAssignment(signal);
     });
-    data.enabledBoardResources = (board.resources || []).filter(resource => resource.defaultEnabled === true).map(resource => resource.id);
+    const defaultResources = (board.resources || []).filter(resource => resource.defaultEnabled === true);
+    data.enabledBoardResources = defaultResources.map(resource => resource.id);
+    defaultResources.forEach(resource => Object.entries(resource.assignments || {}).forEach(([number, signal]) => {
+      if (pins.get(number)?.functions.some(fn => fn.signal === signal)) target[number] = emptyAssignment(signal);
+    }));
     return data;
   }
 
@@ -344,7 +348,7 @@
   }
   function isBoardDefaultAssignment(pin, value) { return Boolean(boardDefaultSignal(pin) && value.function === boardDefaultSignal(pin)); }
   function boardStatusLabel(status) {
-    return { header: '普通排针', occupied: '板载占用', special: '特殊电气条件', unexposed: '未引出' }[status] || '';
+    return { header: '普通排针', occupied: '板载占用', special: '特殊电气条件', unexposed: '未引出', fixed: '固定板载连接' }[status] || '';
   }
   function boardResourcesForPin(pin) {
     if (!isBoardApplicable()) return [];
@@ -483,14 +487,12 @@
 
     const availableDebug = new Set(pkg.pins.flatMap(pin => pin.functions.map(fn => fn.signal)).filter(signal => /SWDIO|SWCLK/.test(signal)));
     const assignedDebug = new Set(Object.values(assignments()).map(value => value.function).filter(signal => availableDebug.has(signal)));
-    const boardSwdDisabled = isBoardApplicable() && !isBoardResourceEnabled(boardResourceById('swd-debug'));
-    if (!boardSwdDisabled && availableDebug.size && assignedDebug.size < Math.min(2, availableDebug.size)) {
+    if (availableDebug.size && assignedDebug.size < Math.min(2, availableDebug.size)) {
       issues.push({ severity: 'info', title: '调试接口尚未完整标记', detail: '当前封装存在 SWDIO/SWCLK 候选功能。若板上需要下载和调试，请确认对应连接。' });
     }
 
     const resetPin = pkg.pins.find(pin => pin.functions.some(fn => fn.signal === 'NRST'));
-    const boardResetDisabled = isBoardApplicable() && !isBoardResourceEnabled(boardResourceById('nrst-reset'));
-    if (!boardResetDisabled && resetPin && assignmentFor(resetPin.number).function !== 'NRST') {
+    if (resetPin && assignmentFor(resetPin.number).function !== 'NRST') {
       issues.push({ severity: 'info', title: 'NRST 已偏离官方默认功能', detail: `Pin ${resetPin.number} 当前未选择 NRST。若改作 WAKE 或其他用途，请确认复位和下载调试方案。` });
     }
 
@@ -941,7 +943,8 @@
       return;
     }
     const board = currentBoard();
-    if (!window.confirm(`恢复“${board.name}”的初始配置吗？将关闭全部板载资源、清除仍使用资源预设功能的引脚，并恢复 5 项固定时钟功能。`)) return;
+    const defaultResources = (board.resources || []).filter(resource => resource.defaultEnabled === true);
+    if (!window.confirm(`恢复“${board.name}”的初始配置吗？将恢复 5 项固定时钟，并启用 ${defaultResources.map(resource => resource.shortName || resource.name).join('、')}；其他板载资源关闭。`)) return;
     commitMutation('恢复天猛星板卡初始配置', () => {
       state.enabledBoardResources = [];
       (board.resources || []).forEach(resource => Object.entries(resource.assignments || {}).forEach(([number, signal]) => {
@@ -950,6 +953,10 @@
       Object.entries(board.fixedDefaults || {}).forEach(([number, signal]) => {
         assignments()[number] = emptyAssignment(signal);
       });
+      state.enabledBoardResources = defaultResources.map(resource => resource.id);
+      defaultResources.forEach(resource => Object.entries(resource.assignments || {}).forEach(([number, signal]) => {
+        assignments()[number] = emptyAssignment(signal);
+      }));
     });
   }
 
@@ -1062,7 +1069,7 @@
     if (boardPin) {
       const marker = document.createElement('span');
       marker.className = 'board-pin-marker';
-      marker.textContent = { header: 'H', occupied: 'B', special: '!', unexposed: '×' }[boardPin.status];
+      marker.textContent = { header: 'H', occupied: 'B', special: '!', unexposed: '×', fixed: 'P' }[boardPin.status];
       marker.title = boardStatusLabel(boardPin.status);
       pad.appendChild(marker);
     }
@@ -1082,6 +1089,13 @@
         boardLabel.title = `${resource.name}：${resource.signal}`;
         external.appendChild(boardLabel);
       });
+      if (pin.fixed && boardPin.label) {
+        const fixedLabel = document.createElement('span');
+        fixedLabel.className = 'pin-board-label board-fixed-label';
+        fixedLabel.textContent = boardPin.label;
+        fixedLabel.title = boardPin.detail || boardPin.label;
+        external.appendChild(fixedLabel);
+      }
     }
     if (!pin.fixed && value.alias) {
       const custom = document.createElement('span');
@@ -1124,7 +1138,7 @@
     elements.canvasSubtitle.textContent = selectedSignal
       ? `正在安排 ${selectedSignal}：点击绿色候选引脚，橙色表示将替换已有安排`
       : isBoardApplicable()
-        ? `${currentBoard().name} · H 排针 · B 板载占用 · ! 特殊限制 · × 未引出`
+        ? `${currentBoard().name} · H 排针 · B 板载占用 · P 固定电源 · ! 特殊限制 · × 未引出`
         : currentBoardPreset()
           ? `模板对应 ${currentBoardPreset().device} ${currentBoardPreset().package}-64，当前视图仅显示芯片官方数据`
           : `${pkg.pinCount} 个物理引脚 · ${portPins.length} 个 GPIO/复用引脚 · ${systemPins.length} 个系统引脚 · ${fixedPins.length} 个电源/地`;
@@ -1149,7 +1163,7 @@
       ? `${enabled.size}/${(board.resources || []).length} 启用${conflicts ? ` · ${conflicts} 项需处理` : ''}`
       : `对应 ${preset.device} ${preset.package}-64 · 当前不可用`;
     elements.boardHardwareNote.textContent = applicable
-      ? '开关控制当前规划和自动安排，不会断开板上的真实器件与走线。'
+      ? '开关只控制当前规划，不会断开真实器件与走线。SWD 与 NRST 建议保留；BSL 仅在需要串口 Bootloader 时启用。'
       : `切回 ${preset.device} ${preset.package}-64 后可以继续配置，现有安排不会删除。`;
 
     const pinByNumber = new Map(Object.entries(board.pins || {}));
@@ -1175,7 +1189,7 @@
       const mismatchCount = applicable && enabled.has(resource.id) ? resourceMismatchCount(resource) : 0;
       status.textContent = enabled.has(resource.id)
         ? mismatchCount ? `需处理 ${mismatchCount}` : '已启用'
-        : resource.kind === 'optional' ? '未启用' : '未纳入规划';
+        : resource.recommended ? '建议启用' : resource.kind === 'optional' ? '未启用' : '未纳入规划';
       if (mismatchCount) row.classList.add('warning');
       row.append(toggle, copy, status);
       toggle.addEventListener('change', () => {
@@ -1190,7 +1204,10 @@
     elements.boardSharedNote.classList.toggle('hidden', activeSharedBuses.length === 0);
     elements.boardSharedNote.textContent = activeSharedBuses.map(bus => `${bus.name}：${bus.summary}；${Object.values(bus.chipSelectPins || {}).join(' · ')}`).join(' ');
 
-    const fixedRows = (board.fixedHardware || []).map(item => {
+    const fixedConnections = Object.entries(board.pins || {})
+      .filter(([, item]) => item.status === 'fixed')
+      .map(([number, item]) => ({ name: `${item.name} · ${item.label}`, detail: `Pin ${number}：${item.detail}` }));
+    const fixedRows = [...(board.fixedHardware || []), ...fixedConnections].map(item => {
       const row = document.createElement('div');
       row.className = 'board-fixed-row';
       const title = document.createElement('strong');
@@ -1478,7 +1495,9 @@
     elements.fixedBox.classList.toggle('hidden', !pin.fixed);
     if (pin.fixed) {
       elements.pinStatus.textContent = '固定功能';
-      elements.fixedBox.textContent = `${pin.name} 是该封装的固定电源相关引脚，不参与复用规划。`;
+      elements.fixedBox.textContent = boardPin?.detail
+        ? `${pin.name} 是固定电源相关引脚，不参与复用规划。${boardPin.detail}`
+        : `${pin.name} 是该封装的固定电源相关引脚，不参与复用规划。`;
       return;
     }
     elements.pinStatus.textContent = isBoardDefaultAssignment(pin, value)

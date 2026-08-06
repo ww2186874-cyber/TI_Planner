@@ -491,6 +491,8 @@
     }
 
     .canvas-toolbar {
+      position: relative;
+      z-index: 4;
       display: flex;
       flex-wrap: wrap;
       align-items: center;
@@ -521,12 +523,13 @@
 
     .zoom-control input { width: 130px; accent-color: var(--primary); }
 
-    .canvas-actions { display: flex; flex: 1 1 430px; align-items: center; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
+    .canvas-actions { display: flex; flex: 1 1 430px; min-width: 0; align-items: center; gap: 7px; flex-wrap: nowrap; justify-content: flex-end; }
 
     .board-hardware-panel {
-      flex: none;
-      border-bottom: 1px solid var(--line);
-      background: color-mix(in srgb, var(--primary-soft) 54%, var(--surface));
+      position: relative;
+      flex: 0 0 auto;
+      border: 0;
+      background: transparent;
     }
 
     .board-hardware-panel > summary {
@@ -534,8 +537,11 @@
       align-items: center;
       justify-content: space-between;
       gap: 14px;
-      min-height: 42px;
-      padding: 7px 14px;
+      min-height: 28px;
+      padding: 5px 8px;
+      border: 1px solid var(--line-strong);
+      border-radius: 4px;
+      background: color-mix(in srgb, var(--primary-soft) 54%, var(--surface));
       cursor: pointer;
       list-style: none;
     }
@@ -548,25 +554,33 @@
     .board-hardware-panel[open] > summary::after { content: "−"; }
 
     .board-hardware-body {
+      position: absolute;
+      top: calc(100% + 7px);
+      right: 0;
+      z-index: 10;
+      width: min(980px, 78vw);
       max-height: min(330px, 42vh);
       overflow: auto;
       padding: 0 14px 12px;
-      border-top: 1px solid var(--line);
+      border: 1px solid var(--line-strong);
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--primary-soft) 54%, var(--surface));
+      box-shadow: 0 16px 38px rgba(0, 0, 0, 0.34);
     }
 
     .board-hardware-note { margin: 9px 0; color: var(--muted); font-size: 0.68rem; line-height: 1.45; }
-    .board-resource-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; }
-    .board-resource-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 9px; min-height: 48px; border-top: 1px solid var(--line); cursor: pointer; }
+    .board-resource-controls { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 2px; }
+    .board-resource-row { display: grid; flex: 0 0 168px; grid-template-columns: 34px minmax(0, 1fr); grid-template-rows: auto auto auto; align-items: center; column-gap: 8px; min-height: 58px; border-top: 1px solid var(--line); cursor: pointer; }
     .board-resource-row.warning { box-shadow: inset 3px 0 var(--warning); }
-    .board-resource-toggle { position: relative; width: 34px; height: 18px; margin: 0; appearance: none; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); transition: border-color 120ms ease, background 120ms ease; }
+    .board-resource-toggle { position: relative; grid-row: 1 / 4; width: 34px; height: 18px; margin: 0; appearance: none; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); transition: border-color 120ms ease, background 120ms ease; }
     .board-resource-toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--muted); transition: transform 120ms ease, background 120ms ease; }
     .board-resource-toggle:checked { border-color: var(--primary); background: var(--primary-soft); }
     .board-resource-toggle:checked::after { transform: translateX(16px); background: var(--primary); }
     .board-resource-toggle:disabled { cursor: not-allowed; opacity: .42; }
-    .board-resource-copy { min-width: 0; }
+    .board-resource-copy { grid-column: 2; grid-row: 1 / 3; min-width: 0; }
     .board-resource-copy strong { display: block; font-size: 0.73rem; }
     .board-resource-copy span { display: block; margin-top: 2px; overflow: hidden; color: var(--muted); font: 600 0.63rem/1.3 Consolas, monospace; text-overflow: ellipsis; white-space: nowrap; }
-    .board-resource-state { color: var(--muted); font-size: 0.64rem; font-weight: 750; white-space: nowrap; }
+    .board-resource-state { grid-column: 2; grid-row: 3; color: var(--muted); font-size: 0.62rem; font-weight: 750; white-space: nowrap; }
     .board-resource-row.enabled .board-resource-state { color: var(--success); }
     .board-resource-row.warning .board-resource-state { color: var(--warning); }
     .board-shared-note { margin: 9px 0 0; padding: 8px 10px; border-left: 3px solid var(--primary); color: var(--info-text); background: var(--info-bg); font-size: 0.68rem; line-height: 1.45; }
@@ -677,8 +691,9 @@
 
     .pin-button.board-header .pin-pad { outline: 1px solid #4f7a65; outline-offset: -3px; }
     .pin-button.board-occupied .pin-pad { outline: 2px solid var(--warning); outline-offset: -3px; }
-    .pin-button.board-special .pin-pad { outline: 2px dashed var(--danger); outline-offset: -3px; }
+    .pin-button.board-special .pin-pad { outline: 2px dashed var(--warning); outline-offset: -3px; }
     .pin-button.board-unexposed .pin-pad { outline: 2px dashed #687782; outline-offset: -3px; }
+    .pin-button.board-fixed .pin-pad { outline: 2px solid var(--pin-power); outline-offset: -3px; }
 
     .board-pin-marker {
       position: absolute;
@@ -697,8 +712,9 @@
     }
 
     .board-occupied .board-pin-marker { color: var(--warning); }
-    .board-special .board-pin-marker { color: var(--danger); }
+    .board-special .board-pin-marker { color: var(--warning); }
     .board-unexposed .board-pin-marker { color: #687782; }
+    .board-fixed .board-pin-marker { color: var(--pin-power); }
     .side.top .board-pin-marker, .side.bottom .board-pin-marker {
       top: auto;
       right: 4px;
@@ -719,6 +735,7 @@
     .pin-board-label[data-resource="ch340-uart"], .pin-board-label[data-resource="swd-debug"] { color: var(--pin-uart); }
     .pin-board-label[data-resource="user-button"], .pin-board-label[data-resource="user-led"] { color: var(--success); }
     .pin-board-label[data-resource="bsl-button"], .pin-board-label[data-resource="nrst-reset"] { color: var(--pin-system); }
+    .pin-board-label.board-fixed-label { color: var(--pin-power); }
     .pin-custom-label { display: block; margin-top: 2px; overflow: hidden; color: var(--primary); text-overflow: ellipsis; white-space: nowrap; }
 
     .side.left .pin-button, .side.right .pin-button {
@@ -762,10 +779,10 @@
     }
     .side.top .pin-external-label { top: 132px; }
     .side.bottom .pin-external-label {
-      top: 208px;
+      top: 78px;
       left: calc(var(--step) - 5px);
       transform: rotate(-90deg);
-      transform-origin: left bottom;
+      transform-origin: left top;
     }
 
     .pin-button:hover { z-index: 2; }
@@ -843,15 +860,17 @@
     }
 
     .board-info[data-status="occupied"] { box-shadow: inset 3px 0 var(--warning); }
-    .board-info[data-status="special"] { box-shadow: inset 3px 0 var(--danger); }
+    .board-info[data-status="special"] { box-shadow: inset 3px 0 var(--warning); }
     .board-info[data-status="unexposed"] { box-shadow: inset 3px 0 var(--muted); }
+    .board-info[data-status="fixed"] { box-shadow: inset 3px 0 var(--pin-power); }
     .board-info-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
     .board-info-kicker { display: block; margin: 0 0 3px; color: var(--primary); font-size: 0.63rem; font-weight: 800; }
     .board-info-head strong { display: block; font-size: 0.84rem; line-height: 1.35; }
     .board-info-status { padding: 4px 6px; border: 1px solid var(--line-strong); border-radius: 4px; color: var(--warning); font-size: 0.64rem; font-weight: 750; white-space: nowrap; }
     .board-info[data-status="header"] .board-info-status { color: var(--primary); }
-    .board-info[data-status="special"] .board-info-status { color: var(--danger); }
+    .board-info[data-status="special"] .board-info-status { color: var(--warning); }
     .board-info[data-status="unexposed"] .board-info-status { color: var(--muted); }
+    .board-info[data-status="fixed"] .board-info-status { color: var(--pin-power); }
     .board-info-meta { display: block; margin-top: 6px; color: var(--muted); font-size: 0.67rem; line-height: 1.45; }
     .board-route-list { margin-top: 10px; border-top: 1px solid var(--line); }
     .board-route { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: 9px; min-height: 42px; border-bottom: 1px solid var(--line); }
@@ -1096,6 +1115,18 @@
             <span id="canvasSubtitle">点击封装四周的引脚进行安排</span>
           </div>
           <div class="canvas-actions">
+            <details class="board-hardware-panel hidden" id="boardHardwarePanel">
+              <summary>
+                <span class="board-hardware-heading"><strong>板载硬件</strong><span id="boardHardwareSummary"></span></span>
+              </summary>
+              <div class="board-hardware-body">
+                <p class="board-hardware-note" id="boardHardwareNote"></p>
+                <div class="board-resource-controls" id="boardResourceControls"></div>
+                <div class="board-shared-note hidden" id="boardSharedNote"></div>
+                <h3 class="board-fixed-heading">固定硬件与电气限制</h3>
+                <div class="board-fixed-list" id="boardFixedHardwareList"></div>
+              </div>
+            </details>
             <button class="btn small" id="rotateCcwBtn" type="button" aria-label="芯片逆时针旋转 90 度">逆时针</button>
             <button class="btn small" id="rotateCwBtn" type="button" aria-label="芯片顺时针旋转 90 度">顺时针</button>
             <button class="btn small" id="fitViewBtn" type="button">适配窗口</button>
@@ -1106,19 +1137,6 @@
             </label>
           </div>
         </div>
-
-        <details class="board-hardware-panel hidden" id="boardHardwarePanel">
-          <summary>
-            <span class="board-hardware-heading"><strong>板载硬件</strong><span id="boardHardwareSummary"></span></span>
-          </summary>
-          <div class="board-hardware-body">
-            <p class="board-hardware-note" id="boardHardwareNote"></p>
-            <div class="board-resource-controls" id="boardResourceControls"></div>
-            <div class="board-shared-note hidden" id="boardSharedNote"></div>
-            <h3 class="board-fixed-heading">固定硬件与电气限制</h3>
-            <div class="board-fixed-list" id="boardFixedHardwareList"></div>
-          </div>
-        </details>
 
         <div class="canvas-scroller" id="canvasScroller">
           <div class="stage-scale" id="stageScale">

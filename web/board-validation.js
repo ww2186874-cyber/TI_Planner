@@ -50,13 +50,16 @@ function validateBoardPresets(data, devices) {
   const unexposed = records.filter(([, item]) => item.status === 'unexposed').map(([, item]) => item.name).sort();
   assert(JSON.stringify(unexposed) === JSON.stringify(['PA3', 'PA4', 'PA5', 'PA6']), 'Tianmengxing: unexposed oscillator pins mismatch');
   records.forEach(([number, item]) => {
-    assert(['header', 'occupied', 'special', 'unexposed'].includes(item.status), `Tianmengxing Pin ${number}: invalid board status`);
+    assert(['header', 'occupied', 'special', 'unexposed', 'fixed'].includes(item.status), `Tianmengxing Pin ${number}: invalid board status`);
     assert(Boolean(item.name), `Tianmengxing Pin ${number}: name missing`);
     if (item.status === 'unexposed') assert(!item.header, `Tianmengxing Pin ${number}: unexposed pin cannot have a header terminal`);
   });
 
   assert(JSON.stringify(board.fixedDefaults) === JSON.stringify(EXPECTED_FIXED_DEFAULTS), 'Tianmengxing: fixed default assignments mismatch');
   assert(Array.isArray(board.fixedHardware) && board.fixedHardware.length === 5, 'Tianmengxing: fixed hardware records mismatch');
+  assert(board.pins?.['32']?.name === 'VCORE' && board.pins?.['32']?.status === 'fixed', 'Tianmengxing: VCORE board connection missing');
+  assert(board.pins?.['40']?.name === 'VDD' && board.pins?.['40']?.status === 'fixed', 'Tianmengxing: VDD board connection missing');
+  assert(board.pins?.['41']?.name === 'VSS' && board.pins?.['41']?.status === 'fixed', 'Tianmengxing: VSS board connection missing');
   assert(board.pins?.['38']?.header === 'U22-35', 'Tianmengxing: NRST header mapping mismatch');
   const resources = new Map((board.resources || []).map(item => [item.id, item]));
   assert(resources.size === Object.keys(EXPECTED_RESOURCES).length, 'Tianmengxing: expected eight switchable resources');
@@ -65,7 +68,9 @@ function validateBoardPresets(data, devices) {
     assert(Boolean(resource), `Tianmengxing: resource ${id} is missing`);
     if (!resource) return;
     assert(resource.kind === expected.kind, `Tianmengxing: resource ${id} kind mismatch`);
-    assert(resource.defaultEnabled === false, `Tianmengxing: resource ${id} must default disabled`);
+    const expectedDefaultEnabled = id === 'swd-debug' || id === 'nrst-reset';
+    assert(resource.defaultEnabled === expectedDefaultEnabled, `Tianmengxing: resource ${id} default state mismatch`);
+    assert(Boolean(resource.recommended) === expectedDefaultEnabled, `Tianmengxing: resource ${id} recommendation mismatch`);
     assert(JSON.stringify(resource.pins) === JSON.stringify(expected.pins), `Tianmengxing: resource ${id} pin mapping mismatch`);
     assert(JSON.stringify(resource.assignments) === JSON.stringify(expected.assignments), `Tianmengxing: resource ${id} assignments mismatch`);
   });

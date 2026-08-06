@@ -253,6 +253,7 @@ const expressions = {
       occupiedMarkers: document.querySelectorAll('#packageStage .board-occupied').length,
       specialMarkers: document.querySelectorAll('#packageStage .board-special').length,
       unexposedMarkers: document.querySelectorAll('#packageStage .board-unexposed').length,
+      fixedMarkers: document.querySelectorAll('#packageStage .board-fixed').length,
       subtitle: document.querySelector('#canvasSubtitle').textContent,
       storedPreset: (() => {
         const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v6') || '{}');
@@ -330,6 +331,10 @@ const expressions = {
     const openDrainCheck = document.querySelector('#checkDialogBody').textContent;
     document.querySelector('#checkDialog').close();
 
+    document.querySelector('[data-pin="40"]').click();
+    const fixedPinLabel = document.querySelector('[data-pin="40"] .board-fixed-label')?.textContent;
+    const fixedBoardInfo = document.querySelector('#boardInfoBox').textContent;
+
     let printCalls = 0;
     const originalPrint = window.print;
     window.print = () => { printCalls += 1; };
@@ -373,7 +378,7 @@ const expressions = {
     return {
       g3507, g3519, defaultSignals, ledMatches, lcdMatches, unexposedMatches, connectorMatches, changedCheck,
       restoredSignal, assignedAfterClear, markersAfterClear, assignedAfterRestore, boardInfo, openDrainCheck,
-      printCalls, boardReport, markerChecks, mismatchSubtitle, sharedBoardInfo, sharedRouteLabels, sharedPinLabel, sharedPinLabels, boardHardwareText, lcdOnlyAssigned
+      printCalls, boardReport, markerChecks, mismatchSubtitle, sharedBoardInfo, sharedRouteLabels, sharedPinLabel, sharedPinLabels, boardHardwareText, lcdOnlyAssigned, fixedPinLabel, fixedBoardInfo
     };
   })()`,
   'seed-v4-workspace': `(() => {
@@ -733,7 +738,7 @@ async function main() {
     const expectedSignals = ['ROSC', 'LFXIN', 'LFXOUT', 'HFXIN', 'HFXOUT'];
     const expectedMarkers = { top: 'B', right: '!', bottom: '!', left: 'H' };
     for (const [device, capture] of [['MSPM0G3507', result.g3507], ['MSPM0G3519', result.g3519]]) {
-      if (capture.device !== device || capture.package !== 'PM' || capture.assigned !== 5 || capture.boardMarkers !== 61 || capture.headerMarkers !== 40 || capture.occupiedMarkers !== 12 || capture.specialMarkers !== 5 || capture.unexposedMarkers !== 4 || !capture.subtitle.includes('天猛星') || capture.storedPreset.id !== (device === 'MSPM0G3507' ? 'tianmengxing-g3507-pm64' : 'tianmengxing-g3519-pm64') || capture.storedPreset.enabled.length !== 0) {
+      if (capture.device !== device || capture.package !== 'PM' || capture.assigned !== 8 || capture.boardMarkers !== 64 || capture.headerMarkers !== 40 || capture.occupiedMarkers !== 12 || capture.specialMarkers !== 5 || capture.unexposedMarkers !== 4 || capture.fixedMarkers !== 3 || !capture.subtitle.includes('天猛星') || capture.storedPreset.id !== (device === 'MSPM0G3507' ? 'tianmengxing-g3507-pm64' : 'tianmengxing-g3519-pm64') || JSON.stringify(capture.storedPreset.enabled) !== JSON.stringify(['swd-debug', 'nrst-reset']) || !capture.hardwareSummary.includes('2/8')) {
         throw new Error(`${device} Tianmengxing preset failed: ${JSON.stringify(capture)}`);
       }
     }
@@ -756,10 +761,13 @@ async function main() {
       || !result.changedCheck.includes('固定时钟网络')
       || result.restoredSignal !== 'ROSC'
       || result.assignedAfterClear !== 0
-      || result.markersAfterClear !== 61
-      || result.assignedAfterRestore !== 5
+      || result.markersAfterClear !== 64
+      || result.assignedAfterRestore !== 8
       || !result.boardInfo.includes('U21-3')
       || !result.boardInfo.includes('开漏')
+      || result.fixedPinLabel !== '3.3 V 主电源'
+      || !result.fixedBoardInfo.includes('3.3 V 主电源')
+      || !result.fixedBoardInfo.includes('固定板载连接')
       || result.sharedRouteLabels.length !== 2
       || !result.sharedBoardInfo.includes('板载 SPI Flash')
       || !result.sharedBoardInfo.includes('H8 LCD/OLED 接口')
@@ -768,7 +776,7 @@ async function main() {
       || !result.boardHardwareText.includes('SPI1 共享总线')
       || !result.boardHardwareText.includes('PB6 / Pin 58 / W_CS')
       || !result.boardHardwareText.includes('PB14 / Pin 2 / LCD_CS')
-      || result.lcdOnlyAssigned !== 11
+      || result.lcdOnlyAssigned !== 14
       || !result.openDrainCheck.includes('仅支持开漏输出')
       || result.printCalls !== 1
       || !result.boardReport.includes('立创·天猛星 PM-64 最小系统板')
