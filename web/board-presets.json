@@ -169,8 +169,8 @@
           "name": "BSL 启动按键",
           "shortName": "BSL",
           "kind": "onboard",
-          "defaultEnabled": false,
-          "detail": "PA18 连接 BSL 按键及 47 kΩ 下拉；仅在需要通过串口 Bootloader 进入 BSL 时启用，关闭不代表按键电路物理断开。",
+          "defaultEnabled": true,
+          "detail": "PA18 连接 BSL 按键及 47 kΩ 下拉；模板默认纳入规划，关闭不代表按键电路物理断开。",
           "pins": { "11": "BSL" },
           "assignments": { "11": "BSL_invoke" }
         },

@@ -68,9 +68,10 @@ function validateBoardPresets(data, devices) {
     assert(Boolean(resource), `Tianmengxing: resource ${id} is missing`);
     if (!resource) return;
     assert(resource.kind === expected.kind, `Tianmengxing: resource ${id} kind mismatch`);
-    const expectedDefaultEnabled = id === 'swd-debug' || id === 'nrst-reset';
+    const expectedDefaultEnabled = id === 'swd-debug' || id === 'bsl-button' || id === 'nrst-reset';
     assert(resource.defaultEnabled === expectedDefaultEnabled, `Tianmengxing: resource ${id} default state mismatch`);
-    assert(Boolean(resource.recommended) === expectedDefaultEnabled, `Tianmengxing: resource ${id} recommendation mismatch`);
+    const expectedRecommended = id === 'swd-debug' || id === 'nrst-reset';
+    assert(Boolean(resource.recommended) === expectedRecommended, `Tianmengxing: resource ${id} recommendation mismatch`);
     assert(JSON.stringify(resource.pins) === JSON.stringify(expected.pins), `Tianmengxing: resource ${id} pin mapping mismatch`);
     assert(JSON.stringify(resource.assignments) === JSON.stringify(expected.assignments), `Tianmengxing: resource ${id} assignments mismatch`);
   });

@@ -1163,7 +1163,7 @@
       ? `${enabled.size}/${(board.resources || []).length} 启用${conflicts ? ` · ${conflicts} 项需处理` : ''}`
       : `对应 ${preset.device} ${preset.package}-64 · 当前不可用`;
     elements.boardHardwareNote.textContent = applicable
-      ? '开关只控制当前规划，不会断开真实器件与走线。SWD 与 NRST 建议保留；BSL 仅在需要串口 Bootloader 时启用。'
+      ? '开关只控制当前规划，不会断开真实器件与走线。模板默认启用 SWD、BSL 和 NRST；其中 SWD 与 NRST 建议保留。'
       : `切回 ${preset.device} ${preset.package}-64 后可以继续配置，现有安排不会删除。`;
 
     const pinByNumber = new Map(Object.entries(board.pins || {}));

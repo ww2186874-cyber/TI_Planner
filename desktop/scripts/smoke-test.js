@@ -738,7 +738,7 @@ async function main() {
     const expectedSignals = ['ROSC', 'LFXIN', 'LFXOUT', 'HFXIN', 'HFXOUT'];
     const expectedMarkers = { top: 'B', right: '!', bottom: '!', left: 'H' };
     for (const [device, capture] of [['MSPM0G3507', result.g3507], ['MSPM0G3519', result.g3519]]) {
-      if (capture.device !== device || capture.package !== 'PM' || capture.assigned !== 8 || capture.boardMarkers !== 64 || capture.headerMarkers !== 40 || capture.occupiedMarkers !== 12 || capture.specialMarkers !== 5 || capture.unexposedMarkers !== 4 || capture.fixedMarkers !== 3 || !capture.subtitle.includes('天猛星') || capture.storedPreset.id !== (device === 'MSPM0G3507' ? 'tianmengxing-g3507-pm64' : 'tianmengxing-g3519-pm64') || JSON.stringify(capture.storedPreset.enabled) !== JSON.stringify(['swd-debug', 'nrst-reset']) || !capture.hardwareSummary.includes('2/8')) {
+      if (capture.device !== device || capture.package !== 'PM' || capture.assigned !== 9 || capture.boardMarkers !== 64 || capture.headerMarkers !== 40 || capture.occupiedMarkers !== 12 || capture.specialMarkers !== 5 || capture.unexposedMarkers !== 4 || capture.fixedMarkers !== 3 || !capture.subtitle.includes('天猛星') || capture.storedPreset.id !== (device === 'MSPM0G3507' ? 'tianmengxing-g3507-pm64' : 'tianmengxing-g3519-pm64') || JSON.stringify(capture.storedPreset.enabled) !== JSON.stringify(['swd-debug', 'bsl-button', 'nrst-reset']) || !capture.hardwareSummary.includes('3/8')) {
         throw new Error(`${device} Tianmengxing preset failed: ${JSON.stringify(capture)}`);
       }
     }
