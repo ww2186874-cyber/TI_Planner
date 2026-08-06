@@ -2,13 +2,15 @@
   'use strict';
 
   const DEVICE_DATA = __DEVICE_DATA__;
+  const BOARD_PRESETS = __BOARD_PRESETS__;
   const APP_META = __APP_META__;
-  const STORAGE_KEY = 'mspm0g-pin-planner-v4';
+  const STORAGE_KEY = 'mspm0g-pin-planner-v5';
+  const LEGACY_V4_STORAGE_KEY = 'mspm0g-pin-planner-v4';
   const LEGACY_V3_STORAGE_KEY = 'mspm0g-pin-planner-v3';
   const LEGACY_V2_STORAGE_KEY = 'mspm0g3519-pin-planner-v2';
   const LEGACY_V1_STORAGE_KEY = 'mspm0g3519-pin-planner-v1';
-  const SCHEMA_VERSION = 4;
-  const PROJECT_DATA_VERSION = 3;
+  const SCHEMA_VERSION = 5;
+  const PROJECT_DATA_VERSION = 4;
   const DEVICE_ORDER = ['MSPM0G3519', 'MSPM0G3507'];
   const OFFICIAL_DEFAULT_SIGNALS = ['SWDIO', 'SWCLK', 'NRST'];
   const DEBUG_SIGNALS = new Set(['SWDIO', 'SWCLK']);
@@ -69,17 +71,17 @@
   };
 
   const elements = Object.fromEntries([
-    'projectSelect', 'projectMenuBtn', 'projectMenu', 'deviceSelect', 'packageSelect', 'undoBtn', 'redoBtn', 'themeToggleBtn', 'importBtn', 'importFile',
+    'projectSelect', 'projectMenuBtn', 'projectMenu', 'deviceSelect', 'packageSelect', 'undoBtn', 'redoBtn', 'importBtn', 'importFile',
     'exportMenuBtn', 'exportMenu', 'checkBtn', 'checkBadge', 'aboutBtn', 'resetBtn', 'saveState',
     'packagePinCount', 'assignedCount', 'unassignedCount', 'fixedCount', 'systemCount', 'conflictCount', 'searchInput',
     'filterTabs', 'categoryList', 'sidebarViewTabs', 'sidebarTitle', 'pinPanel', 'resourcePanel', 'resourceSummary',
     'resourceList', 'resourceDetail', 'resourceDetailTitle', 'resourceDetailNote', 'resourceSignals', 'canvasTitle',
-    'canvasSubtitle', 'zoomSlider', 'zoomValue', 'rotateCcwBtn', 'rotateCwBtn', 'fitViewBtn', 'centerViewBtn', 'canvasScroller', 'stageScale',
+    'canvasSubtitle', 'boardBusStrip', 'zoomSlider', 'zoomValue', 'rotateCcwBtn', 'rotateCwBtn', 'fitViewBtn', 'centerViewBtn', 'canvasScroller', 'stageScale',
     'packageStage', 'topPins', 'rightPins', 'bottomPins', 'leftPins', 'chipDevice', 'chipPackage', 'chipSummary',
     'inspectorEmpty', 'inspectorContent', 'pinTitle', 'pinSubtitle', 'pinStatus', 'physicalPin', 'logicalPin',
     'iomuxRegister', 'bufferType', 'editableFields', 'functionSelect', 'functionInfo', 'aliasInput', 'connectorInput', 'noteInput',
     'conflictBox', 'clearPinBtn', 'fixedBox', 'leftResizer', 'rightResizer', 'sourceFooter',
-    'checkDialog', 'checkDialogBody', 'projectDialog', 'projectDialogTitle', 'projectForm', 'projectNameInput',
+    'boardInfoBox', 'boardInfoTitle', 'boardInfoStatus', 'boardInfoMeta', 'boardRouteList', 'boardSharedNote', 'boardInfoDetail', 'checkDialog', 'checkDialogBody', 'projectDialog', 'projectDialogTitle', 'projectForm', 'projectNameInput', 'projectPresetField', 'projectPresetSelect',
     'aboutDialog', 'aboutDialogBody', 'printReport'
   ].map(id => [id, document.getElementById(id)]));
 
@@ -130,11 +132,27 @@
   function createEmptyState() {
     return {
       version: PROJECT_DATA_VERSION,
+      boardPresetId: '',
       activeDevice: 'MSPM0G3519',
-      theme: 'light',
       layout: { leftWidth: 250, rightWidth: 330 },
       devices: Object.fromEntries(DEVICE_ORDER.map(device => [device, createDeviceState(device)]))
     };
+  }
+
+  function createPresetState(presetId) {
+    const preset = BOARD_PRESETS.presets[presetId];
+    const board = preset && BOARD_PRESETS.boards[preset.boardId];
+    if (!preset || !board) return createEmptyState();
+    const data = createEmptyState();
+    data.boardPresetId = presetId;
+    data.activeDevice = preset.device;
+    data.devices[preset.device].activePackage = preset.package;
+    const target = data.devices[preset.device].packages[preset.package].assignments;
+    const pins = new Map(DEVICE_DATA[preset.device].packages[preset.package].pins.map(pin => [String(pin.number), pin]));
+    Object.entries(board.defaults).forEach(([number, signal]) => {
+      if (pins.get(number)?.functions.some(fn => fn.signal === signal)) target[number] = emptyAssignment(signal);
+    });
+    return data;
   }
 
   function createId() {
@@ -196,8 +214,8 @@
 
   function normalizeLoaded(parsed) {
     const empty = createEmptyState();
+    empty.boardPresetId = BOARD_PRESETS.presets[parsed?.boardPresetId] ? parsed.boardPresetId : '';
     empty.activeDevice = DEVICE_ORDER.includes(parsed?.activeDevice) ? parsed.activeDevice : 'MSPM0G3519';
-    empty.theme = parsed?.theme === 'dark' ? 'dark' : 'light';
     empty.layout.leftWidth = Math.min(460, Math.max(190, Number(parsed?.layout?.leftWidth) || 250));
     empty.layout.rightWidth = Math.min(540, Math.max(260, Number(parsed?.layout?.rightWidth) || 330));
     DEVICE_ORDER.forEach(device => { empty.devices[device] = normalizeDeviceState(device, parsed?.devices?.[device]); });
@@ -228,7 +246,6 @@
 
   function migrateLegacy(parsed, legacy = false) {
     const empty = createEmptyState();
-    empty.theme = parsed?.theme === 'dark' ? 'dark' : 'light';
     empty.layout.leftWidth = Math.min(460, Math.max(190, Number(parsed?.layout?.leftWidth) || 250));
     empty.layout.rightWidth = Math.min(540, Math.max(260, Number(parsed?.layout?.rightWidth) || 330));
     empty.devices.MSPM0G3519 = normalizeDeviceState('MSPM0G3519', parsed, legacy);
@@ -239,6 +256,8 @@
     try {
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
       if (parsed?.version === SCHEMA_VERSION) return normalizeWorkspace(parsed);
+      const legacyV4 = JSON.parse(localStorage.getItem(LEGACY_V4_STORAGE_KEY));
+      if (legacyV4?.version === 4) return normalizeWorkspace(legacyV4);
       const legacyV3 = JSON.parse(localStorage.getItem(LEGACY_V3_STORAGE_KEY));
       if (legacyV3?.version === 3) return createWorkspace(normalizeLoaded(legacyV3));
       const legacyV2 = JSON.parse(localStorage.getItem(LEGACY_V2_STORAGE_KEY));
@@ -292,6 +311,41 @@
   function isPortPin(pin) { return /^P[A-Z]\d+$/.test(pin.name); }
   function officialDefaultSignal(pin) { return OFFICIAL_DEFAULT_SIGNALS.find(signal => pin.functions.some(fn => fn.signal === signal)) || ''; }
   function isOfficialDefaultAssignment(pin, value) { return value.function === officialDefaultSignal(pin); }
+  function currentBoardPreset() { return BOARD_PRESETS.presets[state.boardPresetId] || null; }
+  function currentBoard() { const preset = currentBoardPreset(); return preset ? BOARD_PRESETS.boards[preset.boardId] || null : null; }
+  function isBoardApplicable() {
+    const preset = currentBoardPreset();
+    return Boolean(preset && preset.device === state.activeDevice && preset.package === currentDeviceState().activePackage);
+  }
+  function boardPinFor(pin) { return isBoardApplicable() ? currentBoard()?.pins?.[String(pin.number)] || null : null; }
+  function boardDefaultSignal(pin) { return isBoardApplicable() ? currentBoard()?.defaults?.[String(pin.number)] || '' : ''; }
+  function isBoardDefaultAssignment(pin, value) { return Boolean(boardDefaultSignal(pin) && value.function === boardDefaultSignal(pin)); }
+  function boardStatusLabel(status) {
+    return { header: '普通排针', occupied: '板载占用', special: '特殊电气条件', unexposed: '未引出' }[status] || '';
+  }
+  function boardResourcesForPin(pin) {
+    if (!isBoardApplicable()) return [];
+    return (currentBoard()?.resources || []).flatMap(resource => {
+      const signal = resource.pins?.[String(pin.number)];
+      return signal ? [{ ...resource, signal }] : [];
+    });
+  }
+  function boardSharedBusesForPin(pin) {
+    if (!isBoardApplicable()) return [];
+    return (currentBoard()?.sharedBuses || []).filter(bus => bus.pins?.includes(String(pin.number)));
+  }
+  function boardResourceSummary(pin) {
+    return boardResourcesForPin(pin).map(resource => `${resource.shortName || resource.name}:${resource.signal}`).join(' · ');
+  }
+  function boardExportDetail(pin) {
+    const boardPin = boardPinFor(pin);
+    if (!boardPin) return '';
+    return [
+      boardPin.detail,
+      ...boardResourcesForPin(pin).map(resource => `${resource.name}=${resource.signal}`),
+      ...boardSharedBusesForPin(pin).map(bus => bus.detail)
+    ].filter(Boolean).join('；');
+  }
 
   function projectHistory(projectId = workspace.activeProjectId) {
     if (!historyByProject.has(projectId)) historyByProject.set(projectId, { undo: [], redo: [] });
@@ -407,6 +461,55 @@
     const resetPin = pkg.pins.find(pin => pin.functions.some(fn => fn.signal === 'NRST'));
     if (resetPin && assignmentFor(resetPin.number).function !== 'NRST') {
       issues.push({ severity: 'info', title: 'NRST 已偏离官方默认功能', detail: `Pin ${resetPin.number} 当前未选择 NRST。若改作 WAKE 或其他用途，请确认复位和下载调试方案。` });
+    }
+
+    if (isBoardApplicable()) {
+      const board = currentBoard();
+      const missing = [];
+      Object.entries(board.defaults).forEach(([number, expected]) => {
+        const pin = pkg.pins.find(item => String(item.number) === number);
+        const actual = assignmentFor(Number(number)).function;
+        if (!actual) { missing.push(`${pin?.name || `Pin ${number}`}=${expected}`); return; }
+        if (actual !== expected) issues.push({
+          severity: 'warning',
+          title: `${pin?.name || `Pin ${number}`} 已偏离天猛星板载连接`,
+          detail: `板卡原理图对应 ${expected}（${board.pins[number]?.label || '板载资源'}），当前选择 ${actual}。允许修改，但必须确认硬件冲突。`
+        });
+      });
+      if (missing.length) issues.push({
+        severity: 'warning',
+        title: `天猛星模板缺少 ${missing.length} 项默认安排`,
+        detail: missing.join('、')
+      });
+
+      ['33', '34'].forEach(number => {
+        const pin = pkg.pins.find(item => String(item.number) === number);
+        const value = assignmentFor(Number(number));
+        const fn = selectedFunction(pin, value);
+        const openDrainSafe = !value.function || fn?.signalType === 'I' || /^(I2C|BSLSDA|BSLSCL)/.test(value.function);
+        if (!openDrainSafe && /O/.test(fn?.signalType || '')) issues.push({
+          severity: 'warning',
+          title: `${pin.name} 仅支持开漏输出`,
+          detail: `${value.function} 具有输出方向。板上虽有 4.7 kΩ 上拉，但该引脚不能主动输出推挽高电平。`
+        });
+      });
+      ['17', '24'].forEach(number => {
+        const pin = pkg.pins.find(item => String(item.number) === number);
+        const value = assignmentFor(Number(number));
+        const fn = selectedFunction(pin, value);
+        if (value.function && /O/.test(fn?.signalType || '')) issues.push({
+          severity: 'warning',
+          title: `${pin.name} 连接板载参考电压网络`,
+          detail: `${value.function} 具有输出方向。使用前请核对天猛星板上的参考电压选择、滤波与焊接配置。`
+        });
+      });
+    } else if (currentBoardPreset()) {
+      const preset = currentBoardPreset();
+      issues.push({
+        severity: 'info',
+        title: '当前视图不适用天猛星板卡标注',
+        detail: `此工程模板对应 ${preset.device} ${preset.package}-64；切回对应芯片和封装即可恢复板卡标注。现有引脚安排未被删除。`
+      });
     }
 
     const fixedPins = pkg.pins.filter(pin => pin.fixed);
@@ -570,6 +673,10 @@
       if (/^p[a-z]\d+$/.test(term)) {
         return haystack.split(/[^a-z0-9]+/).includes(term);
       }
+      if (/^u\d+-\d+$/.test(term)) {
+        const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return new RegExp(`(^|[^a-z0-9])${escaped}($|[^a-z0-9])`).test(haystack);
+      }
       return haystack.includes(term);
     });
   }
@@ -594,7 +701,28 @@
     const semantic = [];
     if (signals.some(signal => /^(TIMA|TIMG)/.test(signal))) semantic.push('timer 定时器 pwm capture compare 捕获 比较');
     if (signals.some(signal => /^TIMG[89]_(C0|C1|IDX)$/.test(signal))) semantic.push('qei encoder 编码器 hall 霍尔');
-    return [pin.number, pin.name, value.function, value.alias, value.connector, value.note, ...signals, ...semantic].join(' ');
+    const boardPin = boardPinFor(pin);
+    const resources = boardResourcesForPin(pin);
+    const sharedBuses = boardSharedBusesForPin(pin);
+    const boardText = boardPin
+      ? [
+          boardPin.header, boardPin.label, boardPin.detail, boardStatusLabel(boardPin.status), ...(boardPin.aliases || []),
+          ...resources.flatMap(resource => [resource.id, resource.name, resource.shortName, resource.kind, resource.bus, resource.signal, resource.detail]),
+          ...sharedBuses.flatMap(bus => [bus.id, bus.name, bus.summary, bus.detail, ...Object.values(bus.chipSelectPins || {})])
+        ]
+      : [];
+    return [pin.number, pin.name, value.function, value.alias, value.connector, value.note, ...signals, ...semantic, ...boardText].join(' ');
+  }
+
+  function boardTextMatches(pin, query = rawQuery()) {
+    const boardPin = boardPinFor(pin);
+    if (!query || !boardPin) return false;
+    return [
+      boardPin.header, boardPin.label, boardPin.detail, boardStatusLabel(boardPin.status), ...(boardPin.aliases || []),
+      ...boardResourcesForPin(pin).flatMap(resource => [resource.id, resource.name, resource.shortName, resource.kind, resource.bus, resource.signal, resource.detail]),
+      ...boardSharedBusesForPin(pin).flatMap(bus => [bus.id, bus.name, bus.summary, bus.detail, ...Object.values(bus.chipSelectPins || {})])
+    ]
+      .some(text => String(text || '').toLowerCase().includes(query));
   }
 
   function activeResourceMatch(pin) {
@@ -610,12 +738,13 @@
     const filterMatch = activeFilter === 'all'
       || (activeFilter === 'assigned' && assigned)
       || (activeFilter === 'unassigned' && !assigned)
-      || (activeFilter === 'conflict' && conflicts.has(value.function));
+      || (activeFilter === 'conflict' && conflicts.has(value.function))
+      || (activeFilter === 'board' && Boolean(boardPinFor(pin) && boardPinFor(pin).status !== 'header'));
     const categoryMatch = activeCategory === 'All'
       || (value.function ? functionCategory(selectedFunction(pin, value)) === activeCategory : pin.functions.some(item => functionCategory(item) === activeCategory));
     const resourceMatch = sidebarView !== 'resources' || activeResourceMatch(pin);
     const searchMatch = hasUserTextMatch()
-      ? userTextMatches(value)
+      ? userTextMatches(value) || boardTextMatches(pin)
       : textMatchesQuery(pinSearchText(pin));
     return filterMatch && categoryMatch && resourceMatch && searchMatch;
   }
@@ -636,6 +765,8 @@
       option.selected = project.id === workspace.activeProjectId;
       return option;
     }));
+    const restoreButton = elements.projectMenu.querySelector('[data-project-action="restore-preset"]');
+    if (restoreButton) restoreButton.classList.toggle('hidden', !currentBoardPreset());
   }
 
   function createNewProject() {
@@ -643,6 +774,8 @@
     projectDialogMode = 'new';
     elements.projectDialogTitle.textContent = '新建工程';
     elements.projectNameInput.value = suggested;
+    elements.projectPresetField.classList.remove('hidden');
+    elements.projectPresetSelect.value = '';
     elements.projectDialog.showModal();
     elements.projectNameInput.focus();
     elements.projectNameInput.select();
@@ -653,6 +786,7 @@
     projectDialogMode = 'rename';
     elements.projectDialogTitle.textContent = '重命名工程';
     elements.projectNameInput.value = project.name;
+    elements.projectPresetField.classList.add('hidden');
     elements.projectDialog.showModal();
     elements.projectNameInput.focus();
     elements.projectNameInput.select();
@@ -685,6 +819,23 @@
     resetTransientSelection();
     saveState();
     render();
+  }
+
+  function restoreBoardDefaults() {
+    if (!isBoardApplicable()) {
+      const preset = currentBoardPreset();
+      window.alert(preset
+        ? `此模板对应 ${preset.device} ${preset.package}-64，请先切换到对应芯片和封装。`
+        : '当前工程没有板卡模板。');
+      return;
+    }
+    const board = currentBoard();
+    if (!window.confirm(`恢复“${board.name}”的 17 项默认功能吗？其他引脚安排、标签、连接器和备注不会删除。`)) return;
+    commitMutation('恢复天猛星模板默认安排', () => {
+      Object.entries(board.defaults).forEach(([number, signal]) => {
+        assignments()[number] = { ...assignmentFor(Number(number)), function: signal };
+      });
+    });
   }
 
   function closeMenus() {
@@ -767,18 +918,22 @@
     const fn = selectedFunction(pin, value);
     const category = pin.fixed ? 'Power' : functionCategory(fn) || (isMeaningfulAssignment(value) ? 'GPIO' : 'Unassigned');
     const candidate = Boolean(selectedSignal && pin.functions.some(item => item.signal === selectedSignal));
+    const boardPin = boardPinFor(pin);
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'pin-button';
     button.dataset.pin = String(pin.number);
     button.style.setProperty('--pin-color', CATEGORY_COLORS[category] || CATEGORY_COLORS.Other);
-    button.setAttribute('aria-label', `Pin ${pin.number} ${pin.name}${value.function ? ` ${value.function}` : ''}${value.alias ? ` ${value.alias}` : ''}${value.connector ? ` ${value.connector}` : ''}`);
-    button.title = `Pin ${pin.number} · ${pin.name}${value.function ? ` · ${value.function}` : ''}${value.alias ? ` · ${value.alias}` : ''}${value.connector ? ` · ${value.connector}` : ''}`;
+    const resourceSummary = boardResourceSummary(pin);
+    const boardSummary = boardPin ? `${boardStatusLabel(boardPin.status)}${boardPin.header ? ` ${boardPin.header}` : ''}${boardPin.label ? ` ${boardPin.label}` : ''}${resourceSummary ? ` ${resourceSummary}` : ''}` : '';
+    button.setAttribute('aria-label', `Pin ${pin.number} ${pin.name}${value.function ? ` ${value.function}` : ''}${value.alias ? ` ${value.alias}` : ''}${value.connector ? ` ${value.connector}` : ''}${boardSummary ? ` ${boardSummary}` : ''}`);
+    button.title = `Pin ${pin.number} · ${pin.name}${value.function ? ` · ${value.function}` : ''}${value.alias ? ` · ${value.alias}` : ''}${value.connector ? ` · ${value.connector}` : ''}${boardSummary ? ` · ${boardSummary}` : ''}`;
     if (pin.fixed) button.classList.add('fixed');
     if (pin.number === selectedPinNumber) button.classList.add('selected');
     if (!pinMatches(pin, conflicts)) button.classList.add('dimmed');
     if (value.function && conflicts.has(value.function)) button.classList.add('conflict');
     if (candidate) button.classList.add(isMeaningfulAssignment(value) && value.function !== selectedSignal ? 'candidate-occupied' : 'candidate');
+    if (boardPin) button.classList.add(`board-${boardPin.status}`);
 
     const pad = document.createElement('span');
     pad.className = 'pin-pad';
@@ -789,6 +944,13 @@
     name.className = 'pin-name';
     name.textContent = pin.name;
     pad.append(number, name);
+    if (boardPin) {
+      const marker = document.createElement('span');
+      marker.className = 'board-pin-marker';
+      marker.textContent = { header: 'H', occupied: 'B', special: '!', unexposed: '×' }[boardPin.status];
+      marker.title = boardStatusLabel(boardPin.status);
+      pad.appendChild(marker);
+    }
 
     const external = document.createElement('span');
     external.className = 'pin-external-label';
@@ -796,6 +958,16 @@
     functionLabel.className = 'pin-function-label';
     functionLabel.textContent = pin.fixed ? pin.name : value.function || '—';
     external.appendChild(functionLabel);
+    if (boardPin) {
+      const resourceLabel = boardResourceSummary(pin);
+      if (resourceLabel) {
+        const boardLabel = document.createElement('span');
+        boardLabel.className = 'pin-board-label';
+        boardLabel.textContent = resourceLabel;
+        boardLabel.title = resourceLabel;
+        external.appendChild(boardLabel);
+      }
+    }
     if (!pin.fixed && value.alias) {
       const custom = document.createElement('span');
       custom.className = 'pin-custom-label';
@@ -836,10 +1008,45 @@
     elements.canvasTitle.textContent = `${state.activeDevice} · ${pkg.label}`;
     elements.canvasSubtitle.textContent = selectedSignal
       ? `正在安排 ${selectedSignal}：点击绿色候选引脚，橙色表示将替换已有安排`
-      : `${pkg.pinCount} 个物理引脚 · ${portPins.length} 个 GPIO/复用引脚 · ${systemPins.length} 个系统引脚 · ${fixedPins.length} 个电源/地`;
+      : isBoardApplicable()
+        ? `${currentBoard().name} · H 排针 · B 板载占用 · ! 特殊限制 · × 未引出`
+        : currentBoardPreset()
+          ? `模板对应 ${currentBoardPreset().device} ${currentBoardPreset().package}-64，当前视图仅显示芯片官方数据`
+          : `${pkg.pinCount} 个物理引脚 · ${portPins.length} 个 GPIO/复用引脚 · ${systemPins.length} 个系统引脚 · ${fixedPins.length} 个电源/地`;
     elements.chipDevice.textContent = state.activeDevice;
     elements.chipPackage.textContent = pkg.label;
     elements.chipSummary.textContent = `${assigned} pins assigned · ${view.rotation}°${conflicts.size ? ` · ${conflicts.size} conflicts` : ''}`;
+  }
+
+  function renderBoardBusStrip() {
+    const buses = isBoardApplicable() ? currentBoard()?.sharedBuses || [] : [];
+    elements.boardBusStrip.classList.toggle('hidden', buses.length === 0);
+    if (!buses.length) {
+      elements.boardBusStrip.replaceChildren();
+      return;
+    }
+    const resourceNames = new Map((currentBoard()?.resources || []).map(resource => [resource.id, resource.shortName || resource.name]));
+    const rows = buses.map(bus => {
+      const row = document.createElement('div');
+      row.className = 'board-bus-row';
+      row.title = bus.detail || '';
+      const badge = document.createElement('span');
+      badge.className = 'board-bus-badge';
+      badge.textContent = `${bus.id} 共享`;
+      const copy = document.createElement('div');
+      copy.className = 'board-bus-copy';
+      const title = document.createElement('strong');
+      title.textContent = bus.resources.map(id => resourceNames.get(id) || id).join(' + ');
+      const summary = document.createElement('span');
+      summary.textContent = bus.summary;
+      copy.append(title, summary);
+      const selectors = document.createElement('div');
+      selectors.className = 'board-bus-selects';
+      selectors.textContent = Object.entries(bus.chipSelectPins || {}).map(([id, value]) => `${resourceNames.get(id) || id} CS：${value}`).join(' · ');
+      row.append(badge, copy, selectors);
+      return row;
+    });
+    elements.boardBusStrip.replaceChildren(...rows);
   }
 
   function renderCategories() {
@@ -1052,6 +1259,7 @@
     if (!pin) return;
     const value = assignmentFor(pin.number);
     const fn = selectedFunction(pin, value);
+    const boardPin = boardPinFor(pin);
     const conflictPins = value.function ? conflictMap().get(value.function) || [] : [];
     elements.pinTitle.textContent = `Pin ${pin.number} · ${pin.name}`;
     elements.pinSubtitle.textContent = `${state.activeDevice} · ${currentPackage().label}`;
@@ -1059,6 +1267,43 @@
     elements.logicalPin.textContent = pin.name;
     elements.iomuxRegister.textContent = pin.iomuxRegister || '—';
     elements.bufferType.textContent = pin.bufferType || '—';
+    elements.boardInfoBox.classList.toggle('hidden', !boardPin);
+    if (boardPin) {
+      const resources = boardResourcesForPin(pin);
+      const sharedBuses = boardSharedBusesForPin(pin);
+      elements.boardInfoBox.dataset.status = boardPin.status;
+      elements.boardInfoTitle.textContent = resources.length > 1
+        ? `${pin.name} · ${resources.length} 路板卡连接`
+        : boardPin.label || boardStatusLabel(boardPin.status);
+      elements.boardInfoStatus.textContent = boardStatusLabel(boardPin.status);
+      elements.boardInfoMeta.textContent = [
+        currentBoard().name,
+        boardPin.header ? `排针 ${boardPin.header}` : '未连接 U21/U22 排针',
+        (boardPin.aliases || []).length ? `丝印 ${(boardPin.aliases || []).join('、')}` : ''
+      ].filter(Boolean).join(' · ');
+      const routeNodes = resources.map(resource => {
+        const row = document.createElement('div');
+        row.className = 'board-route';
+        const kind = document.createElement('span');
+        kind.className = `board-route-kind ${resource.kind}`;
+        kind.textContent = resource.kind === 'onboard' ? '板载' : '可选';
+        const copy = document.createElement('div');
+        const title = document.createElement('strong');
+        title.textContent = resource.name;
+        const signal = document.createElement('span');
+        signal.textContent = `${resource.signal}${resource.bus ? ` · ${resource.bus}` : ''}`;
+        copy.append(title, signal);
+        row.append(kind, copy);
+        return row;
+      });
+      elements.boardRouteList.classList.toggle('hidden', routeNodes.length === 0);
+      elements.boardRouteList.replaceChildren(...routeNodes);
+      elements.boardSharedNote.classList.toggle('hidden', sharedBuses.length === 0);
+      elements.boardSharedNote.textContent = sharedBuses.map(bus => bus.detail).join(' ');
+      elements.boardInfoDetail.textContent = boardPin.detail || (resources.length
+        ? resources.map(resource => resource.detail).filter(Boolean).join(' ')
+        : '该引脚已引到板卡排针，模板没有预设额外板载功能。');
+    }
     elements.editableFields.classList.toggle('hidden', pin.fixed);
     elements.fixedBox.classList.toggle('hidden', !pin.fixed);
     if (pin.fixed) {
@@ -1066,7 +1311,9 @@
       elements.fixedBox.textContent = `${pin.name} 是该封装的固定电源相关引脚，不参与复用规划。`;
       return;
     }
-    elements.pinStatus.textContent = isOfficialDefaultAssignment(pin, value) ? '官方默认 · 可修改' : isMeaningfulAssignment(value) ? '已安排' : '未安排';
+    elements.pinStatus.textContent = isBoardDefaultAssignment(pin, value)
+      ? '模板默认 · 可修改'
+      : isOfficialDefaultAssignment(pin, value) ? '官方默认 · 可修改' : isMeaningfulAssignment(value) ? '已安排' : '未安排';
     buildFunctionSelect(pin, value);
     elements.aliasInput.value = value.alias;
     elements.connectorInput.value = value.connector || '';
@@ -1091,7 +1338,9 @@
     else {
       renderStats(); renderCategories(); renderResources(); renderStage();
       renderCheckButton();
-      elements.pinStatus.textContent = isOfficialDefaultAssignment(selectedPin(), next) ? '官方默认 · 可修改' : isMeaningfulAssignment(next) ? '已安排' : '未安排';
+      elements.pinStatus.textContent = isBoardDefaultAssignment(selectedPin(), next)
+        ? '模板默认 · 可修改'
+        : isOfficialDefaultAssignment(selectedPin(), next) ? '官方默认 · 可修改' : isMeaningfulAssignment(next) ? '已安排' : '未安排';
     }
   }
 
@@ -1108,7 +1357,7 @@
     elements.zoomValue.textContent = `${Math.round(view.zoom)}%`;
   }
 
-  function applyThemeAndLayout() {
+  function applyLayout() {
     const minimumCenterWidth = 420;
     const availableForPanels = Math.max(450, window.innerWidth - minimumCenterWidth - 14);
     state.layout.leftWidth = Math.min(460, Math.max(190, state.layout.leftWidth));
@@ -1120,11 +1369,8 @@
       excess -= leftReduction;
       if (excess > 0) state.layout.rightWidth = Math.max(260, state.layout.rightWidth - excess);
     }
-    document.documentElement.dataset.theme = state.theme;
     document.documentElement.style.setProperty('--left-panel-width', `${state.layout.leftWidth}px`);
     document.documentElement.style.setProperty('--right-panel-width', `${state.layout.rightWidth}px`);
-    elements.themeToggleBtn.textContent = state.theme === 'dark' ? '日间模式' : '夜间模式';
-    elements.themeToggleBtn.setAttribute('aria-pressed', String(state.theme === 'dark'));
   }
 
   function centerView(save = true) {
@@ -1174,7 +1420,7 @@
   }
 
   function render() {
-    applyThemeAndLayout();
+    applyLayout();
     renderProjectSelect();
     renderDeviceSelect();
     renderPackageSelect();
@@ -1184,6 +1430,7 @@
     renderStats();
     renderCategories();
     renderResources();
+    renderBoardBusStrip();
     renderStage();
     renderInspector();
     renderHistoryControls();
@@ -1237,11 +1484,12 @@
 
   function exportCsv() {
     const pkg = currentPackage();
-    const rows = [['Project', 'Device', 'Package', 'Physical Pin', 'Pin Name', 'Selected Function', 'Custom Label', 'Connector', 'Note', 'Category', 'Signal Type', 'IOMUX PF', 'IOMUX Register', 'Buffer Type']];
+    const rows = [['Project', 'Device', 'Package', 'Board Preset', 'Physical Pin', 'Pin Name', 'Selected Function', 'Custom Label', 'User Connector', 'Note', 'Board Connector', 'Board Status', 'Board Detail', 'Category', 'Signal Type', 'IOMUX PF', 'IOMUX Register', 'Buffer Type']];
     pkg.pins.forEach(pin => {
       const value = assignmentFor(pin.number);
       const fn = selectedFunction(pin, value);
-      rows.push([currentProjectRecord().name, state.activeDevice, pkg.code, pin.number, pin.name, pin.fixed ? pin.name : value.function, value.alias, value.connector, value.note, pin.fixed ? 'Power' : functionCategory(fn), fn?.signalType || '', fn ? (fn.iomuxManaged ? fn.pf : fn.pfLabel) : '', pin.iomuxRegister, pin.bufferType]);
+      const boardPin = boardPinFor(pin);
+      rows.push([currentProjectRecord().name, state.activeDevice, pkg.code, isBoardApplicable() ? currentBoard().name : '', pin.number, pin.name, pin.fixed ? pin.name : value.function, value.alias, value.connector, value.note, boardPin?.header || '', boardStatusLabel(boardPin?.status), boardExportDetail(pin), pin.fixed ? 'Power' : functionCategory(fn), fn?.signalType || '', fn ? (fn.iomuxManaged ? fn.pf : fn.pfLabel) : '', pin.iomuxRegister, pin.bufferType]);
     });
     downloadFile(`${state.activeDevice.toLowerCase()}-${pkg.code.toLowerCase()}-pin-plan.csv`, '\ufeff' + rows.map(row => row.map(csvEscape).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
   }
@@ -1255,14 +1503,15 @@
   }
 
   function exportGroupedCsv() {
-    const header = ['Peripheral Group', 'Instance', 'Signal', 'Pin', 'GPIO', 'Custom Label', 'Connector', 'Note'];
+    const header = ['Peripheral Group', 'Instance', 'Signal', 'Pin', 'GPIO', 'Custom Label', 'User Connector', 'Note', 'Board Connector', 'Board Status', 'Board Detail'];
     const body = [];
     currentPackage().pins.forEach(pin => {
       if (pin.fixed) return;
       const value = assignmentFor(pin.number);
       if (!value.function) return;
       const resource = resourceForSignal(value.function);
-      body.push([resource?.group.label || functionCategory(selectedFunction(pin, value)) || 'Other', resource?.instance.display || resource?.instance.id || '', value.function, pin.number, pin.name, value.alias, value.connector, value.note]);
+      const boardPin = boardPinFor(pin);
+      body.push([resource?.group.label || functionCategory(selectedFunction(pin, value)) || 'Other', resource?.instance.display || resource?.instance.id || '', value.function, pin.number, pin.name, value.alias, value.connector, value.note, boardPin?.header || '', boardStatusLabel(boardPin?.status), boardExportDetail(pin)]);
     });
     body.sort((a, b) => `${a[0]}-${a[1]}-${a[2]}`.localeCompare(`${b[0]}-${b[1]}-${b[2]}`, undefined, { numeric: true }));
     const rows = [header, ...body];
@@ -1270,24 +1519,26 @@
   }
 
   function exportConnectorCsv() {
-    const rows = [['Connector', 'Physical Pin', 'GPIO', 'Function', 'Net Label', 'Note']];
+    const rows = [['User Connector', 'Board Connector', 'Physical Pin', 'GPIO', 'Function', 'Net Label', 'Note', 'Board Status', 'Board Detail']];
     currentPackage().pins.forEach(pin => {
       if (pin.fixed) return;
       const value = assignmentFor(pin.number);
-      if (!value.connector?.trim()) return;
-      rows.push([value.connector, pin.number, pin.name, value.function, value.alias || value.function || pin.name, value.note]);
+      const boardPin = boardPinFor(pin);
+      if (!value.connector?.trim() && !boardPin?.header) return;
+      rows.push([value.connector, boardPin?.header || '', pin.number, pin.name, value.function, value.alias || value.function || pin.name, value.note, boardStatusLabel(boardPin?.status), boardExportDetail(pin)]);
     });
-    rows.splice(1, rows.length - 1, ...rows.slice(1).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true })));
+    rows.splice(1, rows.length - 1, ...rows.slice(1).sort((a, b) => (a[1] || a[0]).localeCompare(b[1] || b[0], undefined, { numeric: true })));
     downloadFile(`${safeFileName(currentProjectRecord().name)}-connectors.csv`, '\ufeff' + rows.map(row => row.map(csvEscape).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
   }
 
   function exportKicadCsv() {
-    const rows = [['Physical Pin', 'GPIO', 'Net Label', 'Selected Function', 'Connector']];
+    const rows = [['Physical Pin', 'GPIO', 'Net Label', 'Selected Function', 'User Connector', 'Board Connector', 'Board Status']];
     currentPackage().pins.forEach(pin => {
       if (pin.fixed) return;
       const value = assignmentFor(pin.number);
-      if (!isMeaningfulAssignment(value)) return;
-      rows.push([pin.number, pin.name, value.alias || value.function || pin.name, value.function, value.connector]);
+      const boardPin = boardPinFor(pin);
+      if (!isMeaningfulAssignment(value) && !boardPin) return;
+      rows.push([pin.number, pin.name, value.alias || value.function || pin.name, value.function, value.connector, boardPin?.header || '', boardStatusLabel(boardPin?.status)]);
     });
     downloadFile(`${safeFileName(currentProjectRecord().name)}-kicad-net-labels.csv`, '\ufeff' + rows.map(row => row.map(csvEscape).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
   }
@@ -1300,21 +1551,22 @@
     const project = currentProjectRecord();
     const pkg = currentPackage();
     const issues = planIssues().filter(issue => issue.severity !== 'info');
-    const assignedRows = pkg.pins.filter(pin => pin.fixed || isMeaningfulAssignment(assignmentFor(pin.number))).map(pin => {
+    const assignedRows = pkg.pins.filter(pin => pin.fixed || isMeaningfulAssignment(assignmentFor(pin.number)) || boardPinFor(pin)).map(pin => {
       const value = assignmentFor(pin.number);
-      return `<tr><td>${pin.number}</td><td>${escapeHtml(pin.name)}</td><td>${escapeHtml(pin.fixed ? pin.name : value.function)}</td><td>${escapeHtml(value.alias)}</td><td>${escapeHtml(value.connector)}</td><td>${escapeHtml(value.note)}</td></tr>`;
+      const boardPin = boardPinFor(pin);
+      return `<tr><td>${pin.number}</td><td>${escapeHtml(pin.name)}</td><td>${escapeHtml(pin.fixed ? pin.name : value.function)}</td><td>${escapeHtml(value.alias)}</td><td>${escapeHtml(value.connector)}</td><td>${escapeHtml(value.note)}</td><td>${escapeHtml(boardPin?.header || '')}</td><td>${escapeHtml(boardStatusLabel(boardPin?.status))}</td><td>${escapeHtml(boardExportDetail(pin))}</td></tr>`;
     }).join('');
     const issueRows = issues.length
       ? issues.map(issue => `<p class="print-warning"><strong>${escapeHtml(issue.title)}</strong>：${escapeHtml(issue.detail)}</p>`).join('')
       : '<p>未发现错误或缺失提醒。</p>';
     elements.printReport.innerHTML = `
       <h1>MSPM0 引脚规划报告</h1>
-      <p>工程：${escapeHtml(project.name)} · 芯片：${escapeHtml(state.activeDevice)} · 封装：${escapeHtml(pkg.label)}</p>
+      <p>工程：${escapeHtml(project.name)} · 芯片：${escapeHtml(state.activeDevice)} · 封装：${escapeHtml(pkg.label)}${isBoardApplicable() ? ` · 板卡：${escapeHtml(currentBoard().name)}` : ''}</p>
       <p>生成时间：${escapeHtml(new Date().toLocaleString())} · 软件版本：${escapeHtml(APP_META.version)}</p>
       <p>非 TI 官方工具。本报告仅用于规划，不替代数据手册和电气设计审查。</p>
       <h2>检查摘要</h2>${issueRows}
       <h2>引脚安排</h2>
-      <table><thead><tr><th>Pin</th><th>GPIO</th><th>功能</th><th>标签</th><th>连接器</th><th>备注</th></tr></thead><tbody>${assignedRows}</tbody></table>`;
+      <table><thead><tr><th>Pin</th><th>GPIO</th><th>功能</th><th>标签</th><th>用户连接器</th><th>备注</th><th>板卡端子</th><th>板卡状态</th><th>板卡说明</th></tr></thead><tbody>${assignedRows}</tbody></table>`;
     window.print();
   }
 
@@ -1349,7 +1601,6 @@
     });
     deviceState.activePackage = codes.includes(parsed.activePackage) ? parsed.activePackage : deviceState.activePackage;
     if (parsed.schemaVersion >= 2) {
-      data.theme = parsed.theme === 'dark' ? 'dark' : data.theme;
       data.layout.leftWidth = Math.min(460, Math.max(190, Number(parsed.layout?.leftWidth) || data.layout.leftWidth));
       data.layout.rightWidth = Math.min(540, Math.max(260, Number(parsed.layout?.rightWidth) || data.layout.rightWidth));
     }
@@ -1362,9 +1613,9 @@
       const parsed = JSON.parse(await file.text());
       const imported = [];
       let skipped = 0;
-      if (parsed?.schemaVersion === SCHEMA_VERSION && parsed.kind === 'mspm0-pin-project' && parsed.project) {
+      if ([4, SCHEMA_VERSION].includes(parsed?.schemaVersion) && parsed.kind === 'mspm0-pin-project' && parsed.project) {
         imported.push(normalizeProject({ ...parsed.project, id: createId(), name: uniqueProjectName(parsed.project.name || file.name.replace(/\.json$/i, '')) }));
-      } else if (parsed?.version === SCHEMA_VERSION && parsed.kind === 'mspm0-pin-workspace' && Array.isArray(parsed.projects)) {
+      } else if ([4, SCHEMA_VERSION].includes(parsed?.version) && parsed.kind === 'mspm0-pin-workspace' && Array.isArray(parsed.projects)) {
         parsed.projects.slice(0, 40).forEach(project => imported.push(normalizeProject({ ...project, id: createId(), name: uniqueProjectName(project.name || '导入工程') })));
       } else {
         const legacy = dataFromLegacyExport(parsed);
@@ -1410,7 +1661,7 @@
     const button = event.target.closest('[data-project-action]');
     if (!button) return;
     closeMenus();
-    const actions = { new: createNewProject, rename: renameCurrentProject, duplicate: duplicateCurrentProject, delete: deleteCurrentProject };
+    const actions = { new: createNewProject, rename: renameCurrentProject, duplicate: duplicateCurrentProject, 'restore-preset': restoreBoardDefaults, delete: deleteCurrentProject };
     actions[button.dataset.projectAction]?.();
   });
   elements.projectForm.addEventListener('submit', event => {
@@ -1418,7 +1669,8 @@
     const name = elements.projectNameInput.value.trim();
     if (!name) return;
     if (projectDialogMode === 'new') {
-      const project = createProject(uniqueProjectName(name));
+      const presetId = elements.projectPresetSelect.value;
+      const project = createProject(uniqueProjectName(name), presetId ? createPresetState(presetId) : createEmptyState());
       workspace.projects.push(project);
       workspace.activeProjectId = project.id;
       state = project.data;
@@ -1507,11 +1759,6 @@
   };
   elements.canvasScroller.addEventListener('pointerup', endPan);
   elements.canvasScroller.addEventListener('pointercancel', endPan);
-  elements.themeToggleBtn.addEventListener('click', () => {
-    state.theme = state.theme === 'dark' ? 'light' : 'dark';
-    applyThemeAndLayout();
-    saveState();
-  });
   elements.undoBtn.addEventListener('click', undo);
   elements.redoBtn.addEventListener('click', redo);
   elements.exportMenuBtn.addEventListener('click', event => { event.stopPropagation(); toggleMenu(elements.exportMenuBtn, elements.exportMenu); });
@@ -1556,7 +1803,7 @@
       const maxRight = Math.max(260, Math.min(540, window.innerWidth - state.layout.leftWidth - 434));
       state.layout.rightWidth = Math.min(maxRight, Math.max(260, resizeState.rightWidth - delta));
     }
-    applyThemeAndLayout();
+    applyLayout();
   }
 
   function endResize(event) {

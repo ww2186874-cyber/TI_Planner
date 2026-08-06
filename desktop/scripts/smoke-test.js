@@ -44,7 +44,9 @@ const expressions = {
     projectActions: document.querySelectorAll('[data-project-action]').length,
     exportActions: document.querySelectorAll('[data-export]').length,
     hasAbout: Boolean(document.querySelector('#aboutBtn')),
-    hasCheck: Boolean(document.querySelector('#checkBtn'))
+    hasCheck: Boolean(document.querySelector('#checkBtn')),
+    hasThemeToggle: Boolean(document.querySelector('#themeToggleBtn')),
+    colorScheme: getComputedStyle(document.documentElement).colorScheme
   }))()`,
   write: `(() => {
     const device = document.querySelector('#deviceSelect');
@@ -54,16 +56,16 @@ const expressions = {
     const packages = [...pkg.options].map(option => option.value);
     pkg.value = 'RHB';
     pkg.dispatchEvent(new Event('change', { bubbles: true }));
-    const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v4') || '{}');
+    const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v5') || '{}');
     const project = stored.projects?.find(item => item.id === stored.activeProjectId);
-    return { activeDevice: document.querySelector('#deviceSelect').value, activePackage: document.querySelector('#packageSelect').value, packages, saved: stored.version === 4, storedDevice: project?.data?.activeDevice, storedPackage: project?.data?.devices?.MSPM0G3507?.activePackage };
+    return { activeDevice: document.querySelector('#deviceSelect').value, activePackage: document.querySelector('#packageSelect').value, packages, saved: stored.version === 5, storedDevice: project?.data?.activeDevice, storedPackage: project?.data?.devices?.MSPM0G3507?.activePackage };
   })()`,
   restore: `(() => ({
     activeDevice: document.querySelector('#deviceSelect').value,
     activePackage: document.querySelector('#packageSelect').value,
-    saved: JSON.parse(localStorage.getItem('mspm0g-pin-planner-v4') || '{}').version === 4,
-    storedDevice: (() => { const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v4') || '{}'); return stored.projects?.find(item => item.id === stored.activeProjectId)?.data?.activeDevice; })(),
-    storedPackage: (() => { const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v4') || '{}'); return stored.projects?.find(item => item.id === stored.activeProjectId)?.data?.devices?.MSPM0G3507?.activePackage; })()
+    saved: JSON.parse(localStorage.getItem('mspm0g-pin-planner-v5') || '{}').version === 5,
+    storedDevice: (() => { const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v5') || '{}'); return stored.projects?.find(item => item.id === stored.activeProjectId)?.data?.activeDevice; })(),
+    storedPackage: (() => { const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v5') || '{}'); return stored.projects?.find(item => item.id === stored.activeProjectId)?.data?.devices?.MSPM0G3507?.activePackage; })()
   }))()`,
   defaults: `(() => {
     const change = element => element.dispatchEvent(new Event('change', { bubbles: true }));
@@ -233,6 +235,165 @@ const expressions = {
       .map(pin => pin.querySelector('.pin-name')?.textContent);
     return { query: input.value, matches };
   })()`,
+  'board-preset': `(() => {
+    const change = element => element.dispatchEvent(new Event('change', { bubbles: true }));
+    const input = element => element.dispatchEvent(new Event('input', { bubbles: true }));
+    const createPreset = (name, presetId) => {
+      document.querySelector('[data-project-action="new"]').click();
+      document.querySelector('#projectNameInput').value = name;
+      document.querySelector('#projectPresetSelect').value = presetId;
+      document.querySelector('#projectForm').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    };
+    const capture = () => ({
+      device: document.querySelector('#deviceSelect').value,
+      package: document.querySelector('#packageSelect').value,
+      assigned: Number(document.querySelector('#assignedCount').textContent),
+      boardMarkers: document.querySelectorAll('#packageStage .board-pin-marker').length,
+      headerMarkers: document.querySelectorAll('#packageStage .board-header').length,
+      occupiedMarkers: document.querySelectorAll('#packageStage .board-occupied').length,
+      specialMarkers: document.querySelectorAll('#packageStage .board-special').length,
+      unexposedMarkers: document.querySelectorAll('#packageStage .board-unexposed').length,
+      subtitle: document.querySelector('#canvasSubtitle').textContent,
+      storedPreset: (() => {
+        const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v5') || '{}');
+        return stored.projects?.find(item => item.id === stored.activeProjectId)?.data?.boardPresetId;
+      })()
+    });
+
+    createPreset('天猛星3507测试', 'tianmengxing-g3507-pm64');
+    const g3507 = capture();
+    const defaultSignals = [11, 12, 13, 20, 21, 38, 42, 43, 44, 45, 46, 56, 57, 58, 59, 60, 61]
+      .map(number => document.querySelector('[data-pin="' + number + '"] .pin-function-label')?.textContent);
+
+    const search = document.querySelector('#searchInput');
+    const findMatches = query => {
+      search.value = query;
+      input(search);
+      return [...document.querySelectorAll('#packageStage .pin-button:not(.dimmed) .pin-name')].map(item => item.textContent);
+    };
+    const ledMatches = findMatches('LED');
+    const lcdMatches = findMatches('LCD').sort();
+    const unexposedMatches = findMatches('未引出').sort();
+    const connectorMatches = findMatches('U21-3');
+    search.value = '';
+    input(search);
+
+    document.querySelector('[data-pin="42"]').click();
+    document.querySelector('#functionSelect').value = 'PA2';
+    change(document.querySelector('#functionSelect'));
+    document.querySelector('#checkBtn').click();
+    const changedCheck = document.querySelector('#checkDialogBody').textContent;
+    document.querySelector('#checkDialog').close();
+
+    const originalConfirm = window.confirm;
+    window.confirm = () => true;
+    document.querySelector('[data-project-action="restore-preset"]').click();
+    const restoredSignal = document.querySelector('[data-pin="42"] .pin-function-label').textContent;
+    document.querySelector('#resetBtn').click();
+    const assignedAfterClear = Number(document.querySelector('#assignedCount').textContent);
+    const markersAfterClear = document.querySelectorAll('#packageStage .board-pin-marker').length;
+    document.querySelector('[data-project-action="restore-preset"]').click();
+    const assignedAfterRestore = Number(document.querySelector('#assignedCount').textContent);
+    window.confirm = originalConfirm;
+
+    document.querySelector('[data-pin="60"]').click();
+    const sharedBoardInfo = document.querySelector('#boardInfoBox').textContent;
+    const sharedRouteLabels = [...document.querySelectorAll('#boardRouteList .board-route')].map(item => item.textContent);
+    const sharedPinLabel = document.querySelector('[data-pin="60"] .pin-board-label')?.textContent;
+    const boardBusStrip = document.querySelector('#boardBusStrip').textContent;
+
+    document.querySelector('[data-pin="33"]').click();
+    const boardInfo = document.querySelector('#boardInfoBox').textContent;
+    document.querySelector('#functionSelect').value = 'UART0_TX';
+    change(document.querySelector('#functionSelect'));
+    document.querySelector('#checkBtn').click();
+    const openDrainCheck = document.querySelector('#checkDialogBody').textContent;
+    document.querySelector('#checkDialog').close();
+
+    let printCalls = 0;
+    const originalPrint = window.print;
+    window.print = () => { printCalls += 1; };
+    document.querySelector('[data-export="print"]').click();
+    const boardReport = document.querySelector('#printReport').textContent;
+    window.print = originalPrint;
+
+    const rectsOverlap = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    const markerCheck = number => {
+      const pin = document.querySelector('[data-pin="' + number + '"]');
+      const markerElement = pin.querySelector('.board-pin-marker');
+      const marker = markerElement.getBoundingClientRect();
+      const pad = pin.querySelector('.pin-pad').getBoundingClientRect();
+      const numberLabel = pin.querySelector('.pin-number').getBoundingClientRect();
+      const nameLabel = pin.querySelector('.pin-name').getBoundingClientRect();
+      const style = getComputedStyle(markerElement);
+      return {
+        text: markerElement.textContent,
+        fontSize: parseFloat(style.fontSize),
+        color: style.color,
+        width: style.width,
+        height: style.height,
+        contained: marker.left >= pad.left && marker.right <= pad.right && marker.top >= pad.top && marker.bottom <= pad.bottom,
+        overlapsText: rectsOverlap(marker, numberLabel) || rectsOverlap(marker, nameLabel)
+      };
+    };
+    const markerChecks = {
+      top: markerCheck(61),
+      right: markerCheck(33),
+      bottom: markerCheck(17),
+      left: markerCheck(1)
+    };
+
+    const device = document.querySelector('#deviceSelect');
+    device.value = 'MSPM0G3519';
+    change(device);
+    const mismatchSubtitle = document.querySelector('#canvasSubtitle').textContent;
+
+    createPreset('天猛星3519测试', 'tianmengxing-g3519-pm64');
+    const g3519 = capture();
+    return {
+      g3507, g3519, defaultSignals, ledMatches, lcdMatches, unexposedMatches, connectorMatches, changedCheck,
+      restoredSignal, assignedAfterClear, markersAfterClear, assignedAfterRestore, boardInfo, openDrainCheck,
+      printCalls, boardReport, markerChecks, mismatchSubtitle, sharedBoardInfo, sharedRouteLabels, sharedPinLabel, boardBusStrip
+    };
+  })()`,
+  'seed-v4-workspace': `(() => {
+    const project = {
+      id: 'legacy-v4-project',
+      name: 'v4 本地迁移',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      data: {
+        version: 3,
+        activeDevice: 'MSPM0G3507',
+        theme: 'dark',
+        layout: { leftWidth: 275, rightWidth: 355 },
+        devices: {
+          MSPM0G3507: {
+            activePackage: 'PT',
+            packages: { PT: { assignments: { '1': { function: 'UART0_TX', alias: 'v4本地数据', connector: 'J4-1', note: 'storage migration' } } } },
+            views: {}
+          }
+        }
+      }
+    };
+    localStorage.removeItem('mspm0g-pin-planner-v5');
+    localStorage.setItem('mspm0g-pin-planner-v4', JSON.stringify({ version: 4, activeProjectId: project.id, projects: [project] }));
+    setTimeout(() => location.reload(), 50);
+    return true;
+  })()`,
+  'migration-v4': `(() => {
+    const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v5') || '{}');
+    const project = stored.projects?.find(item => item.id === stored.activeProjectId);
+    return {
+      workspaceVersion: stored.version,
+      projectVersion: project?.data?.version,
+      boardPresetId: project?.data?.boardPresetId,
+      projectName: document.querySelector('#projectSelect option:checked')?.textContent,
+      device: document.querySelector('#deviceSelect').value,
+      package: document.querySelector('#packageSelect').value,
+      pin: document.querySelector('[data-pin="1"]')?.getAttribute('aria-label')
+    };
+  })()`,
   layout: `(() => {
     const device = document.querySelector('#deviceSelect');
     device.value = 'MSPM0G3507';
@@ -326,9 +487,8 @@ const expressions = {
     note.value = 'release smoke test';
     input(note);
 
-    const themeBefore = document.documentElement.dataset.theme;
-    document.querySelector('#themeToggleBtn').click();
-    const themeAfter = document.documentElement.dataset.theme;
+    const themeToggleMissing = !document.querySelector('#themeToggleBtn');
+    const colorScheme = getComputedStyle(document.documentElement).colorScheme;
     const rotationBefore = document.querySelector('#packageStage').dataset.rotation;
     document.querySelector('#rotateCwBtn').click();
     const rotationAfter = document.querySelector('#packageStage').dataset.rotation;
@@ -349,8 +509,8 @@ const expressions = {
       functionAfterUndo,
       functionAfterRedo,
       pinLabel: document.querySelector('[data-pin="1"]').getAttribute('aria-label'),
-      themeBefore,
-      themeAfter,
+      themeToggleMissing,
+      colorScheme,
       rotationBefore,
       rotationAfter,
       zoom: document.querySelector('#zoomValue').textContent,
@@ -466,7 +626,8 @@ async function main() {
     if (!result.bridge || !result.focusBridge) throw new Error('Desktop bridge is incomplete');
     if (!result.devices.includes('MSPM0G3507') || !result.devices.includes('MSPM0G3519')) throw new Error('Device list is incomplete');
     if (!result.packages.includes('RHB') || !result.packages.includes('RGZ')) throw new Error('MSPM0G3519 VQFN package list is incomplete');
-    if (result.projectActions !== 4 || result.exportActions !== 7 || !result.hasAbout || !result.hasCheck) throw new Error('Candidate feature controls are incomplete');
+    if (result.hasThemeToggle || result.colorScheme !== 'dark') throw new Error('Night-only interface is not active');
+    if (result.projectActions !== 5 || result.exportActions !== 7 || !result.hasAbout || !result.hasCheck) throw new Error('Candidate feature controls are incomplete');
   }
   if (mode === 'write' && (result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'RHB' || !result.packages.includes('RGZ') || !result.saved)) {
     throw new Error('MSPM0G3507 VQFN state was not saved');
@@ -548,6 +709,66 @@ async function main() {
   if (mode === 'search' && (result.query !== 'PB1' || result.matches.length !== 1 || result.matches[0] !== 'PB1')) {
     throw new Error(`GPIO search returned unexpected pins: ${JSON.stringify(result.matches)}`);
   }
+  if (mode === 'board-preset') {
+    const expectedSignals = ['BSL_invoke', 'SWDIO', 'SWCLK', 'PB21', 'PB22', 'NRST', 'ROSC', 'LFXIN', 'LFXOUT', 'HFXIN', 'HFXOUT', 'UART0_TX', 'UART0_RX', 'SPI1_CS0', 'SPI1_POCI', 'SPI1_PICO', 'SPI1_SCK'];
+    const expectedMarkers = { top: 'B', right: '!', bottom: '!', left: 'H' };
+    for (const [device, capture] of [['MSPM0G3507', result.g3507], ['MSPM0G3519', result.g3519]]) {
+      if (capture.device !== device || capture.package !== 'PM' || capture.assigned !== 17 || capture.boardMarkers !== 61 || capture.headerMarkers !== 40 || capture.occupiedMarkers !== 12 || capture.specialMarkers !== 5 || capture.unexposedMarkers !== 4 || !capture.subtitle.includes('天猛星') || !capture.storedPreset.includes(device === 'MSPM0G3507' ? 'g3507' : 'g3519')) {
+        throw new Error(`${device} Tianmengxing preset failed: ${JSON.stringify(capture)}`);
+      }
+    }
+    const markersReadable = Object.entries(expectedMarkers).every(([side, text]) => {
+      const marker = result.markerChecks[side];
+      return marker.text === text
+        && marker.fontSize > 0
+        && marker.color !== 'rgba(0, 0, 0, 0)'
+        && marker.width === '13px'
+        && marker.height === '13px'
+        && marker.contained
+        && !marker.overlapsText;
+    });
+    if (
+      JSON.stringify(result.defaultSignals) !== JSON.stringify(expectedSignals)
+      || JSON.stringify(result.ledMatches) !== JSON.stringify(['PB22'])
+      || JSON.stringify(result.lcdMatches) !== JSON.stringify(['PB10', 'PB11', 'PB14', 'PB26', 'PB8', 'PB9'])
+      || JSON.stringify(result.unexposedMatches) !== JSON.stringify(['PA3', 'PA4', 'PA5', 'PA6'])
+      || JSON.stringify(result.connectorMatches) !== JSON.stringify(['PA0'])
+      || !result.changedCheck.includes('偏离天猛星板载连接')
+      || result.restoredSignal !== 'ROSC'
+      || result.assignedAfterClear !== 0
+      || result.markersAfterClear !== 61
+      || result.assignedAfterRestore !== 17
+      || !result.boardInfo.includes('U21-3')
+      || !result.boardInfo.includes('开漏')
+      || result.sharedRouteLabels.length !== 2
+      || !result.sharedBoardInfo.includes('板载 SPI Flash')
+      || !result.sharedBoardInfo.includes('H8 LCD/OLED 接口')
+      || !result.sharedBoardInfo.includes('这不是引脚冲突')
+      || result.sharedPinLabel !== 'FLASH:MOSI · LCD:SDA'
+      || !result.boardBusStrip.includes('SPI1 共享')
+      || !result.boardBusStrip.includes('PB6 / Pin 58 / W_CS')
+      || !result.boardBusStrip.includes('PB14 / Pin 2 / LCD_CS')
+      || !result.openDrainCheck.includes('仅支持开漏输出')
+      || result.printCalls !== 1
+      || !result.boardReport.includes('立创·天猛星 PM-64 最小系统板')
+      || !result.boardReport.includes('U21-3')
+      || !result.boardReport.includes('特殊电气条件')
+      || !result.boardReport.includes('板载 SPI Flash=MOSI')
+      || !result.boardReport.includes('H8 LCD/OLED 接口=SDA')
+      || !markersReadable
+      || !result.mismatchSubtitle.includes('模板对应 MSPM0G3507 PM-64')
+    ) throw new Error(`Tianmengxing workflow failed: ${JSON.stringify(result)}`);
+  }
+  if (mode === 'migration-v4' && (
+    result.workspaceVersion !== 5
+    || result.projectVersion !== 4
+    || result.boardPresetId !== ''
+    || result.projectName !== 'v4 本地迁移'
+    || result.device !== 'MSPM0G3507'
+    || result.package !== 'PT'
+    || !result.pin?.includes('UART0_TX')
+    || !result.pin?.includes('v4本地数据')
+  )) throw new Error(`Version 4 workspace migration failed: ${JSON.stringify(result)}`);
   if (mode === 'layout' && (!result.pin.includes('TIMG6_C0') || !result.pin.includes('TMC2209_1_STEP') || result.gap < 3 || !result.contained || result.trackHeight !== 210 || result.labelTrackLength !== 132 || result.buttonHeight / result.labelHeight < 1.5)) {
     throw new Error(`Bottom pin label layout failed: ${JSON.stringify(result)}`);
   }
@@ -566,7 +787,8 @@ async function main() {
     || result.functionAfterRedo !== result.selectedFunction
     || !result.pinLabel.includes('发布测试')
     || !result.pinLabel.includes('J99-1')
-    || result.themeBefore === result.themeAfter
+    || !result.themeToggleMissing
+    || result.colorScheme !== 'dark'
     || result.rotationBefore === result.rotationAfter
     || result.zoom !== '125%'
     || !result.checkOpen

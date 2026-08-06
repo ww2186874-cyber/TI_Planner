@@ -1,0 +1,164 @@
+{
+  "version": 1,
+  "boards": {
+    "tianmengxing-pm64": {
+      "id": "tianmengxing-pm64",
+      "name": "立创·天猛星 PM-64 最小系统板",
+      "package": "PM",
+      "compatibleDevices": [
+        "MSPM0G3507",
+        "MSPM0G3519"
+      ],
+      "source": {
+        "document": "立创·天猛星 MSPM0G3507 开发板原理图",
+        "revision": "核心/扩展页 2024-11-14，电源页 2026-07-30",
+        "pages": "1-3",
+        "retrieved": "2026-08-06"
+      },
+      "defaults": {
+        "11": "BSL_invoke",
+        "12": "SWDIO",
+        "13": "SWCLK",
+        "20": "PB21",
+        "21": "PB22",
+        "38": "NRST",
+        "42": "ROSC",
+        "43": "LFXIN",
+        "44": "LFXOUT",
+        "45": "HFXIN",
+        "46": "HFXOUT",
+        "56": "UART0_TX",
+        "57": "UART0_RX",
+        "58": "SPI1_CS0",
+        "59": "SPI1_POCI",
+        "60": "SPI1_PICO",
+        "61": "SPI1_SCK"
+      },
+      "pins": {
+        "1": { "name": "PB13", "header": "U21-18", "status": "header", "aliases": ["U3RX"] },
+        "2": { "name": "PB14", "header": "U22-34", "status": "header", "aliases": ["LCD_CS"] },
+        "3": { "name": "PB15", "header": "U21-11", "status": "header", "aliases": ["U2TX"] },
+        "4": { "name": "PB16", "header": "U21-13", "status": "header", "aliases": ["U2RX"] },
+        "5": { "name": "PA12", "header": "U21-29", "status": "header", "aliases": ["CAN_TX"] },
+        "6": { "name": "PA13", "header": "U21-30", "status": "header", "aliases": ["CAN_RX"] },
+        "7": { "name": "PA14", "header": "U22-11", "status": "header", "aliases": ["A0_12"] },
+        "8": { "name": "PA15", "header": "U22-12", "status": "header", "aliases": ["A1_0"] },
+        "9": { "name": "PA16", "header": "U22-13", "status": "header", "aliases": ["A1_1"] },
+        "10": { "name": "PA17", "header": "U22-14", "status": "header", "aliases": ["A1_2"] },
+        "11": { "name": "PA18", "header": "U22-36", "status": "occupied", "aliases": ["BSL"], "label": "BSL 启动按键", "detail": "连接 BSL 按键并由 47 kΩ 电阻下拉；模板默认选择 BSL_invoke。" },
+        "12": { "name": "PA19", "header": "U21-19", "status": "occupied", "aliases": ["DIO", "SWDIO"], "label": "SWD 数据", "detail": "连接板载下载调试接口 DIO；模板默认保留 SWDIO。" },
+        "13": { "name": "PA20", "header": "U21-20", "status": "occupied", "aliases": ["CLK", "SWCLK"], "label": "SWD 时钟", "detail": "连接板载下载调试接口 CLK；模板默认保留 SWCLK。" },
+        "14": { "name": "PB17", "header": "U22-15", "status": "header", "aliases": ["A1_4"] },
+        "15": { "name": "PB18", "header": "U22-16", "status": "header", "aliases": ["A1_5"] },
+        "16": { "name": "PB19", "header": "U22-17", "status": "header", "aliases": ["A1_6"] },
+        "17": { "name": "PA21", "header": "U22-18", "status": "special", "aliases": ["A1_7", "VREF-"], "label": "参考电压负端网络", "detail": "连接 VREF- 参考电压选择/滤波网络；作为普通输出前应核对焊接选项和模拟参考设计。" },
+        "18": { "name": "PA22", "header": "U22-10", "status": "header", "aliases": ["A0_7"] },
+        "19": { "name": "PB20", "header": "U22-9", "status": "header", "aliases": ["A0_6"] },
+        "20": { "name": "PB21", "header": "U22-25", "status": "occupied", "aliases": ["KEY"], "label": "板载功能按键", "detail": "按键按下时连接 GND，为低有效输入；模板保留 GPIO 功能 PB21。" },
+        "21": { "name": "PB22", "header": "U22-26", "status": "occupied", "aliases": ["LED"], "label": "板载用户 LED", "detail": "经 2 kΩ 电阻和 LED 接地，GPIO 输出高电平时点亮；模板保留 GPIO 功能 PB22。" },
+        "22": { "name": "PB23", "header": "U21-31", "status": "header" },
+        "23": { "name": "PB24", "header": "U22-8", "status": "header", "aliases": ["A0_5"] },
+        "24": { "name": "PA23", "header": "U22-20", "status": "special", "aliases": ["A1_7", "EXT_PIN_VREF+", "VREF+"], "label": "参考电压正端网络", "detail": "连接三路参考电压选择和滤波网络；作为普通输出前应核对焊接选项和模拟参考设计。" },
+        "25": { "name": "PA24", "header": "U22-6", "status": "header", "aliases": ["A0_3"] },
+        "26": { "name": "PA25", "header": "U22-5", "status": "header", "aliases": ["A0_2"] },
+        "27": { "name": "PB25", "header": "U22-7", "status": "header", "aliases": ["A0_4"] },
+        "28": { "name": "PB26", "header": "U21-32", "status": "header", "aliases": ["LCD_BL"] },
+        "29": { "name": "PB27", "header": "U21-33", "status": "header" },
+        "30": { "name": "PA26", "header": "U22-4", "status": "header", "aliases": ["A0_1"] },
+        "31": { "name": "PA27", "header": "U22-3", "status": "header", "aliases": ["A0_0"] },
+        "33": { "name": "PA0", "header": "U21-3", "status": "special", "aliases": ["U0TX", "I2C0-SDA"], "label": "开漏 IO + 板载上拉", "detail": "PA0 仅支持开漏输出，板上默认经 4.7 kΩ 上拉到 3.3 V，不能像推挽 IO 一样主动输出高电平。" },
+        "34": { "name": "PA1", "header": "U21-5", "status": "special", "aliases": ["U0RX", "I2C0-SCL"], "label": "开漏 IO + 板载上拉", "detail": "PA1 仅支持开漏输出，板上默认经 4.7 kΩ 上拉到 3.3 V，不能像推挽 IO 一样主动输出高电平。" },
+        "35": { "name": "PA28", "header": "U21-4", "status": "header", "aliases": ["I2C0-SDA"] },
+        "36": { "name": "PA29", "header": "U21-34", "status": "header" },
+        "37": { "name": "PA30", "header": "U22-27", "status": "header" },
+        "38": { "name": "NRST", "header": "U22-35", "status": "occupied", "aliases": ["RST", "RESET"], "label": "板载复位电路", "detail": "连接复位按键、47 kΩ 上拉和 10 nF 电容；模板默认选择 NRST。" },
+        "39": { "name": "PA31", "header": "U21-6", "status": "header", "aliases": ["I2C0-SCL"] },
+        "42": { "name": "PA2", "header": "U22-19", "status": "special", "aliases": ["ROSC"], "label": "ROSC 精密电阻", "detail": "虽然已引到 U22-19，但板上同时通过 100 kΩ、0.1% 电阻连接 ROSC 网络；模板默认选择 ROSC。" },
+        "43": { "name": "PA3", "status": "unexposed", "aliases": ["LFXIN"], "label": "未引出 · 低频晶振输入", "detail": "未连接到 U21/U22 排针，已接 32.768 kHz 晶振和 12 pF 负载电容。" },
+        "44": { "name": "PA4", "status": "unexposed", "aliases": ["LFXOUT"], "label": "未引出 · 低频晶振输出", "detail": "未连接到 U21/U22 排针，已接 32.768 kHz 晶振和 12 pF 负载电容。" },
+        "45": { "name": "PA5", "status": "unexposed", "aliases": ["HFXIN"], "label": "未引出 · 高频晶振输入", "detail": "未连接到 U21/U22 排针，已接 40 MHz 晶振和 15 pF 负载电容。" },
+        "46": { "name": "PA6", "status": "unexposed", "aliases": ["HFXOUT"], "label": "未引出 · 高频晶振输出", "detail": "未连接到 U21/U22 排针，已接 40 MHz 晶振和 15 pF 负载电容。" },
+        "47": { "name": "PB0", "header": "U22-29", "status": "header", "aliases": ["SPI1_CS2"] },
+        "48": { "name": "PB1", "header": "U22-30", "status": "header", "aliases": ["SPI1_CS3"] },
+        "49": { "name": "PA7", "header": "U22-32", "status": "header" },
+        "50": { "name": "PB2", "header": "U21-15", "status": "header", "aliases": ["U3TX"] },
+        "51": { "name": "PB3", "header": "U21-17", "status": "header", "aliases": ["U3RX"] },
+        "52": { "name": "PB4", "header": "U21-8", "status": "header", "aliases": ["U1TX"] },
+        "53": { "name": "PB5", "header": "U21-10", "status": "header", "aliases": ["U1RX"] },
+        "54": { "name": "PA8", "header": "U21-7", "status": "header", "aliases": ["U1TX"] },
+        "55": { "name": "PA9", "header": "U21-9", "status": "header", "aliases": ["U1RX"] },
+        "56": { "name": "PA10", "header": "U21-12", "status": "occupied", "aliases": ["U0TX", "CH340_TX"], "label": "板载 CH340 串口发送", "detail": "连接 CH340E 的串口接收端和串口调试/下载接口；模板默认选择 UART0_TX。" },
+        "57": { "name": "PA11", "header": "U21-14", "status": "occupied", "aliases": ["U0RX", "CH340_RX"], "label": "板载 CH340 串口接收", "detail": "连接 CH340E 的串口发送端和串口调试/下载接口；模板默认选择 UART0_RX。" },
+        "58": { "name": "PB6", "header": "U21-25", "status": "occupied", "aliases": ["W_CS"], "label": "板载 SPI Flash 片选", "detail": "连接板载 SPI Flash CS#；模板默认选择 SPI1_CS0。" },
+        "59": { "name": "PB7", "header": "U21-26", "status": "occupied", "aliases": ["W_MISO"], "label": "板载 SPI Flash POCI", "detail": "连接板载 SPI Flash IO1；模板默认选择 SPI1_POCI。" },
+        "60": { "name": "PB8", "header": "U21-27", "status": "occupied", "aliases": ["W_MOSI", "LCD_SDA"], "label": "板载 SPI Flash PICO", "detail": "连接板载 SPI Flash IO0，并同时引到可选 H8 LCD 数据端；模板默认选择 SPI1_PICO。" },
+        "61": { "name": "PB9", "header": "U21-28", "status": "occupied", "aliases": ["W_CLK", "LCD_SCL"], "label": "板载 SPI Flash 时钟", "detail": "连接板载 SPI Flash CLK，并同时引到可选 H8 LCD 时钟端；模板默认选择 SPI1_SCK。" },
+        "62": { "name": "PB10", "header": "U22-31", "status": "header", "aliases": ["LCD_RES"] },
+        "63": { "name": "PB11", "header": "U22-33", "status": "header", "aliases": ["LCD_DC"] },
+        "64": { "name": "PB12", "header": "U21-16", "status": "header", "aliases": ["U3TX"] }
+      },
+      "resources": [
+        {
+          "id": "spi-flash",
+          "name": "板载 SPI Flash",
+          "shortName": "FLASH",
+          "kind": "onboard",
+          "bus": "SPI1",
+          "detail": "板载 U24 SPI Flash；模板默认保留完整 SPI1 连接。",
+          "pins": {
+            "58": "CS#",
+            "59": "MISO",
+            "60": "MOSI",
+            "61": "CLK"
+          }
+        },
+        {
+          "id": "h8-lcd",
+          "name": "H8 LCD/OLED 接口",
+          "shortName": "LCD",
+          "kind": "optional",
+          "bus": "SPI1",
+          "detail": "可选外接 SPI LCD/OLED；未接屏幕时不占用 PB10、PB11、PB14、PB26。",
+          "pins": {
+            "2": "CS",
+            "28": "BL",
+            "60": "SDA",
+            "61": "SCL",
+            "62": "RES",
+            "63": "DC"
+          }
+        }
+      ],
+      "sharedBuses": [
+        {
+          "id": "SPI1",
+          "name": "SPI1 共享总线",
+          "resources": ["spi-flash", "h8-lcd"],
+          "pins": ["60", "61"],
+          "summary": "Flash 与 LCD/OLED 共用 PB8 数据线和 PB9 时钟线",
+          "detail": "这不是引脚冲突：PB8 同时连接 Flash MOSI 与 LCD SDA，PB9 同时连接 Flash CLK 与 LCD SCL；两者使用独立片选即可挂在同一 SPI1 总线上。",
+          "chipSelectPins": {
+            "spi-flash": "PB6 / Pin 58 / W_CS",
+            "h8-lcd": "PB14 / Pin 2 / LCD_CS"
+          }
+        }
+      ]
+    }
+  },
+  "presets": {
+    "tianmengxing-g3507-pm64": {
+      "id": "tianmengxing-g3507-pm64",
+      "name": "天猛星 · MSPM0G3507 · PM-64",
+      "boardId": "tianmengxing-pm64",
+      "device": "MSPM0G3507",
+      "package": "PM"
+    },
+    "tianmengxing-g3519-pm64": {
+      "id": "tianmengxing-g3519-pm64",
+      "name": "天猛星 · MSPM0G3519 · PM-64",
+      "boardId": "tianmengxing-pm64",
+      "device": "MSPM0G3519",
+      "package": "PM"
+    }
+  }
+}

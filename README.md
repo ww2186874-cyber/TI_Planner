@@ -17,6 +17,9 @@
 
 - `MSPM0G3519`：RHB-32 VQFN、RGZ-48 VQFN、PT-48 LQFP、PM-64 LQFP、PN-80 LQFP、PZ-100 LQFP。
 - `MSPM0G3507`：RHB-32 VQFN、RGZ-48 VQFN、PT-48 LQFP、PM-64 LQFP。
+- 内置板卡模板：天猛星 PM-64，可分别为 MSPM0G3507/MSPM0G3519 新建带板载功能、排针映射和电气限制提示的工程。
+- 天猛星模板会同时显示共享总线上的多个板卡资源，例如 PB8/PB9 上并存的板载 SPI Flash 与 H8 LCD/OLED 接口。
+- 应用界面固定使用针对桌面规划优化的夜间主题；打印报告仍使用白底版式。
 
 ## 常用操作
 

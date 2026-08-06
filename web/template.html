@@ -3,94 +3,55 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0d1012">
   <title>MSPM0G 引脚规划器</title>
   <style>
     :root {
-      color-scheme: light;
-      --bg: #eef2f5;
-      --surface: #ffffff;
-      --surface-soft: #f7f9fb;
-      --line: #d5dde3;
-      --line-strong: #aebbc5;
-      --text: #1d2933;
-      --muted: #657580;
-      --primary: #176b87;
-      --primary-soft: #e1f0f5;
-      --danger: #b4232c;
-      --danger-soft: #fdebec;
-      --warning: #a15c00;
-      --warning-soft: #fff1d6;
-      --success: #12715b;
-      --success-soft: #dff4ec;
-      --info-line: #bdd8e2;
-      --info-bg: #edf7fa;
-      --info-text: #29424d;
-      --pin-unassigned: #aeb8bf;
-      --pin-gpio: #0f9f79;
-      --pin-uart: #2563eb;
-      --pin-i2c: #0891b2;
-      --pin-spi: #7c3aed;
-      --pin-can: #dc2626;
-      --pin-timer: #d97706;
-      --pin-adc: #0d9488;
-      --pin-dac: #db2777;
-      --pin-comparator: #9333ea;
-      --pin-clock: #0284c7;
-      --pin-debug: #4338ca;
-      --pin-system: #b45309;
-      --pin-power: #be123c;
-      --pin-other: #78716c;
-      --shadow: 0 12px 34px rgba(32, 49, 59, 0.12);
+      color-scheme: dark;
+      --bg: #0d1012;
+      --surface: #161a1d;
+      --surface-soft: #1d2225;
+      --surface-raised: #242a2e;
+      --line: #30383d;
+      --line-strong: #526067;
+      --text: #edf2f4;
+      --muted: #a2b0b6;
+      --primary: #52c7c9;
+      --primary-soft: #163639;
+      --primary-ink: #081719;
+      --danger: #ff7b84;
+      --danger-soft: #3d2227;
+      --warning: #f2b84b;
+      --warning-soft: #3b301c;
+      --success: #59d19f;
+      --success-soft: #18372c;
+      --info-line: #3e747c;
+      --info-bg: #172f33;
+      --info-text: #dcebed;
+      --pin-unassigned: #657078;
+      --pin-gpio: #45d4a3;
+      --pin-uart: #62a8ff;
+      --pin-i2c: #36c9de;
+      --pin-spi: #b69af7;
+      --pin-can: #ff7f79;
+      --pin-timer: #f5c34f;
+      --pin-adc: #42cbbd;
+      --pin-dac: #ed86bd;
+      --pin-comparator: #c99af1;
+      --pin-clock: #4cbde7;
+      --pin-debug: #8c9dff;
+      --pin-system: #f0a940;
+      --pin-power: #ff8099;
+      --pin-other: #b5ada7;
+      --shadow: 0 14px 36px rgba(0, 0, 0, 0.38);
       --radius: 8px;
-      --canvas: #e7ecef;
-      --canvas-grid: #dbe2e6;
-      --chip: #26343c;
-      --chip-inset: #1f2a31;
+      --canvas: #0f1315;
+      --canvas-grid: #252c30;
+      --chip: #242a2e;
+      --chip-inset: #191e21;
       --left-panel-width: 250px;
       --right-panel-width: 330px;
-    }
-
-    :root[data-theme="dark"] {
-      color-scheme: dark;
-      --bg: #0f1519;
-      --surface: #172025;
-      --surface-soft: #202b31;
-      --line: #34434b;
-      --line-strong: #52636d;
-      --text: #e6edf1;
-      --muted: #9cafb9;
-      --primary: #54b7d5;
-      --primary-soft: #173943;
-      --danger: #ff7b83;
-      --danger-soft: #42252a;
-      --warning: #f5b45b;
-      --warning-soft: #44351f;
-      --success: #5bd0ad;
-      --success-soft: #193a32;
-      --info-line: #376675;
-      --info-bg: #16313a;
-      --info-text: #e6edf1;
-      --pin-unassigned: #58666f;
-      --pin-gpio: #34d399;
-      --pin-uart: #60a5fa;
-      --pin-i2c: #22d3ee;
-      --pin-spi: #a78bfa;
-      --pin-can: #f87171;
-      --pin-timer: #fbbf24;
-      --pin-adc: #2dd4bf;
-      --pin-dac: #f472b6;
-      --pin-comparator: #c084fc;
-      --pin-clock: #38bdf8;
-      --pin-debug: #818cf8;
-      --pin-system: #f59e0b;
-      --pin-power: #fb7185;
-      --pin-other: #a8a29e;
-      --canvas: #10181c;
-      --canvas-grid: #223038;
-      --chip: #202b31;
-      --chip-inset: #172025;
-      --shadow: 0 12px 34px rgba(0, 0, 0, 0.32);
     }
 
     * { box-sizing: border-box; }
@@ -145,7 +106,7 @@
       padding: 10px 18px;
       border-bottom: 1px solid var(--line);
       background: color-mix(in srgb, var(--surface) 96%, transparent);
-      box-shadow: 0 3px 14px rgba(30, 48, 58, 0.08);
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
       backdrop-filter: blur(8px);
     }
 
@@ -215,7 +176,7 @@
 
     select:focus, input:focus, textarea:focus {
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(23, 107, 135, 0.14);
+      box-shadow: 0 0 0 3px rgba(82, 199, 201, 0.17);
     }
 
     .toolbar {
@@ -279,8 +240,8 @@
 
     .btn:hover { border-color: var(--primary); background: var(--surface-soft); }
     .btn:active { transform: translateY(1px); }
-    .btn.primary { border-color: var(--primary); color: #fff; background: var(--primary); }
-    .btn.primary:hover { background: #105d77; }
+    .btn.primary { border-color: var(--primary); color: var(--primary-ink); background: var(--primary); }
+    .btn.primary:hover { background: #3eadaf; }
     .btn.danger { color: var(--danger); }
     .btn.small { min-height: 32px; padding: 5px 9px; font-size: 0.8rem; }
 
@@ -372,7 +333,7 @@
       min-height: 36px;
       border: 1px solid var(--line);
       border-radius: 6px;
-      color: #435762;
+      color: var(--muted);
       background: var(--surface);
       font-size: 0.8rem;
       font-weight: 700;
@@ -538,7 +499,7 @@
       min-height: 52px;
       padding: 8px 14px;
       border-bottom: 1px solid var(--line);
-      background: var(--surface-soft);
+      background: var(--surface);
     }
 
     .canvas-title {
@@ -561,6 +522,35 @@
     .zoom-control input { width: 130px; accent-color: var(--primary); }
 
     .canvas-actions { display: flex; flex: 1 1 430px; align-items: center; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
+
+    .board-bus-strip {
+      padding: 0 14px;
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--primary-soft) 54%, var(--surface));
+    }
+
+    .board-bus-row {
+      display: grid;
+      grid-template-columns: auto minmax(0, .8fr) minmax(0, 1.2fr);
+      align-items: center;
+      gap: 12px;
+      min-height: 46px;
+      padding: 7px 0;
+    }
+
+    .board-bus-badge {
+      padding: 4px 7px;
+      border: 1px solid var(--primary);
+      border-radius: 4px;
+      color: var(--primary);
+      font: 700 0.68rem/1 Consolas, monospace;
+      white-space: nowrap;
+    }
+
+    .board-bus-copy strong { display: block; font-size: 0.76rem; }
+    .board-bus-copy span, .board-bus-selects { display: block; margin-top: 2px; color: var(--muted); font-size: 0.67rem; line-height: 1.35; }
+    .board-bus-copy, .board-bus-selects { min-width: 0; }
+    .board-bus-selects { margin-top: 0; overflow-wrap: anywhere; text-align: right; }
 
     .canvas-scroller {
       position: relative;
@@ -661,6 +651,36 @@
 
     .pin-pad::before { content: ""; position: absolute; background: var(--pin-color, #9aa7af); }
 
+    .pin-button.board-header .pin-pad { outline: 1px solid #4f7a65; outline-offset: -3px; }
+    .pin-button.board-occupied .pin-pad { outline: 2px solid var(--warning); outline-offset: -3px; }
+    .pin-button.board-special .pin-pad { outline: 2px dashed var(--danger); outline-offset: -3px; }
+    .pin-button.board-unexposed .pin-pad { outline: 2px dashed #687782; outline-offset: -3px; }
+
+    .board-pin-marker {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      display: grid;
+      width: 13px;
+      height: 13px;
+      place-items: center;
+      border: 1px solid currentColor;
+      border-radius: 50%;
+      color: var(--muted);
+      background: var(--surface);
+      font: 700 8px/1 Consolas, monospace;
+      pointer-events: none;
+    }
+
+    .board-occupied .board-pin-marker { color: var(--warning); }
+    .board-special .board-pin-marker { color: var(--danger); }
+    .board-unexposed .board-pin-marker { color: #687782; }
+    .side.top .board-pin-marker, .side.bottom .board-pin-marker {
+      top: auto;
+      right: 4px;
+      bottom: 7px;
+    }
+
     .pin-external-label {
       min-width: 0;
       color: var(--text);
@@ -670,6 +690,7 @@
     }
 
     .pin-function-label { display: block; overflow: hidden; font-family: Consolas, monospace; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .pin-board-label { display: block; margin-top: 2px; overflow: hidden; color: var(--warning); font-size: 0.61rem; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
     .pin-custom-label { display: block; margin-top: 2px; overflow: hidden; color: var(--primary); text-overflow: ellipsis; white-space: nowrap; }
 
     .side.left .pin-button, .side.right .pin-button {
@@ -783,6 +804,35 @@
     .detail span { display: block; color: var(--muted); font-size: 0.66rem; }
     .detail strong { display: block; margin-top: 3px; overflow-wrap: anywhere; font-size: 0.78rem; }
 
+    .board-info {
+      margin: 0 -16px 16px;
+      padding: 13px 16px 14px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--surface-raised) 74%, var(--surface));
+      box-shadow: inset 3px 0 var(--primary);
+    }
+
+    .board-info[data-status="occupied"] { box-shadow: inset 3px 0 var(--warning); }
+    .board-info[data-status="special"] { box-shadow: inset 3px 0 var(--danger); }
+    .board-info[data-status="unexposed"] { box-shadow: inset 3px 0 var(--muted); }
+    .board-info-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .board-info-kicker { display: block; margin: 0 0 3px; color: var(--primary); font-size: 0.63rem; font-weight: 800; }
+    .board-info-head strong { display: block; font-size: 0.84rem; line-height: 1.35; }
+    .board-info-status { padding: 4px 6px; border: 1px solid var(--line-strong); border-radius: 4px; color: var(--warning); font-size: 0.64rem; font-weight: 750; white-space: nowrap; }
+    .board-info[data-status="header"] .board-info-status { color: var(--primary); }
+    .board-info[data-status="special"] .board-info-status { color: var(--danger); }
+    .board-info[data-status="unexposed"] .board-info-status { color: var(--muted); }
+    .board-info-meta { display: block; margin-top: 6px; color: var(--muted); font-size: 0.67rem; line-height: 1.45; }
+    .board-route-list { margin-top: 10px; border-top: 1px solid var(--line); }
+    .board-route { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: 9px; min-height: 42px; border-bottom: 1px solid var(--line); }
+    .board-route-kind { padding: 4px 5px; border: 1px solid var(--warning); border-radius: 4px; color: var(--warning); font-size: 0.62rem; font-weight: 800; text-align: center; }
+    .board-route-kind.optional { border-color: var(--primary); color: var(--primary); }
+    .board-route strong { display: block; font-size: 0.74rem; }
+    .board-route span:not(.board-route-kind) { display: block; margin-top: 2px; color: var(--muted); font: 700 0.66rem/1.3 Consolas, monospace; }
+    .board-shared-note { margin-top: 10px; padding: 8px 9px; border-left: 3px solid var(--primary); color: var(--info-text); background: var(--info-bg); font-size: 0.7rem; line-height: 1.5; }
+    .board-info-detail { margin: 9px 0 0; color: var(--muted); font-size: 0.7rem; line-height: 1.55; }
+
     .field { margin-top: 13px; }
     .field label { display: block; margin-bottom: 6px; color: var(--text); font-size: 0.78rem; font-weight: 700; }
     .field-hint { margin: 5px 0 0; color: var(--muted); font-size: 0.68rem; line-height: 1.45; }
@@ -796,8 +846,8 @@
     }
 
     .function-info { border: 1px solid var(--info-line); color: var(--info-text); background: var(--info-bg); }
-    .conflict-box { border: 1px solid #e5adb1; color: #7f2028; background: var(--danger-soft); }
-    .fixed-box { border: 1px solid #e4cda2; color: #70420a; background: var(--warning-soft); }
+    .conflict-box { border: 1px solid color-mix(in srgb, var(--danger) 55%, var(--line)); color: var(--text); background: var(--danger-soft); }
+    .fixed-box { border: 1px solid color-mix(in srgb, var(--warning) 55%, var(--line)); color: var(--text); background: var(--warning-soft); }
 
     .inspector-actions {
       display: flex;
@@ -928,6 +978,7 @@
             <button type="button" data-project-action="new">新建工程</button>
             <button type="button" data-project-action="rename">重命名</button>
             <button type="button" data-project-action="duplicate">复制工程</button>
+            <button class="hidden" type="button" data-project-action="restore-preset">恢复模板默认安排</button>
             <button class="danger" type="button" data-project-action="delete">删除当前工程</button>
           </div>
         </div>
@@ -944,7 +995,6 @@
       <div class="toolbar">
         <button class="btn icon-btn" id="undoBtn" type="button" title="撤销 Ctrl+Z" aria-label="撤销">↶</button>
         <button class="btn icon-btn" id="redoBtn" type="button" title="重做 Ctrl+Y" aria-label="重做">↷</button>
-        <button class="btn" id="themeToggleBtn" type="button">夜间模式</button>
         <button class="btn" id="importBtn" type="button">导入 JSON</button>
         <div class="menu-wrap">
           <button class="btn" id="exportMenuBtn" type="button" aria-haspopup="true" aria-expanded="false">导出</button>
@@ -981,7 +1031,7 @@
           <div class="stat"><span>冲突</span><strong id="conflictCount">0</strong></div>
         </div>
 
-        <input id="searchInput" type="search" placeholder="搜索引脚、TIMER、QEI、PWM 或标签" aria-label="搜索引脚和外设">
+        <input id="searchInput" type="search" placeholder="搜索引脚、LED、晶振、U21-3 或外设" aria-label="搜索引脚、板卡连接和外设">
 
         <div id="pinPanel">
           <div class="filter-tabs" id="filterTabs" aria-label="引脚状态筛选">
@@ -989,6 +1039,7 @@
             <button class="filter-btn" type="button" data-filter="assigned">已安排</button>
             <button class="filter-btn" type="button" data-filter="unassigned">未安排</button>
             <button class="filter-btn" type="button" data-filter="conflict">有冲突</button>
+            <button class="filter-btn" type="button" data-filter="board">板卡提醒</button>
           </div>
 
           <h2 class="panel-title">信号类别</h2>
@@ -1025,6 +1076,8 @@
             </label>
           </div>
         </div>
+
+        <div class="board-bus-strip hidden" id="boardBusStrip" aria-label="板卡共享总线"></div>
 
         <div class="canvas-scroller" id="canvasScroller">
           <div class="stage-scale" id="stageScale">
@@ -1065,6 +1118,20 @@
             <div class="detail"><span>IOMUX</span><strong id="iomuxRegister"></strong></div>
             <div class="detail"><span>缓冲类型</span><strong id="bufferType"></strong></div>
           </div>
+
+          <section class="board-info hidden" id="boardInfoBox">
+            <div class="board-info-head">
+              <div>
+                <span class="board-info-kicker">板卡连接</span>
+                <strong id="boardInfoTitle"></strong>
+              </div>
+              <span class="board-info-status" id="boardInfoStatus"></span>
+            </div>
+            <span class="board-info-meta" id="boardInfoMeta"></span>
+            <div class="board-route-list hidden" id="boardRouteList"></div>
+            <div class="board-shared-note hidden" id="boardSharedNote"></div>
+            <p class="board-info-detail" id="boardInfoDetail"></p>
+          </section>
 
           <div id="editableFields">
             <div class="field">
@@ -1122,6 +1189,15 @@
           <div class="field">
             <label for="projectNameInput">工程名称</label>
             <input id="projectNameInput" type="text" maxlength="48" autocomplete="off" required>
+          </div>
+          <div class="field" id="projectPresetField">
+            <label for="projectPresetSelect">基础模板</label>
+            <select id="projectPresetSelect">
+              <option value="">空白工程</option>
+              <option value="tianmengxing-g3507-pm64">天猛星 · MSPM0G3507 · PM-64</option>
+              <option value="tianmengxing-g3519-pm64">天猛星 · MSPM0G3519 · PM-64</option>
+            </select>
+            <p class="field-hint">模板会预选板载硬件功能并显示排针、未引出和电气限制；所有功能仍可修改。</p>
           </div>
           <div class="inspector-actions">
             <button class="btn" type="button" data-close-dialog="projectDialog">取消</button>
