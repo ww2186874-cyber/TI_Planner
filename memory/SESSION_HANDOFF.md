@@ -10,10 +10,9 @@
 ## 下一步
 
 1. 用户反馈视觉问题时，只修改源码并重新运行 `build-web.cmd`。
-2. 用户确认 HTML 后运行 `build-folder.cmd`，提供快速启动文件夹版。
-3. 文件夹版确认且用户再次明确要求发布后，改为正式 `1.3.0`，按 `docs/RELEASE_CHECKLIST.md` 运行一次 `create-release.cmd` 并创建 `v1.3.0` 标签。
+2. 用户确认 HTML 后继续保持网页版流程，不自动生成文件夹版或便携 EXE。
+3. 只有用户明确说“发布”后，才改为正式 `1.3.0`，按 `docs/RELEASE_CHECKLIST.md` 运行一次 `create-release.cmd` 并创建 `v1.3.0` 标签。
 
 ## 未完成事项
 
-- 尚未生成文件夹候选、便携 EXE 或正式版本。
-- GitHub 首次推送尚未完成；`origin` 已设置，但当前命令行无法连接 `github.com:443`，恢复网络或配置代理后执行 `git push -u origin main --tags`。
+- 尚未生成 `1.3.0` 正式版本；在用户明确说“发布”前保持网页版 HTML 工作流。

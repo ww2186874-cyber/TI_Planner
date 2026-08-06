@@ -7,7 +7,7 @@
 - 当前正式版本与最新正式标签：`1.2.2` / `v1.2.2`。
 - 正式归档：`releases/v1.0.0` 至 `releases/v1.2.2`，历史版本完整保留。
 - 当前候选版本：`1.3.0-beta.1`。
-- 当前门禁：源码候选已生成离线 HTML，等待用户目视确认；尚未生成候选文件夹版、便携 EXE 或正式 `v1.3.0`。
+- 当前门禁：默认仅生成离线 HTML，等待用户目视确认；除非用户明确说“发布”，不生成候选文件夹版、便携 EXE 或正式 `v1.3.0`。
 - 当前候选 HTML：`outputs/mspm0g3519-pin-planner.html`。
 
 ## 支持范围
@@ -35,7 +35,7 @@
 
 - 正式工作区：`<USER_HOME>\Desktop\MSPM0`。
 - 候选功能检查点：Git 提交 `73b1db0`。
-- Git 远程 `origin` 已配置为 `https://github.com/ww2186874-cyber/TI_Planner.git`，当前尚未完成首次推送。
+- Git 远程 `origin` 已配置为 `https://github.com/ww2186874-cyber/TI_Planner.git`，`main` 和全部正式标签已推送并与远程一致。
 - `outputs/` 只保留当前 `1.3.0-beta.1` HTML 和 `.gitkeep`；旧候选及已有正式版本副本已清理，正式版本仍完整保存在 `releases/`。
 - `.tmp/` 已移除隔离测试用户目录和可重建产物，保留目前仅存的芯片数据手册、原理图/EDA 参考资料及引脚规划转换文件。
 - `.pnpm-store/`、`.cache/`、`desktop/node_modules/` 和全部 `releases/` 必须长期保留。

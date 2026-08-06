@@ -30,15 +30,15 @@
 | 命令 | 用途 |
 |---|---|
 | `build-web.cmd` | 校验数据并生成离线 HTML 候选 |
-| `run-dev.cmd` | 构建并启动 Electron 开发版 |
-| `build-folder.cmd` | 生成快速启动文件夹版候选 |
-| `build-portable.cmd` | 仅在明确需要单独便携候选时构建 EXE |
-| `create-release.cmd` | 构建并归档已确认的正式版本 |
+| `run-dev.cmd` | 仅在用户明确要求桌面调试时启动 Electron |
+| `build-folder.cmd` | 仅在用户明确说“发布”后由正式流程调用 |
+| `build-portable.cmd` | 仅在用户明确说“发布”后由正式流程调用 |
+| `create-release.cmd` | 用户明确说“发布”后构建并归档正式版本 |
 | `workspace-check.cmd` | 只读检查版本、Git、目录、缓存和归档 |
 | `install-dependencies.cmd` | 依赖缺失或损坏时安装/校验依赖 |
 
 脚本优先使用 Codex 自带的 Node.js 和 pnpm，也支持系统安装；下载镜像和缓存路径由 `scripts/common.ps1` 统一管理。
 
-普通改动遵循“HTML 候选 -> 文件夹候选 -> 正式发布”三道门禁。不要直接修改 `outputs/mspm0g3519-pin-planner.html` 或 `desktop/app/index.html`。
+普通改动只遵循“源码 -> HTML 候选”流程，不自动生成文件夹版或便携 EXE。只有用户明确说“发布”才进入桌面构建和正式归档。不要直接修改 `outputs/mspm0g3519-pin-planner.html` 或 `desktop/app/index.html`。
 
 开发细节见 `docs/DEVELOPMENT.md`，正式发布见 `docs/RELEASE_CHECKLIST.md`，工作区整理见 `docs/WORKSPACE_HYGIENE.md`。Codex 固定边界见 `AGENTS.md`。

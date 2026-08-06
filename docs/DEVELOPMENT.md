@@ -6,11 +6,10 @@
 
 | 阶段 | 允许动作 | 完成条件 |
 |---|---|---|
-| 源码候选 | 修改源码、数据、测试和文档；运行自动校验；生成 HTML | `build-web.cmd` 通过，向用户提供 `outputs/mspm0g3519-pin-planner.html` |
-| 文件夹候选 | 运行 `build-folder.cmd` | 用户已确认 HTML，并检查 `outputs/*-Folder/` 的真实桌面效果 |
-| 正式发布 | 改为不含 `beta` 的版本，运行 `create-release.cmd`，验证归档并打标签 | 用户已确认文件夹候选并再次明确要求发布 |
+| 网页迭代（默认） | 修改源码、数据、测试和文档；运行自动校验；生成 HTML | `build-web.cmd` 通过，向用户提供 `outputs/mspm0g3519-pin-planner.html` |
+| 正式发布 | 用户明确说“发布”后改为不含 `beta` 的版本，运行 `create-release.cmd`，验证归档并打标签 | 用户已确认当前 HTML，并明确要求发布 |
 
-`create-release.cmd` 已依次构建便携 EXE、文件夹版并归档。正常正式发布不需要先单独运行 `build-portable.cmd`；只有用户明确要求便携候选时才单独构建。
+没有明确的“发布”指令时，不运行 `run-dev.cmd`、`build-folder.cmd`、`build-portable.cmd` 或 `create-release.cmd`。`create-release.cmd` 已依次构建便携 EXE、文件夹版并归档，正式发布时不需要提前单独构建。
 
 ## 源码入口
 
@@ -35,7 +34,7 @@
 web 源码与 JSON
   -> build-web.cmd
   -> outputs/mspm0g3519-pin-planner.html
-  -> desktop/app/index.html
+  -> desktop/app/index.html（仅在正式发布流程中继续打包）
   -> Electron 文件夹版 / 便携 EXE
 ```
 
@@ -49,7 +48,7 @@ Electron 固定从 `app://mspm0/index.html` 加载页面，使升级或移动程
 | 页面样式或普通交互 | `build-web.cmd`，再由用户检查离线 HTML |
 | 芯片数据、封装、功能或板卡资源 | `build-web.cmd` 中的数据校验，并抽查受影响的芯片/封装 |
 | 保存结构、工程模型、导入导出 | 提升存储版本、增加迁移，并覆盖旧版导入和重启恢复 |
-| Electron 窗口、文件对话框、桥接、图标 | `run-dev.cmd` 和对应桌面烟雾测试 |
+| Electron 窗口、文件对话框、桥接、图标 | 先说明网页版无法验证；仅在用户明确要求发布时运行 `run-dev.cmd` 和对应桌面烟雾测试 |
 | 正式发布 | 完整执行 `docs/RELEASE_CHECKLIST.md` |
 
 验证应与改动风险匹配，不为纯文档改动运行耗时的 Electron 全量测试。视觉验收优先使用用户在真实浏览器或桌面候选中的截图；自动浏览器不能打开 `file://` 时不重复等待。
@@ -60,7 +59,7 @@ Electron 固定从 `app://mspm0/index.html` 加载页面，使升级或移动程
 - 增加芯片、封装或普通功能通常不要求清空数据。
 - 保存对象字段或含义变化时，必须先提升存储版本并迁移旧结构。
 - 新工程默认值与旧工程规范化必须分开；加载、导入和清空不得悄悄补回新默认值。
-- 发布前使用受支持的旧版数据验证迁移，真实文件导入还要检查导入后立即搜索和输入。
+- 正式发布前使用受支持的旧版数据验证迁移，真实文件导入还要检查导入后立即搜索和输入。
 
 ## 增加芯片或封装
 
@@ -93,6 +92,6 @@ Electron 固定从 `app://mspm0/index.html` 加载页面，使升级或移动程
 ## Git 与版本
 
 - Git 记录源码、脚本、文档、release notes 和哈希清单，不记录大型 EXE、HTML、依赖或构建目录。
-- `outputs/` 是可覆盖候选区；`releases/vX.Y.Z/` 是不可覆盖正式归档。
+- `outputs/` 只保存当前可覆盖的网页版候选；`releases/vX.Y.Z/` 是不可覆盖正式归档。
 - beta 候选可以提交，但不创建正式标签。正式归档验证通过后再创建对应 `vX.Y.Z` 标签。
 - 补丁版本用于修复和小型样式调整；次版本用于新功能、新芯片或新封装；主版本用于不兼容变化。纯内部重构不单独提升应用版本。
