@@ -16,3 +16,4 @@
 ## 未完成事项
 
 - 尚未生成文件夹候选、便携 EXE 或正式版本。
+- GitHub 首次推送尚未完成；`origin` 已设置，但当前命令行无法连接 `github.com:443`，恢复网络或配置代理后执行 `git push -u origin main --tags`。
