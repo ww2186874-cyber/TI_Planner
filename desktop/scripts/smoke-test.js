@@ -448,7 +448,8 @@ const expressions = {
       labelHeight: labelRect.height,
       trackHeight: button.offsetHeight,
       labelTrackLength: label.offsetWidth,
-      transform: getComputedStyle(label).transform
+      transform: getComputedStyle(label).transform,
+      turnDirection: Math.sign(new DOMMatrix(getComputedStyle(label).transform).b)
     };
   })()`,
   release: `(() => {
@@ -762,7 +763,7 @@ async function main() {
       || result.restoredSignal !== 'ROSC'
       || result.assignedAfterClear !== 0
       || result.markersAfterClear !== 64
-      || result.assignedAfterRestore !== 8
+      || result.assignedAfterRestore !== 9
       || !result.boardInfo.includes('U21-3')
       || !result.boardInfo.includes('开漏')
       || result.fixedPinLabel !== '3.3 V 主电源'
@@ -798,7 +799,7 @@ async function main() {
     || !result.pin?.includes('UART0_TX')
     || !result.pin?.includes('v4本地数据')
   )) throw new Error(`Version 4 workspace migration failed: ${JSON.stringify(result)}`);
-  if (mode === 'layout' && (!result.pin.includes('TIMG6_C0') || !result.pin.includes('TMC2209_1_STEP') || result.gap < 3 || !result.contained || result.trackHeight !== 210 || result.labelTrackLength !== 132 || result.buttonHeight / result.labelHeight < 1.5)) {
+  if (mode === 'layout' && (!result.pin.includes('TIMG6_C0') || !result.pin.includes('TMC2209_1_STEP') || result.gap < 3 || !result.contained || result.trackHeight !== 210 || result.labelTrackLength !== 132 || result.turnDirection !== -1 || result.buttonHeight / result.labelHeight < 1.5)) {
     throw new Error(`Bottom pin label layout failed: ${JSON.stringify(result)}`);
   }
   if (mode === 'release' && (
