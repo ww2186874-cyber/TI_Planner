@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "boards": {
     "tianmengxing-pm64": {
       "id": "tianmengxing-pm64",
@@ -15,25 +15,45 @@
         "pages": "1-3",
         "retrieved": "2026-08-06"
       },
-      "defaults": {
-        "11": "BSL_invoke",
-        "12": "SWDIO",
-        "13": "SWCLK",
-        "20": "PB21",
-        "21": "PB22",
-        "38": "NRST",
+      "fixedDefaults": {
         "42": "ROSC",
         "43": "LFXIN",
         "44": "LFXOUT",
         "45": "HFXIN",
-        "46": "HFXOUT",
-        "56": "UART0_TX",
-        "57": "UART0_RX",
-        "58": "SPI1_CS0",
-        "59": "SPI1_POCI",
-        "60": "SPI1_PICO",
-        "61": "SPI1_SCK"
+        "46": "HFXOUT"
       },
+      "fixedHardware": [
+        {
+          "id": "rosc-network",
+          "name": "ROSC 精密电阻网络",
+          "pins": ["42"],
+          "detail": "PA2 已引到 U22-19，同时连接 100 kΩ、0.1% ROSC 精密电阻；作为普通 GPIO 前应核对硬件。"
+        },
+        {
+          "id": "lf-crystal",
+          "name": "32.768 kHz 低频晶振",
+          "pins": ["43", "44"],
+          "detail": "PA3/PA4 未引出，连接 32.768 kHz 晶振和 12 pF 负载电容。"
+        },
+        {
+          "id": "hf-crystal",
+          "name": "40 MHz 高频晶振",
+          "pins": ["45", "46"],
+          "detail": "PA5/PA6 未引出，连接 40 MHz 晶振和 15 pF 负载电容。"
+        },
+        {
+          "id": "open-drain-io",
+          "name": "PA0/PA1 开漏 IO",
+          "pins": ["33", "34"],
+          "detail": "PA0、PA1 仅支持开漏输出，板上分别通过 4.7 kΩ 上拉到 3.3 V，不能主动输出推挽高电平。"
+        },
+        {
+          "id": "vref-network",
+          "name": "参考电压选择与滤波",
+          "pins": ["17", "24"],
+          "detail": "PA21/PA23 连接参考电压选择和滤波网络；用作普通输出前应核对焊接选项与模拟参考设计。"
+        }
+      ],
       "pins": {
         "1": { "name": "PB13", "header": "U21-18", "status": "header", "aliases": ["U3RX"] },
         "2": { "name": "PB14", "header": "U22-34", "status": "header", "aliases": ["LCD_CS"] },
@@ -45,17 +65,17 @@
         "8": { "name": "PA15", "header": "U22-12", "status": "header", "aliases": ["A1_0"] },
         "9": { "name": "PA16", "header": "U22-13", "status": "header", "aliases": ["A1_1"] },
         "10": { "name": "PA17", "header": "U22-14", "status": "header", "aliases": ["A1_2"] },
-        "11": { "name": "PA18", "header": "U22-36", "status": "occupied", "aliases": ["BSL"], "label": "BSL 启动按键", "detail": "连接 BSL 按键并由 47 kΩ 电阻下拉；模板默认选择 BSL_invoke。" },
-        "12": { "name": "PA19", "header": "U21-19", "status": "occupied", "aliases": ["DIO", "SWDIO"], "label": "SWD 数据", "detail": "连接板载下载调试接口 DIO；模板默认保留 SWDIO。" },
-        "13": { "name": "PA20", "header": "U21-20", "status": "occupied", "aliases": ["CLK", "SWCLK"], "label": "SWD 时钟", "detail": "连接板载下载调试接口 CLK；模板默认保留 SWCLK。" },
+        "11": { "name": "PA18", "header": "U22-36", "status": "occupied", "aliases": ["BSL"], "label": "BSL 启动按键", "detail": "连接 BSL 按键并由 47 kΩ 电阻下拉；可在板载硬件栏启用 BSL_invoke。" },
+        "12": { "name": "PA19", "header": "U21-19", "status": "occupied", "aliases": ["DIO", "SWDIO"], "label": "SWD 数据", "detail": "连接板载下载调试接口 DIO；可在板载硬件栏启用 SWDIO。" },
+        "13": { "name": "PA20", "header": "U21-20", "status": "occupied", "aliases": ["CLK", "SWCLK"], "label": "SWD 时钟", "detail": "连接板载下载调试接口 CLK；可在板载硬件栏启用 SWCLK。" },
         "14": { "name": "PB17", "header": "U22-15", "status": "header", "aliases": ["A1_4"] },
         "15": { "name": "PB18", "header": "U22-16", "status": "header", "aliases": ["A1_5"] },
         "16": { "name": "PB19", "header": "U22-17", "status": "header", "aliases": ["A1_6"] },
         "17": { "name": "PA21", "header": "U22-18", "status": "special", "aliases": ["A1_7", "VREF-"], "label": "参考电压负端网络", "detail": "连接 VREF- 参考电压选择/滤波网络；作为普通输出前应核对焊接选项和模拟参考设计。" },
         "18": { "name": "PA22", "header": "U22-10", "status": "header", "aliases": ["A0_7"] },
         "19": { "name": "PB20", "header": "U22-9", "status": "header", "aliases": ["A0_6"] },
-        "20": { "name": "PB21", "header": "U22-25", "status": "occupied", "aliases": ["KEY"], "label": "板载功能按键", "detail": "按键按下时连接 GND，为低有效输入；模板保留 GPIO 功能 PB21。" },
-        "21": { "name": "PB22", "header": "U22-26", "status": "occupied", "aliases": ["LED"], "label": "板载用户 LED", "detail": "经 2 kΩ 电阻和 LED 接地，GPIO 输出高电平时点亮；模板保留 GPIO 功能 PB22。" },
+        "20": { "name": "PB21", "header": "U22-25", "status": "occupied", "aliases": ["KEY"], "label": "板载功能按键", "detail": "按键按下时连接 GND，为低有效输入；可在板载硬件栏启用 PB21。" },
+        "21": { "name": "PB22", "header": "U22-26", "status": "occupied", "aliases": ["LED"], "label": "板载用户 LED", "detail": "经 2 kΩ 电阻和 LED 接地，GPIO 输出高电平时点亮；可在板载硬件栏启用 PB22。" },
         "22": { "name": "PB23", "header": "U21-31", "status": "header" },
         "23": { "name": "PB24", "header": "U22-8", "status": "header", "aliases": ["A0_5"] },
         "24": { "name": "PA23", "header": "U22-20", "status": "special", "aliases": ["A1_7", "EXT_PIN_VREF+", "VREF+"], "label": "参考电压正端网络", "detail": "连接三路参考电压选择和滤波网络；作为普通输出前应核对焊接选项和模拟参考设计。" },
@@ -71,9 +91,9 @@
         "35": { "name": "PA28", "header": "U21-4", "status": "header", "aliases": ["I2C0-SDA"] },
         "36": { "name": "PA29", "header": "U21-34", "status": "header" },
         "37": { "name": "PA30", "header": "U22-27", "status": "header" },
-        "38": { "name": "NRST", "header": "U22-35", "status": "occupied", "aliases": ["RST", "RESET"], "label": "板载复位电路", "detail": "连接复位按键、47 kΩ 上拉和 10 nF 电容；模板默认选择 NRST。" },
+        "38": { "name": "NRST", "header": "U22-35", "status": "occupied", "aliases": ["RST", "RESET"], "label": "板载复位电路", "detail": "连接复位按键、47 kΩ 上拉和 10 nF 电容；可在板载硬件栏启用 NRST。" },
         "39": { "name": "PA31", "header": "U21-6", "status": "header", "aliases": ["I2C0-SCL"] },
-        "42": { "name": "PA2", "header": "U22-19", "status": "special", "aliases": ["ROSC"], "label": "ROSC 精密电阻", "detail": "虽然已引到 U22-19，但板上同时通过 100 kΩ、0.1% 电阻连接 ROSC 网络；模板默认选择 ROSC。" },
+        "42": { "name": "PA2", "header": "U22-19", "status": "special", "aliases": ["ROSC"], "label": "ROSC 精密电阻", "detail": "虽然已引到 U22-19，但板上同时通过 100 kΩ、0.1% 电阻连接 ROSC 网络；模板初始安排 ROSC。" },
         "43": { "name": "PA3", "status": "unexposed", "aliases": ["LFXIN"], "label": "未引出 · 低频晶振输入", "detail": "未连接到 U21/U22 排针，已接 32.768 kHz 晶振和 12 pF 负载电容。" },
         "44": { "name": "PA4", "status": "unexposed", "aliases": ["LFXOUT"], "label": "未引出 · 低频晶振输出", "detail": "未连接到 U21/U22 排针，已接 32.768 kHz 晶振和 12 pF 负载电容。" },
         "45": { "name": "PA5", "status": "unexposed", "aliases": ["HFXIN"], "label": "未引出 · 高频晶振输入", "detail": "未连接到 U21/U22 排针，已接 40 MHz 晶振和 15 pF 负载电容。" },
@@ -87,12 +107,12 @@
         "53": { "name": "PB5", "header": "U21-10", "status": "header", "aliases": ["U1RX"] },
         "54": { "name": "PA8", "header": "U21-7", "status": "header", "aliases": ["U1TX"] },
         "55": { "name": "PA9", "header": "U21-9", "status": "header", "aliases": ["U1RX"] },
-        "56": { "name": "PA10", "header": "U21-12", "status": "occupied", "aliases": ["U0TX", "CH340_TX"], "label": "板载 CH340 串口发送", "detail": "连接 CH340E 的串口接收端和串口调试/下载接口；模板默认选择 UART0_TX。" },
-        "57": { "name": "PA11", "header": "U21-14", "status": "occupied", "aliases": ["U0RX", "CH340_RX"], "label": "板载 CH340 串口接收", "detail": "连接 CH340E 的串口发送端和串口调试/下载接口；模板默认选择 UART0_RX。" },
-        "58": { "name": "PB6", "header": "U21-25", "status": "occupied", "aliases": ["W_CS"], "label": "板载 SPI Flash 片选", "detail": "连接板载 SPI Flash CS#；模板默认选择 SPI1_CS0。" },
-        "59": { "name": "PB7", "header": "U21-26", "status": "occupied", "aliases": ["W_MISO"], "label": "板载 SPI Flash POCI", "detail": "连接板载 SPI Flash IO1；模板默认选择 SPI1_POCI。" },
-        "60": { "name": "PB8", "header": "U21-27", "status": "occupied", "aliases": ["W_MOSI", "LCD_SDA"], "label": "板载 SPI Flash PICO", "detail": "连接板载 SPI Flash IO0，并同时引到可选 H8 LCD 数据端；模板默认选择 SPI1_PICO。" },
-        "61": { "name": "PB9", "header": "U21-28", "status": "occupied", "aliases": ["W_CLK", "LCD_SCL"], "label": "板载 SPI Flash 时钟", "detail": "连接板载 SPI Flash CLK，并同时引到可选 H8 LCD 时钟端；模板默认选择 SPI1_SCK。" },
+        "56": { "name": "PA10", "header": "U21-12", "status": "occupied", "aliases": ["U0TX", "CH340_TX"], "label": "板载 CH340 串口发送", "detail": "连接 CH340E 的串口接收端和串口调试/下载接口；可在板载硬件栏启用 UART0_TX。" },
+        "57": { "name": "PA11", "header": "U21-14", "status": "occupied", "aliases": ["U0RX", "CH340_RX"], "label": "板载 CH340 串口接收", "detail": "连接 CH340E 的串口发送端和串口调试/下载接口；可在板载硬件栏启用 UART0_RX。" },
+        "58": { "name": "PB6", "header": "U21-25", "status": "occupied", "aliases": ["W_CS"], "label": "板载 SPI Flash 片选", "detail": "连接板载 SPI Flash CS#；可在板载硬件栏启用 SPI1_CS0。" },
+        "59": { "name": "PB7", "header": "U21-26", "status": "occupied", "aliases": ["W_MISO"], "label": "板载 SPI Flash POCI", "detail": "连接板载 SPI Flash IO1；可在板载硬件栏启用 SPI1_POCI。" },
+        "60": { "name": "PB8", "header": "U21-27", "status": "occupied", "aliases": ["W_MOSI", "LCD_SDA"], "label": "SPI1 共享数据线", "detail": "同时连接板载 SPI Flash IO0 和可选 H8 LCD 数据端；Flash 与 LCD 启用时共用 SPI1_PICO。" },
+        "61": { "name": "PB9", "header": "U21-28", "status": "occupied", "aliases": ["W_CLK", "LCD_SCL"], "label": "SPI1 共享时钟线", "detail": "同时连接板载 SPI Flash CLK 和可选 H8 LCD 时钟端；Flash 与 LCD 启用时共用 SPI1_SCK。" },
         "62": { "name": "PB10", "header": "U22-31", "status": "header", "aliases": ["LCD_RES"] },
         "63": { "name": "PB11", "header": "U22-33", "status": "header", "aliases": ["LCD_DC"] },
         "64": { "name": "PB12", "header": "U21-16", "status": "header", "aliases": ["U3TX"] }
@@ -104,13 +124,10 @@
           "shortName": "FLASH",
           "kind": "onboard",
           "bus": "SPI1",
-          "detail": "板载 U24 SPI Flash；模板默认保留完整 SPI1 连接。",
-          "pins": {
-            "58": "CS#",
-            "59": "MISO",
-            "60": "MOSI",
-            "61": "CLK"
-          }
+          "defaultEnabled": false,
+          "detail": "板载 U24 SPI Flash；关闭只释放当前规划占用，板上器件和走线仍然存在。",
+          "pins": { "58": "CS#", "59": "MISO", "60": "MOSI", "61": "CLK" },
+          "assignments": { "58": "SPI1_CS0", "59": "SPI1_POCI", "60": "SPI1_PICO", "61": "SPI1_SCK" }
         },
         {
           "id": "h8-lcd",
@@ -118,15 +135,70 @@
           "shortName": "LCD",
           "kind": "optional",
           "bus": "SPI1",
-          "detail": "可选外接 SPI LCD/OLED；未接屏幕时不占用 PB10、PB11、PB14、PB26。",
-          "pins": {
-            "2": "CS",
-            "28": "BL",
-            "60": "SDA",
-            "61": "SCL",
-            "62": "RES",
-            "63": "DC"
-          }
+          "defaultEnabled": false,
+          "detail": "可选外接 SPI LCD/OLED；关闭表示当前未接屏幕，不自动占用 LCD 专用控制脚。",
+          "pins": { "2": "CS", "28": "BL", "60": "SDA", "61": "SCL", "62": "RES", "63": "DC" },
+          "assignments": { "2": "SPI1_CS3", "28": "PB26", "60": "SPI1_PICO", "61": "SPI1_SCK", "62": "PB10", "63": "PB11" }
+        },
+        {
+          "id": "ch340-uart",
+          "name": "CH340 串口调试/下载",
+          "shortName": "CH340",
+          "kind": "onboard",
+          "defaultEnabled": false,
+          "detail": "PA10/PA11 连接板载 CH340E；关闭只释放当前规划占用，USB 转串口器件仍连接在板上。",
+          "pins": { "56": "TX", "57": "RX" },
+          "assignments": { "56": "UART0_TX", "57": "UART0_RX" }
+        },
+        {
+          "id": "swd-debug",
+          "name": "SWD 下载调试接口",
+          "shortName": "SWD",
+          "kind": "onboard",
+          "defaultEnabled": false,
+          "detail": "PA19/PA20 连接板载 DIO/CLK 下载调试接口；关闭不代表调试焊盘物理断开。",
+          "pins": { "12": "DIO", "13": "CLK" },
+          "assignments": { "12": "SWDIO", "13": "SWCLK" }
+        },
+        {
+          "id": "bsl-button",
+          "name": "BSL 启动按键",
+          "shortName": "BSL",
+          "kind": "onboard",
+          "defaultEnabled": false,
+          "detail": "PA18 连接 BSL 按键及 47 kΩ 下拉；关闭不代表按键电路物理断开。",
+          "pins": { "11": "BSL" },
+          "assignments": { "11": "BSL_invoke" }
+        },
+        {
+          "id": "user-button",
+          "name": "板载功能按键",
+          "shortName": "KEY",
+          "kind": "onboard",
+          "defaultEnabled": false,
+          "detail": "PB21 连接低有效用户按键，按下时接地。",
+          "pins": { "20": "KEY" },
+          "assignments": { "20": "PB21" }
+        },
+        {
+          "id": "user-led",
+          "name": "板载用户 LED",
+          "shortName": "LED",
+          "kind": "onboard",
+          "defaultEnabled": false,
+          "detail": "PB22 经 2 kΩ 电阻和 LED 接地，输出高电平时点亮。",
+          "pins": { "21": "LED" },
+          "assignments": { "21": "PB22" }
+        },
+        {
+          "id": "nrst-reset",
+          "name": "板载复位电路",
+          "shortName": "NRST",
+          "kind": "onboard",
+          "defaultEnabled": false,
+          "detail": "NRST 连接复位按键、47 kΩ 上拉和 10 nF 电容；关闭只释放当前规划安排。",
+          "pins": { "38": "RESET" },
+          "assignments": { "38": "NRST" }
         }
       ],
       "sharedBuses": [

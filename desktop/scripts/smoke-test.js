@@ -56,16 +56,16 @@ const expressions = {
     const packages = [...pkg.options].map(option => option.value);
     pkg.value = 'RHB';
     pkg.dispatchEvent(new Event('change', { bubbles: true }));
-    const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v5') || '{}');
+    const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v6') || '{}');
     const project = stored.projects?.find(item => item.id === stored.activeProjectId);
-    return { activeDevice: document.querySelector('#deviceSelect').value, activePackage: document.querySelector('#packageSelect').value, packages, saved: stored.version === 5, storedDevice: project?.data?.activeDevice, storedPackage: project?.data?.devices?.MSPM0G3507?.activePackage };
+    return { activeDevice: document.querySelector('#deviceSelect').value, activePackage: document.querySelector('#packageSelect').value, packages, saved: stored.version === 6, storedDevice: project?.data?.activeDevice, storedPackage: project?.data?.devices?.MSPM0G3507?.activePackage };
   })()`,
   restore: `(() => ({
     activeDevice: document.querySelector('#deviceSelect').value,
     activePackage: document.querySelector('#packageSelect').value,
-    saved: JSON.parse(localStorage.getItem('mspm0g-pin-planner-v5') || '{}').version === 5,
-    storedDevice: (() => { const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v5') || '{}'); return stored.projects?.find(item => item.id === stored.activeProjectId)?.data?.activeDevice; })(),
-    storedPackage: (() => { const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v5') || '{}'); return stored.projects?.find(item => item.id === stored.activeProjectId)?.data?.devices?.MSPM0G3507?.activePackage; })()
+    saved: JSON.parse(localStorage.getItem('mspm0g-pin-planner-v6') || '{}').version === 6,
+    storedDevice: (() => { const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v6') || '{}'); return stored.projects?.find(item => item.id === stored.activeProjectId)?.data?.activeDevice; })(),
+    storedPackage: (() => { const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v6') || '{}'); return stored.projects?.find(item => item.id === stored.activeProjectId)?.data?.devices?.MSPM0G3507?.activePackage; })()
   }))()`,
   defaults: `(() => {
     const change = element => element.dispatchEvent(new Event('change', { bubbles: true }));
@@ -255,14 +255,16 @@ const expressions = {
       unexposedMarkers: document.querySelectorAll('#packageStage .board-unexposed').length,
       subtitle: document.querySelector('#canvasSubtitle').textContent,
       storedPreset: (() => {
-        const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v5') || '{}');
-        return stored.projects?.find(item => item.id === stored.activeProjectId)?.data?.boardPresetId;
-      })()
+        const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v6') || '{}');
+        const data = stored.projects?.find(item => item.id === stored.activeProjectId)?.data;
+        return { id: data?.boardPresetId, enabled: data?.enabledBoardResources || [] };
+      })(),
+      hardwareSummary: document.querySelector('#boardHardwareSummary')?.textContent
     });
 
     createPreset('天猛星3507测试', 'tianmengxing-g3507-pm64');
     const g3507 = capture();
-    const defaultSignals = [11, 12, 13, 20, 21, 38, 42, 43, 44, 45, 46, 56, 57, 58, 59, 60, 61]
+    const defaultSignals = [42, 43, 44, 45, 46]
       .map(number => document.querySelector('[data-pin="' + number + '"] .pin-function-label')?.textContent);
 
     const search = document.querySelector('#searchInput');
@@ -297,10 +299,28 @@ const expressions = {
     window.confirm = originalConfirm;
 
     document.querySelector('[data-pin="60"]').click();
-    const sharedBoardInfo = document.querySelector('#boardInfoBox').textContent;
-    const sharedRouteLabels = [...document.querySelectorAll('#boardRouteList .board-route')].map(item => item.textContent);
+    let sharedBoardInfo = document.querySelector('#boardInfoBox').textContent;
+    let sharedRouteLabels = [...document.querySelectorAll('#boardRouteList .board-route')].map(item => item.textContent);
     const sharedPinLabel = document.querySelector('[data-pin="60"] .pin-board-label')?.textContent;
-    const boardBusStrip = document.querySelector('#boardBusStrip').textContent;
+    const boardHardwarePanel = document.querySelector('#boardHardwarePanel');
+    boardHardwarePanel.open = true;
+    const toggleResource = (id, checked = true) => {
+      const input = document.querySelector('#boardResourceControls [data-resource="' + id + '"] input');
+      input.checked = checked;
+      change(input);
+    };
+    toggleResource('spi-flash');
+    toggleResource('h8-lcd');
+    document.querySelector('[data-pin="60"]').click();
+    sharedBoardInfo = document.querySelector('#boardInfoBox').textContent;
+    sharedRouteLabels = [...document.querySelectorAll('#boardRouteList .board-route')].map(item => item.textContent);
+    const sharedPinLabels = [...document.querySelectorAll('[data-pin="60"] .pin-board-label')].map(item => item.textContent);
+    const boardHardwareText = boardHardwarePanel.textContent;
+    toggleResource('spi-flash', false);
+    const lcdOnlyAssigned = Number(document.querySelector('#assignedCount').textContent);
+    const lcdToggle = document.querySelector('#boardResourceControls [data-resource="h8-lcd"] input');
+    lcdToggle.checked = false;
+    change(lcdToggle);
 
     document.querySelector('[data-pin="33"]').click();
     const boardInfo = document.querySelector('#boardInfoBox').textContent;
@@ -353,7 +373,7 @@ const expressions = {
     return {
       g3507, g3519, defaultSignals, ledMatches, lcdMatches, unexposedMatches, connectorMatches, changedCheck,
       restoredSignal, assignedAfterClear, markersAfterClear, assignedAfterRestore, boardInfo, openDrainCheck,
-      printCalls, boardReport, markerChecks, mismatchSubtitle, sharedBoardInfo, sharedRouteLabels, sharedPinLabel, boardBusStrip
+      printCalls, boardReport, markerChecks, mismatchSubtitle, sharedBoardInfo, sharedRouteLabels, sharedPinLabel, sharedPinLabels, boardHardwareText, lcdOnlyAssigned
     };
   })()`,
   'seed-v4-workspace': `(() => {
@@ -376,13 +396,13 @@ const expressions = {
         }
       }
     };
-    localStorage.removeItem('mspm0g-pin-planner-v5');
+    localStorage.removeItem('mspm0g-pin-planner-v6');
     localStorage.setItem('mspm0g-pin-planner-v4', JSON.stringify({ version: 4, activeProjectId: project.id, projects: [project] }));
     setTimeout(() => location.reload(), 50);
     return true;
   })()`,
   'migration-v4': `(() => {
-    const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v5') || '{}');
+    const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v6') || '{}');
     const project = stored.projects?.find(item => item.id === stored.activeProjectId);
     return {
       workspaceVersion: stored.version,
@@ -710,10 +730,10 @@ async function main() {
     throw new Error(`GPIO search returned unexpected pins: ${JSON.stringify(result.matches)}`);
   }
   if (mode === 'board-preset') {
-    const expectedSignals = ['BSL_invoke', 'SWDIO', 'SWCLK', 'PB21', 'PB22', 'NRST', 'ROSC', 'LFXIN', 'LFXOUT', 'HFXIN', 'HFXOUT', 'UART0_TX', 'UART0_RX', 'SPI1_CS0', 'SPI1_POCI', 'SPI1_PICO', 'SPI1_SCK'];
+    const expectedSignals = ['ROSC', 'LFXIN', 'LFXOUT', 'HFXIN', 'HFXOUT'];
     const expectedMarkers = { top: 'B', right: '!', bottom: '!', left: 'H' };
     for (const [device, capture] of [['MSPM0G3507', result.g3507], ['MSPM0G3519', result.g3519]]) {
-      if (capture.device !== device || capture.package !== 'PM' || capture.assigned !== 17 || capture.boardMarkers !== 61 || capture.headerMarkers !== 40 || capture.occupiedMarkers !== 12 || capture.specialMarkers !== 5 || capture.unexposedMarkers !== 4 || !capture.subtitle.includes('天猛星') || !capture.storedPreset.includes(device === 'MSPM0G3507' ? 'g3507' : 'g3519')) {
+      if (capture.device !== device || capture.package !== 'PM' || capture.assigned !== 5 || capture.boardMarkers !== 61 || capture.headerMarkers !== 40 || capture.occupiedMarkers !== 12 || capture.specialMarkers !== 5 || capture.unexposedMarkers !== 4 || !capture.subtitle.includes('天猛星') || capture.storedPreset.id !== (device === 'MSPM0G3507' ? 'tianmengxing-g3507-pm64' : 'tianmengxing-g3519-pm64') || capture.storedPreset.enabled.length !== 0) {
         throw new Error(`${device} Tianmengxing preset failed: ${JSON.stringify(capture)}`);
       }
     }
@@ -733,35 +753,36 @@ async function main() {
       || JSON.stringify(result.lcdMatches) !== JSON.stringify(['PB10', 'PB11', 'PB14', 'PB26', 'PB8', 'PB9'])
       || JSON.stringify(result.unexposedMatches) !== JSON.stringify(['PA3', 'PA4', 'PA5', 'PA6'])
       || JSON.stringify(result.connectorMatches) !== JSON.stringify(['PA0'])
-      || !result.changedCheck.includes('偏离天猛星板载连接')
+      || !result.changedCheck.includes('固定时钟网络')
       || result.restoredSignal !== 'ROSC'
       || result.assignedAfterClear !== 0
       || result.markersAfterClear !== 61
-      || result.assignedAfterRestore !== 17
+      || result.assignedAfterRestore !== 5
       || !result.boardInfo.includes('U21-3')
       || !result.boardInfo.includes('开漏')
       || result.sharedRouteLabels.length !== 2
       || !result.sharedBoardInfo.includes('板载 SPI Flash')
       || !result.sharedBoardInfo.includes('H8 LCD/OLED 接口')
       || !result.sharedBoardInfo.includes('这不是引脚冲突')
-      || result.sharedPinLabel !== 'FLASH:MOSI · LCD:SDA'
-      || !result.boardBusStrip.includes('SPI1 共享')
-      || !result.boardBusStrip.includes('PB6 / Pin 58 / W_CS')
-      || !result.boardBusStrip.includes('PB14 / Pin 2 / LCD_CS')
+      || JSON.stringify(result.sharedPinLabels) !== JSON.stringify(['FLASH · MOSI', 'LCD · SDA'])
+      || !result.boardHardwareText.includes('SPI1 共享总线')
+      || !result.boardHardwareText.includes('PB6 / Pin 58 / W_CS')
+      || !result.boardHardwareText.includes('PB14 / Pin 2 / LCD_CS')
+      || result.lcdOnlyAssigned !== 11
       || !result.openDrainCheck.includes('仅支持开漏输出')
       || result.printCalls !== 1
       || !result.boardReport.includes('立创·天猛星 PM-64 最小系统板')
       || !result.boardReport.includes('U21-3')
       || !result.boardReport.includes('特殊电气条件')
-      || !result.boardReport.includes('板载 SPI Flash=MOSI')
-      || !result.boardReport.includes('H8 LCD/OLED 接口=SDA')
+      || !result.boardReport.includes('板载 SPI Flash[未启用]=MOSI')
+      || !result.boardReport.includes('H8 LCD/OLED 接口[未启用]=SDA')
       || !markersReadable
       || !result.mismatchSubtitle.includes('模板对应 MSPM0G3507 PM-64')
     ) throw new Error(`Tianmengxing workflow failed: ${JSON.stringify(result)}`);
   }
   if (mode === 'migration-v4' && (
-    result.workspaceVersion !== 5
-    || result.projectVersion !== 4
+    result.workspaceVersion !== 6
+    || result.projectVersion !== 5
     || result.boardPresetId !== ''
     || result.projectName !== 'v4 本地迁移'
     || result.device !== 'MSPM0G3507'

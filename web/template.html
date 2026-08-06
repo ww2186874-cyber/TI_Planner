@@ -523,34 +523,58 @@
 
     .canvas-actions { display: flex; flex: 1 1 430px; align-items: center; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
 
-    .board-bus-strip {
-      padding: 0 14px;
+    .board-hardware-panel {
+      flex: none;
       border-bottom: 1px solid var(--line);
       background: color-mix(in srgb, var(--primary-soft) 54%, var(--surface));
     }
 
-    .board-bus-row {
-      display: grid;
-      grid-template-columns: auto minmax(0, .8fr) minmax(0, 1.2fr);
+    .board-hardware-panel > summary {
+      display: flex;
       align-items: center;
-      gap: 12px;
-      min-height: 46px;
-      padding: 7px 0;
+      justify-content: space-between;
+      gap: 14px;
+      min-height: 42px;
+      padding: 7px 14px;
+      cursor: pointer;
+      list-style: none;
     }
 
-    .board-bus-badge {
-      padding: 4px 7px;
-      border: 1px solid var(--primary);
-      border-radius: 4px;
-      color: var(--primary);
-      font: 700 0.68rem/1 Consolas, monospace;
-      white-space: nowrap;
+    .board-hardware-panel > summary::-webkit-details-marker { display: none; }
+    .board-hardware-heading { display: flex; min-width: 0; align-items: baseline; gap: 10px; }
+    .board-hardware-heading strong { font-size: 0.78rem; }
+    .board-hardware-heading span { color: var(--muted); font-size: 0.68rem; }
+    .board-hardware-panel > summary::after { content: "+"; color: var(--primary); font: 800 1rem/1 Consolas, monospace; }
+    .board-hardware-panel[open] > summary::after { content: "−"; }
+
+    .board-hardware-body {
+      max-height: min(330px, 42vh);
+      overflow: auto;
+      padding: 0 14px 12px;
+      border-top: 1px solid var(--line);
     }
 
-    .board-bus-copy strong { display: block; font-size: 0.76rem; }
-    .board-bus-copy span, .board-bus-selects { display: block; margin-top: 2px; color: var(--muted); font-size: 0.67rem; line-height: 1.35; }
-    .board-bus-copy, .board-bus-selects { min-width: 0; }
-    .board-bus-selects { margin-top: 0; overflow-wrap: anywhere; text-align: right; }
+    .board-hardware-note { margin: 9px 0; color: var(--muted); font-size: 0.68rem; line-height: 1.45; }
+    .board-resource-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; }
+    .board-resource-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 9px; min-height: 48px; border-top: 1px solid var(--line); cursor: pointer; }
+    .board-resource-row.warning { box-shadow: inset 3px 0 var(--warning); }
+    .board-resource-toggle { position: relative; width: 34px; height: 18px; margin: 0; appearance: none; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); transition: border-color 120ms ease, background 120ms ease; }
+    .board-resource-toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--muted); transition: transform 120ms ease, background 120ms ease; }
+    .board-resource-toggle:checked { border-color: var(--primary); background: var(--primary-soft); }
+    .board-resource-toggle:checked::after { transform: translateX(16px); background: var(--primary); }
+    .board-resource-toggle:disabled { cursor: not-allowed; opacity: .42; }
+    .board-resource-copy { min-width: 0; }
+    .board-resource-copy strong { display: block; font-size: 0.73rem; }
+    .board-resource-copy span { display: block; margin-top: 2px; overflow: hidden; color: var(--muted); font: 600 0.63rem/1.3 Consolas, monospace; text-overflow: ellipsis; white-space: nowrap; }
+    .board-resource-state { color: var(--muted); font-size: 0.64rem; font-weight: 750; white-space: nowrap; }
+    .board-resource-row.enabled .board-resource-state { color: var(--success); }
+    .board-resource-row.warning .board-resource-state { color: var(--warning); }
+    .board-shared-note { margin: 9px 0 0; padding: 8px 10px; border-left: 3px solid var(--primary); color: var(--info-text); background: var(--info-bg); font-size: 0.68rem; line-height: 1.45; }
+    .board-fixed-heading { margin: 12px 0 5px; color: var(--muted); font-size: 0.68rem; }
+    .board-fixed-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; border-top: 1px solid var(--line); }
+    .board-fixed-row { min-width: 0; padding: 7px 0; border-bottom: 1px solid var(--line); }
+    .board-fixed-row strong { display: block; font-size: 0.68rem; }
+    .board-fixed-row span { display: block; margin-top: 2px; color: var(--muted); font-size: 0.63rem; line-height: 1.4; }
 
     .canvas-scroller {
       position: relative;
@@ -690,7 +714,11 @@
     }
 
     .pin-function-label { display: block; overflow: hidden; font-family: Consolas, monospace; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-    .pin-board-label { display: block; margin-top: 2px; overflow: hidden; color: var(--warning); font-size: 0.61rem; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+    .pin-board-label { display: block; margin-top: 2px; overflow: hidden; color: var(--warning); font-size: 0.59rem; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+    .pin-board-label[data-resource="h8-lcd"] { color: var(--primary); }
+    .pin-board-label[data-resource="ch340-uart"], .pin-board-label[data-resource="swd-debug"] { color: var(--pin-uart); }
+    .pin-board-label[data-resource="user-button"], .pin-board-label[data-resource="user-led"] { color: var(--success); }
+    .pin-board-label[data-resource="bsl-button"], .pin-board-label[data-resource="nrst-reset"] { color: var(--pin-system); }
     .pin-custom-label { display: block; margin-top: 2px; overflow: hidden; color: var(--primary); text-overflow: ellipsis; white-space: nowrap; }
 
     .side.left .pin-button, .side.right .pin-button {
@@ -734,9 +762,10 @@
     }
     .side.top .pin-external-label { top: 132px; }
     .side.bottom .pin-external-label {
-      top: 78px;
+      top: 208px;
       left: calc(var(--step) - 5px);
-      transform: rotate(90deg);
+      transform: rotate(-90deg);
+      transform-origin: left bottom;
     }
 
     .pin-button:hover { z-index: 2; }
@@ -826,8 +855,9 @@
     .board-info-meta { display: block; margin-top: 6px; color: var(--muted); font-size: 0.67rem; line-height: 1.45; }
     .board-route-list { margin-top: 10px; border-top: 1px solid var(--line); }
     .board-route { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: 9px; min-height: 42px; border-bottom: 1px solid var(--line); }
-    .board-route-kind { padding: 4px 5px; border: 1px solid var(--warning); border-radius: 4px; color: var(--warning); font-size: 0.62rem; font-weight: 800; text-align: center; }
-    .board-route-kind.optional { border-color: var(--primary); color: var(--primary); }
+    .board-route-kind { padding: 4px 5px; border: 1px solid var(--line-strong); border-radius: 4px; color: var(--muted); font-size: 0.62rem; font-weight: 800; text-align: center; }
+    .board-route-kind.enabled { border-color: var(--success); color: var(--success); }
+    .board-route-kind.fixed { border-color: var(--primary); color: var(--primary); }
     .board-route strong { display: block; font-size: 0.74rem; }
     .board-route span:not(.board-route-kind) { display: block; margin-top: 2px; color: var(--muted); font: 700 0.66rem/1.3 Consolas, monospace; }
     .board-shared-note { margin-top: 10px; padding: 8px 9px; border-left: 3px solid var(--primary); color: var(--info-text); background: var(--info-bg); font-size: 0.7rem; line-height: 1.5; }
@@ -978,7 +1008,7 @@
             <button type="button" data-project-action="new">新建工程</button>
             <button type="button" data-project-action="rename">重命名</button>
             <button type="button" data-project-action="duplicate">复制工程</button>
-            <button class="hidden" type="button" data-project-action="restore-preset">恢复模板默认安排</button>
+            <button class="hidden" type="button" data-project-action="restore-preset">恢复板卡初始配置</button>
             <button class="danger" type="button" data-project-action="delete">删除当前工程</button>
           </div>
         </div>
@@ -1077,7 +1107,18 @@
           </div>
         </div>
 
-        <div class="board-bus-strip hidden" id="boardBusStrip" aria-label="板卡共享总线"></div>
+        <details class="board-hardware-panel hidden" id="boardHardwarePanel">
+          <summary>
+            <span class="board-hardware-heading"><strong>板载硬件</strong><span id="boardHardwareSummary"></span></span>
+          </summary>
+          <div class="board-hardware-body">
+            <p class="board-hardware-note" id="boardHardwareNote"></p>
+            <div class="board-resource-controls" id="boardResourceControls"></div>
+            <div class="board-shared-note hidden" id="boardSharedNote"></div>
+            <h3 class="board-fixed-heading">固定硬件与电气限制</h3>
+            <div class="board-fixed-list" id="boardFixedHardwareList"></div>
+          </div>
+        </details>
 
         <div class="canvas-scroller" id="canvasScroller">
           <div class="stage-scale" id="stageScale">
@@ -1129,7 +1170,7 @@
             </div>
             <span class="board-info-meta" id="boardInfoMeta"></span>
             <div class="board-route-list hidden" id="boardRouteList"></div>
-            <div class="board-shared-note hidden" id="boardSharedNote"></div>
+            <div class="board-shared-note hidden" id="boardInfoSharedNote"></div>
             <p class="board-info-detail" id="boardInfoDetail"></p>
           </section>
 
@@ -1197,7 +1238,7 @@
               <option value="tianmengxing-g3507-pm64">天猛星 · MSPM0G3507 · PM-64</option>
               <option value="tianmengxing-g3519-pm64">天猛星 · MSPM0G3519 · PM-64</option>
             </select>
-            <p class="field-hint">模板会预选板载硬件功能并显示排针、未引出和电气限制；所有功能仍可修改。</p>
+            <p class="field-hint">模板会预选固定时钟并显示排针、板载硬件和电气限制；其余板载资源在画布顶部按需启用。</p>
           </div>
           <div class="inspector-actions">
             <button class="btn" type="button" data-close-dialog="projectDialog">取消</button>

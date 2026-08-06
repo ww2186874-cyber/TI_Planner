@@ -4,13 +4,14 @@
   const DEVICE_DATA = __DEVICE_DATA__;
   const BOARD_PRESETS = __BOARD_PRESETS__;
   const APP_META = __APP_META__;
-  const STORAGE_KEY = 'mspm0g-pin-planner-v5';
+  const STORAGE_KEY = 'mspm0g-pin-planner-v6';
+  const LEGACY_V5_STORAGE_KEY = 'mspm0g-pin-planner-v5';
   const LEGACY_V4_STORAGE_KEY = 'mspm0g-pin-planner-v4';
   const LEGACY_V3_STORAGE_KEY = 'mspm0g-pin-planner-v3';
   const LEGACY_V2_STORAGE_KEY = 'mspm0g3519-pin-planner-v2';
   const LEGACY_V1_STORAGE_KEY = 'mspm0g3519-pin-planner-v1';
-  const SCHEMA_VERSION = 5;
-  const PROJECT_DATA_VERSION = 4;
+  const SCHEMA_VERSION = 6;
+  const PROJECT_DATA_VERSION = 5;
   const DEVICE_ORDER = ['MSPM0G3519', 'MSPM0G3507'];
   const OFFICIAL_DEFAULT_SIGNALS = ['SWDIO', 'SWCLK', 'NRST'];
   const DEBUG_SIGNALS = new Set(['SWDIO', 'SWCLK']);
@@ -76,12 +77,12 @@
     'packagePinCount', 'assignedCount', 'unassignedCount', 'fixedCount', 'systemCount', 'conflictCount', 'searchInput',
     'filterTabs', 'categoryList', 'sidebarViewTabs', 'sidebarTitle', 'pinPanel', 'resourcePanel', 'resourceSummary',
     'resourceList', 'resourceDetail', 'resourceDetailTitle', 'resourceDetailNote', 'resourceSignals', 'canvasTitle',
-    'canvasSubtitle', 'boardBusStrip', 'zoomSlider', 'zoomValue', 'rotateCcwBtn', 'rotateCwBtn', 'fitViewBtn', 'centerViewBtn', 'canvasScroller', 'stageScale',
+    'canvasSubtitle', 'boardHardwarePanel', 'boardHardwareSummary', 'boardHardwareNote', 'boardResourceControls', 'boardFixedHardwareList', 'boardSharedNote', 'zoomSlider', 'zoomValue', 'rotateCcwBtn', 'rotateCwBtn', 'fitViewBtn', 'centerViewBtn', 'canvasScroller', 'stageScale',
     'packageStage', 'topPins', 'rightPins', 'bottomPins', 'leftPins', 'chipDevice', 'chipPackage', 'chipSummary',
     'inspectorEmpty', 'inspectorContent', 'pinTitle', 'pinSubtitle', 'pinStatus', 'physicalPin', 'logicalPin',
     'iomuxRegister', 'bufferType', 'editableFields', 'functionSelect', 'functionInfo', 'aliasInput', 'connectorInput', 'noteInput',
     'conflictBox', 'clearPinBtn', 'fixedBox', 'leftResizer', 'rightResizer', 'sourceFooter',
-    'boardInfoBox', 'boardInfoTitle', 'boardInfoStatus', 'boardInfoMeta', 'boardRouteList', 'boardSharedNote', 'boardInfoDetail', 'checkDialog', 'checkDialogBody', 'projectDialog', 'projectDialogTitle', 'projectForm', 'projectNameInput', 'projectPresetField', 'projectPresetSelect',
+    'boardInfoBox', 'boardInfoTitle', 'boardInfoStatus', 'boardInfoMeta', 'boardRouteList', 'boardInfoSharedNote', 'boardInfoDetail', 'checkDialog', 'checkDialogBody', 'projectDialog', 'projectDialogTitle', 'projectForm', 'projectNameInput', 'projectPresetField', 'projectPresetSelect',
     'aboutDialog', 'aboutDialogBody', 'printReport'
   ].map(id => [id, document.getElementById(id)]));
 
@@ -133,6 +134,7 @@
     return {
       version: PROJECT_DATA_VERSION,
       boardPresetId: '',
+      enabledBoardResources: [],
       activeDevice: 'MSPM0G3519',
       layout: { leftWidth: 250, rightWidth: 330 },
       devices: Object.fromEntries(DEVICE_ORDER.map(device => [device, createDeviceState(device)]))
@@ -148,10 +150,12 @@
     data.activeDevice = preset.device;
     data.devices[preset.device].activePackage = preset.package;
     const target = data.devices[preset.device].packages[preset.package].assignments;
+    Object.keys(target).forEach(number => delete target[number]);
     const pins = new Map(DEVICE_DATA[preset.device].packages[preset.package].pins.map(pin => [String(pin.number), pin]));
-    Object.entries(board.defaults).forEach(([number, signal]) => {
+    Object.entries(board.fixedDefaults || {}).forEach(([number, signal]) => {
       if (pins.get(number)?.functions.some(fn => fn.signal === signal)) target[number] = emptyAssignment(signal);
     });
+    data.enabledBoardResources = (board.resources || []).filter(resource => resource.defaultEnabled === true).map(resource => resource.id);
     return data;
   }
 
@@ -212,9 +216,18 @@
     return empty;
   }
 
+  function normalizeBoardResourceIds(boardPresetId, parsed) {
+    const preset = BOARD_PRESETS.presets[boardPresetId];
+    const board = preset && BOARD_PRESETS.boards[preset.boardId];
+    if (!board || !Array.isArray(parsed?.enabledBoardResources)) return [];
+    const valid = new Set((board.resources || []).map(resource => resource.id));
+    return [...new Set(parsed.enabledBoardResources.filter(id => valid.has(id)))];
+  }
+
   function normalizeLoaded(parsed) {
     const empty = createEmptyState();
     empty.boardPresetId = BOARD_PRESETS.presets[parsed?.boardPresetId] ? parsed.boardPresetId : '';
+    empty.enabledBoardResources = normalizeBoardResourceIds(empty.boardPresetId, parsed);
     empty.activeDevice = DEVICE_ORDER.includes(parsed?.activeDevice) ? parsed.activeDevice : 'MSPM0G3519';
     empty.layout.leftWidth = Math.min(460, Math.max(190, Number(parsed?.layout?.leftWidth) || 250));
     empty.layout.rightWidth = Math.min(540, Math.max(260, Number(parsed?.layout?.rightWidth) || 330));
@@ -256,6 +269,8 @@
     try {
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
       if (parsed?.version === SCHEMA_VERSION) return normalizeWorkspace(parsed);
+      const legacyV5 = JSON.parse(localStorage.getItem(LEGACY_V5_STORAGE_KEY));
+      if (legacyV5?.version === 5) return normalizeWorkspace(legacyV5);
       const legacyV4 = JSON.parse(localStorage.getItem(LEGACY_V4_STORAGE_KEY));
       if (legacyV4?.version === 4) return normalizeWorkspace(legacyV4);
       const legacyV3 = JSON.parse(localStorage.getItem(LEGACY_V3_STORAGE_KEY));
@@ -318,7 +333,15 @@
     return Boolean(preset && preset.device === state.activeDevice && preset.package === currentDeviceState().activePackage);
   }
   function boardPinFor(pin) { return isBoardApplicable() ? currentBoard()?.pins?.[String(pin.number)] || null : null; }
-  function boardDefaultSignal(pin) { return isBoardApplicable() ? currentBoard()?.defaults?.[String(pin.number)] || '' : ''; }
+  function enabledBoardResourceIds() { return new Set(isBoardApplicable() ? state.enabledBoardResources || [] : []); }
+  function isBoardResourceEnabled(resource) { return enabledBoardResourceIds().has(resource?.id); }
+  function boardDefaultSignal(pin) {
+    if (!isBoardApplicable()) return '';
+    const number = String(pin.number);
+    return currentBoard()?.fixedDefaults?.[number]
+      || (currentBoard()?.resources || []).find(resource => isBoardResourceEnabled(resource) && resource.assignments?.[number])?.assignments[number]
+      || '';
+  }
   function isBoardDefaultAssignment(pin, value) { return Boolean(boardDefaultSignal(pin) && value.function === boardDefaultSignal(pin)); }
   function boardStatusLabel(status) {
     return { header: '普通排针', occupied: '板载占用', special: '特殊电气条件', unexposed: '未引出' }[status] || '';
@@ -327,22 +350,28 @@
     if (!isBoardApplicable()) return [];
     return (currentBoard()?.resources || []).flatMap(resource => {
       const signal = resource.pins?.[String(pin.number)];
-      return signal ? [{ ...resource, signal }] : [];
+      return signal ? [{ ...resource, signal, expected: resource.assignments?.[String(pin.number)] || '', enabled: isBoardResourceEnabled(resource) }] : [];
     });
+  }
+  function activeBoardResourcesForPin(pin) { return boardResourcesForPin(pin).filter(resource => resource.enabled); }
+  function boardFixedHardwareForPin(pin) {
+    if (!isBoardApplicable()) return [];
+    return (currentBoard()?.fixedHardware || []).filter(item => item.pins?.includes(String(pin.number)));
   }
   function boardSharedBusesForPin(pin) {
     if (!isBoardApplicable()) return [];
     return (currentBoard()?.sharedBuses || []).filter(bus => bus.pins?.includes(String(pin.number)));
   }
   function boardResourceSummary(pin) {
-    return boardResourcesForPin(pin).map(resource => `${resource.shortName || resource.name}:${resource.signal}`).join(' · ');
+    return activeBoardResourcesForPin(pin).map(resource => `${resource.shortName || resource.name}:${resource.signal}`).join(' · ');
   }
   function boardExportDetail(pin) {
     const boardPin = boardPinFor(pin);
     if (!boardPin) return '';
     return [
       boardPin.detail,
-      ...boardResourcesForPin(pin).map(resource => `${resource.name}=${resource.signal}`),
+      ...boardResourcesForPin(pin).map(resource => `${resource.name}[${resource.enabled ? '已启用' : '未启用'}]=${resource.signal}`),
+      ...boardFixedHardwareForPin(pin).map(item => `${item.name}[固定连接]`),
       ...boardSharedBusesForPin(pin).map(bus => bus.detail)
     ].filter(Boolean).join('；');
   }
@@ -454,32 +483,55 @@
 
     const availableDebug = new Set(pkg.pins.flatMap(pin => pin.functions.map(fn => fn.signal)).filter(signal => /SWDIO|SWCLK/.test(signal)));
     const assignedDebug = new Set(Object.values(assignments()).map(value => value.function).filter(signal => availableDebug.has(signal)));
-    if (availableDebug.size && assignedDebug.size < Math.min(2, availableDebug.size)) {
+    const boardSwdDisabled = isBoardApplicable() && !isBoardResourceEnabled(boardResourceById('swd-debug'));
+    if (!boardSwdDisabled && availableDebug.size && assignedDebug.size < Math.min(2, availableDebug.size)) {
       issues.push({ severity: 'info', title: '调试接口尚未完整标记', detail: '当前封装存在 SWDIO/SWCLK 候选功能。若板上需要下载和调试，请确认对应连接。' });
     }
 
     const resetPin = pkg.pins.find(pin => pin.functions.some(fn => fn.signal === 'NRST'));
-    if (resetPin && assignmentFor(resetPin.number).function !== 'NRST') {
+    const boardResetDisabled = isBoardApplicable() && !isBoardResourceEnabled(boardResourceById('nrst-reset'));
+    if (!boardResetDisabled && resetPin && assignmentFor(resetPin.number).function !== 'NRST') {
       issues.push({ severity: 'info', title: 'NRST 已偏离官方默认功能', detail: `Pin ${resetPin.number} 当前未选择 NRST。若改作 WAKE 或其他用途，请确认复位和下载调试方案。` });
     }
 
     if (isBoardApplicable()) {
       const board = currentBoard();
-      const missing = [];
-      Object.entries(board.defaults).forEach(([number, expected]) => {
+      const fixedMissing = [];
+      Object.entries(board.fixedDefaults || {}).forEach(([number, expected]) => {
         const pin = pkg.pins.find(item => String(item.number) === number);
         const actual = assignmentFor(Number(number)).function;
-        if (!actual) { missing.push(`${pin?.name || `Pin ${number}`}=${expected}`); return; }
-        if (actual !== expected) issues.push({
-          severity: 'warning',
-          title: `${pin?.name || `Pin ${number}`} 已偏离天猛星板载连接`,
-          detail: `板卡原理图对应 ${expected}（${board.pins[number]?.label || '板载资源'}），当前选择 ${actual}。允许修改，但必须确认硬件冲突。`
-        });
+        if (actual !== expected) fixedMissing.push(`${pin?.name || `Pin ${number}`}=${expected}${actual ? `（当前 ${actual}）` : ''}`);
       });
-      if (missing.length) issues.push({
+      if (fixedMissing.length) issues.push({
         severity: 'warning',
-        title: `天猛星模板缺少 ${missing.length} 项默认安排`,
-        detail: missing.join('、')
+        title: `天猛星固定时钟网络有 ${fixedMissing.length} 项偏离`,
+        detail: fixedMissing.join('、')
+      });
+
+      (board.resources || []).forEach(resource => {
+        const enabled = isBoardResourceEnabled(resource);
+        const mismatches = Object.entries(resource.assignments || {}).flatMap(([number, expected]) => {
+          const pin = pkg.pins.find(item => String(item.number) === number);
+          const actual = assignmentFor(Number(number)).function;
+          return actual === expected ? [] : [`${pin?.name || `Pin ${number}`} 应为 ${expected}${actual ? `，当前 ${actual}` : '，当前未安排'}`];
+        });
+        if (enabled && mismatches.length) issues.push({
+          severity: 'warning',
+          title: `${resource.name} 配置不完整`,
+          detail: mismatches.join('；')
+        });
+        if (!enabled && resource.kind === 'onboard') {
+          Object.entries(resource.assignments || {}).forEach(([number, expected]) => {
+            const pin = pkg.pins.find(item => String(item.number) === number);
+            const actual = assignmentFor(Number(number)).function;
+            if (!actual || actual === expected) return;
+            issues.push({
+              severity: 'warning',
+              title: `${pin?.name || `Pin ${number}`} 仍连接 ${resource.name}`,
+              detail: `资源开关已关闭，但板上物理连线仍存在；当前选择 ${actual}，使用前应核对是否会与 ${resource.shortName || resource.name} 冲突。`
+            });
+          });
+        }
       });
 
       ['33', '34'].forEach(number => {
@@ -703,11 +755,13 @@
     if (signals.some(signal => /^TIMG[89]_(C0|C1|IDX)$/.test(signal))) semantic.push('qei encoder 编码器 hall 霍尔');
     const boardPin = boardPinFor(pin);
     const resources = boardResourcesForPin(pin);
+    const fixedHardware = boardFixedHardwareForPin(pin);
     const sharedBuses = boardSharedBusesForPin(pin);
     const boardText = boardPin
       ? [
           boardPin.header, boardPin.label, boardPin.detail, boardStatusLabel(boardPin.status), ...(boardPin.aliases || []),
-          ...resources.flatMap(resource => [resource.id, resource.name, resource.shortName, resource.kind, resource.bus, resource.signal, resource.detail]),
+          ...resources.flatMap(resource => [resource.id, resource.name, resource.shortName, resource.kind, resource.bus, resource.signal, resource.detail, resource.enabled ? '已启用' : '未启用']),
+          ...fixedHardware.flatMap(item => [item.id, item.name, item.detail, '固定连接']),
           ...sharedBuses.flatMap(bus => [bus.id, bus.name, bus.summary, bus.detail, ...Object.values(bus.chipSelectPins || {})])
         ]
       : [];
@@ -719,7 +773,8 @@
     if (!query || !boardPin) return false;
     return [
       boardPin.header, boardPin.label, boardPin.detail, boardStatusLabel(boardPin.status), ...(boardPin.aliases || []),
-      ...boardResourcesForPin(pin).flatMap(resource => [resource.id, resource.name, resource.shortName, resource.kind, resource.bus, resource.signal, resource.detail]),
+      ...boardResourcesForPin(pin).flatMap(resource => [resource.id, resource.name, resource.shortName, resource.kind, resource.bus, resource.signal, resource.detail, resource.enabled ? '已启用' : '未启用']),
+      ...boardFixedHardwareForPin(pin).flatMap(item => [item.id, item.name, item.detail, '固定连接']),
       ...boardSharedBusesForPin(pin).flatMap(bus => [bus.id, bus.name, bus.summary, bus.detail, ...Object.values(bus.chipSelectPins || {})])
     ]
       .some(text => String(text || '').toLowerCase().includes(query));
@@ -821,6 +876,62 @@
     render();
   }
 
+  function boardResourceById(resourceId) {
+    return currentBoard()?.resources?.find(resource => resource.id === resourceId) || null;
+  }
+
+  function anotherEnabledResourceNeeds(number, signal, excludedId = '') {
+    const enabled = enabledBoardResourceIds();
+    return (currentBoard()?.resources || []).some(resource => resource.id !== excludedId
+      && enabled.has(resource.id)
+      && resource.assignments?.[String(number)] === signal);
+  }
+
+  function boardResourceConflicts(resource) {
+    return Object.entries(resource.assignments || {}).flatMap(([number, expected]) => {
+      const value = assignmentFor(Number(number));
+      if (!isMeaningfulAssignment(value)) return [];
+      if (anotherEnabledResourceNeeds(number, expected, resource.id) && value.function === expected) return [];
+      const cleanExpected = value.function === expected && !value.alias.trim() && !value.connector?.trim() && !value.note.trim();
+      if (cleanExpected) return [];
+      const pin = currentPackage().pins.find(item => String(item.number) === number);
+      return [{ number, pin, value, expected }];
+    });
+  }
+
+  function setBoardResourceEnabled(resourceId, enabled) {
+    if (!isBoardApplicable()) return;
+    const resource = boardResourceById(resourceId);
+    if (!resource || isBoardResourceEnabled(resource) === enabled) return;
+    if (enabled) {
+      const conflicts = boardResourceConflicts(resource);
+      if (conflicts.length) {
+        const list = conflicts.map(item => `${item.pin?.name || `Pin ${item.number}`}（当前 ${item.value.function || '仅有文字记录'}）`).join('、');
+        if (!window.confirm(`启用“${resource.name}”将完整替换以下引脚的功能、标签、端子和备注：${list}。是否继续？`)) return;
+      }
+      commitMutation(`启用板载资源 ${resource.name}`, () => {
+        const previouslyEnabled = enabledBoardResourceIds();
+        state.enabledBoardResources = [...previouslyEnabled, resource.id];
+        Object.entries(resource.assignments || {}).forEach(([number, signal]) => {
+          const value = assignmentFor(Number(number));
+          const sharedCompatible = (currentBoard()?.resources || []).some(other => other.id !== resource.id
+            && previouslyEnabled.has(other.id)
+            && other.assignments?.[number] === signal)
+            && value.function === signal;
+          if (!sharedCompatible) assignments()[number] = emptyAssignment(signal);
+        });
+      });
+      return;
+    }
+    commitMutation(`关闭板载资源 ${resource.name}`, () => {
+      state.enabledBoardResources = (state.enabledBoardResources || []).filter(id => id !== resource.id);
+      Object.entries(resource.assignments || {}).forEach(([number, signal]) => {
+        if (anotherEnabledResourceNeeds(number, signal, resource.id)) return;
+        if (assignmentFor(Number(number)).function === signal) delete assignments()[number];
+      });
+    });
+  }
+
   function restoreBoardDefaults() {
     if (!isBoardApplicable()) {
       const preset = currentBoardPreset();
@@ -830,10 +941,14 @@
       return;
     }
     const board = currentBoard();
-    if (!window.confirm(`恢复“${board.name}”的 17 项默认功能吗？其他引脚安排、标签、连接器和备注不会删除。`)) return;
-    commitMutation('恢复天猛星模板默认安排', () => {
-      Object.entries(board.defaults).forEach(([number, signal]) => {
-        assignments()[number] = { ...assignmentFor(Number(number)), function: signal };
+    if (!window.confirm(`恢复“${board.name}”的初始配置吗？将关闭全部板载资源、清除仍使用资源预设功能的引脚，并恢复 5 项固定时钟功能。`)) return;
+    commitMutation('恢复天猛星板卡初始配置', () => {
+      state.enabledBoardResources = [];
+      (board.resources || []).forEach(resource => Object.entries(resource.assignments || {}).forEach(([number, signal]) => {
+        if (assignmentFor(Number(number)).function === signal) delete assignments()[number];
+      }));
+      Object.entries(board.fixedDefaults || {}).forEach(([number, signal]) => {
+        assignments()[number] = emptyAssignment(signal);
       });
     });
   }
@@ -959,14 +1074,14 @@
     functionLabel.textContent = pin.fixed ? pin.name : value.function || '—';
     external.appendChild(functionLabel);
     if (boardPin) {
-      const resourceLabel = boardResourceSummary(pin);
-      if (resourceLabel) {
+      activeBoardResourcesForPin(pin).forEach(resource => {
         const boardLabel = document.createElement('span');
         boardLabel.className = 'pin-board-label';
-        boardLabel.textContent = resourceLabel;
-        boardLabel.title = resourceLabel;
+        boardLabel.dataset.resource = resource.id;
+        boardLabel.textContent = `${resource.shortName || resource.name} · ${resource.signal}`;
+        boardLabel.title = `${resource.name}：${resource.signal}`;
         external.appendChild(boardLabel);
-      }
+      });
     }
     if (!pin.fixed && value.alias) {
       const custom = document.createElement('span');
@@ -1018,35 +1133,74 @@
     elements.chipSummary.textContent = `${assigned} pins assigned · ${view.rotation}°${conflicts.size ? ` · ${conflicts.size} conflicts` : ''}`;
   }
 
-  function renderBoardBusStrip() {
-    const buses = isBoardApplicable() ? currentBoard()?.sharedBuses || [] : [];
-    elements.boardBusStrip.classList.toggle('hidden', buses.length === 0);
-    if (!buses.length) {
-      elements.boardBusStrip.replaceChildren();
-      return;
-    }
-    const resourceNames = new Map((currentBoard()?.resources || []).map(resource => [resource.id, resource.shortName || resource.name]));
-    const rows = buses.map(bus => {
-      const row = document.createElement('div');
-      row.className = 'board-bus-row';
-      row.title = bus.detail || '';
-      const badge = document.createElement('span');
-      badge.className = 'board-bus-badge';
-      badge.textContent = `${bus.id} 共享`;
-      const copy = document.createElement('div');
-      copy.className = 'board-bus-copy';
+  function renderBoardHardwarePanel() {
+    const preset = currentBoardPreset();
+    const board = currentBoard();
+    elements.boardHardwarePanel.classList.toggle('hidden', !preset || !board);
+    if (!preset || !board) return;
+    const applicable = isBoardApplicable();
+    const enabled = new Set(state.enabledBoardResources || []);
+    const resourceMismatchCount = resource => Object.entries(resource.assignments || {})
+      .filter(([number, signal]) => assignmentFor(Number(number)).function !== signal).length;
+    const conflicts = applicable
+      ? (board.resources || []).filter(resource => enabled.has(resource.id)).reduce((sum, resource) => sum + resourceMismatchCount(resource), 0)
+      : 0;
+    elements.boardHardwareSummary.textContent = applicable
+      ? `${enabled.size}/${(board.resources || []).length} 启用${conflicts ? ` · ${conflicts} 项需处理` : ''}`
+      : `对应 ${preset.device} ${preset.package}-64 · 当前不可用`;
+    elements.boardHardwareNote.textContent = applicable
+      ? '开关控制当前规划和自动安排，不会断开板上的真实器件与走线。'
+      : `切回 ${preset.device} ${preset.package}-64 后可以继续配置，现有安排不会删除。`;
+
+    const pinByNumber = new Map(Object.entries(board.pins || {}));
+    const resourceRows = (board.resources || []).map(resource => {
+      const row = document.createElement('label');
+      row.className = `board-resource-row${enabled.has(resource.id) ? ' enabled' : ''}`;
+      row.dataset.resource = resource.id;
+      const toggle = document.createElement('input');
+      toggle.type = 'checkbox';
+      toggle.className = 'board-resource-toggle';
+      toggle.checked = enabled.has(resource.id);
+      toggle.disabled = !applicable;
+      toggle.setAttribute('aria-label', `${toggle.checked ? '关闭' : '启用'}${resource.name}`);
+      const copy = document.createElement('span');
+      copy.className = 'board-resource-copy';
       const title = document.createElement('strong');
-      title.textContent = bus.resources.map(id => resourceNames.get(id) || id).join(' + ');
-      const summary = document.createElement('span');
-      summary.textContent = bus.summary;
-      copy.append(title, summary);
-      const selectors = document.createElement('div');
-      selectors.className = 'board-bus-selects';
-      selectors.textContent = Object.entries(bus.chipSelectPins || {}).map(([id, value]) => `${resourceNames.get(id) || id} CS：${value}`).join(' · ');
-      row.append(badge, copy, selectors);
+      title.textContent = resource.name;
+      const pins = document.createElement('span');
+      pins.textContent = Object.entries(resource.pins || {}).map(([number, role]) => `${pinByNumber.get(number)?.name || `Pin ${number}`} ${role}`).join(' · ');
+      copy.append(title, pins);
+      const status = document.createElement('span');
+      status.className = 'board-resource-state';
+      const mismatchCount = applicable && enabled.has(resource.id) ? resourceMismatchCount(resource) : 0;
+      status.textContent = enabled.has(resource.id)
+        ? mismatchCount ? `需处理 ${mismatchCount}` : '已启用'
+        : resource.kind === 'optional' ? '未启用' : '未纳入规划';
+      if (mismatchCount) row.classList.add('warning');
+      row.append(toggle, copy, status);
+      toggle.addEventListener('change', () => {
+        setBoardResourceEnabled(resource.id, toggle.checked);
+        if (isBoardResourceEnabled(resource) !== toggle.checked) renderBoardHardwarePanel();
+      });
       return row;
     });
-    elements.boardBusStrip.replaceChildren(...rows);
+    elements.boardResourceControls.replaceChildren(...resourceRows);
+
+    const activeSharedBuses = applicable ? (board.sharedBuses || []).filter(bus => bus.resources.every(id => enabled.has(id))) : [];
+    elements.boardSharedNote.classList.toggle('hidden', activeSharedBuses.length === 0);
+    elements.boardSharedNote.textContent = activeSharedBuses.map(bus => `${bus.name}：${bus.summary}；${Object.values(bus.chipSelectPins || {}).join(' · ')}`).join(' ');
+
+    const fixedRows = (board.fixedHardware || []).map(item => {
+      const row = document.createElement('div');
+      row.className = 'board-fixed-row';
+      const title = document.createElement('strong');
+      title.textContent = item.name;
+      const detail = document.createElement('span');
+      detail.textContent = item.detail;
+      row.append(title, detail);
+      return row;
+    });
+    elements.boardFixedHardwareList.replaceChildren(...fixedRows);
   }
 
   function renderCategories() {
@@ -1270,10 +1424,11 @@
     elements.boardInfoBox.classList.toggle('hidden', !boardPin);
     if (boardPin) {
       const resources = boardResourcesForPin(pin);
-      const sharedBuses = boardSharedBusesForPin(pin);
+      const fixedHardware = boardFixedHardwareForPin(pin);
+      const sharedBuses = boardSharedBusesForPin(pin).filter(bus => bus.resources.every(id => enabledBoardResourceIds().has(id)));
       elements.boardInfoBox.dataset.status = boardPin.status;
-      elements.boardInfoTitle.textContent = resources.length > 1
-        ? `${pin.name} · ${resources.length} 路板卡连接`
+      elements.boardInfoTitle.textContent = resources.length + fixedHardware.length > 1
+        ? `${pin.name} · ${resources.length + fixedHardware.length} 路板卡连接`
         : boardPin.label || boardStatusLabel(boardPin.status);
       elements.boardInfoStatus.textContent = boardStatusLabel(boardPin.status);
       elements.boardInfoMeta.textContent = [
@@ -1283,23 +1438,38 @@
       ].filter(Boolean).join(' · ');
       const routeNodes = resources.map(resource => {
         const row = document.createElement('div');
-        row.className = 'board-route';
+        row.className = `board-route${resource.enabled ? ' enabled' : ''}`;
         const kind = document.createElement('span');
-        kind.className = `board-route-kind ${resource.kind}`;
-        kind.textContent = resource.kind === 'onboard' ? '板载' : '可选';
+        kind.className = `board-route-kind ${resource.enabled ? 'enabled' : 'disabled'}`;
+        kind.textContent = resource.enabled ? '已启用' : '未启用';
         const copy = document.createElement('div');
         const title = document.createElement('strong');
         title.textContent = resource.name;
         const signal = document.createElement('span');
-        signal.textContent = `${resource.signal}${resource.bus ? ` · ${resource.bus}` : ''}`;
+        signal.textContent = `${resource.signal}${resource.expected ? ` → ${resource.expected}` : ''}${resource.bus ? ` · ${resource.bus}` : ''}`;
         copy.append(title, signal);
         row.append(kind, copy);
         return row;
       });
+      fixedHardware.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'board-route fixed';
+        const kind = document.createElement('span');
+        kind.className = 'board-route-kind fixed';
+        kind.textContent = '固定';
+        const copy = document.createElement('div');
+        const title = document.createElement('strong');
+        title.textContent = item.name;
+        const detail = document.createElement('span');
+        detail.textContent = item.detail;
+        copy.append(title, detail);
+        row.append(kind, copy);
+        routeNodes.push(row);
+      });
       elements.boardRouteList.classList.toggle('hidden', routeNodes.length === 0);
       elements.boardRouteList.replaceChildren(...routeNodes);
-      elements.boardSharedNote.classList.toggle('hidden', sharedBuses.length === 0);
-      elements.boardSharedNote.textContent = sharedBuses.map(bus => bus.detail).join(' ');
+      elements.boardInfoSharedNote.classList.toggle('hidden', sharedBuses.length === 0);
+      elements.boardInfoSharedNote.textContent = sharedBuses.map(bus => bus.detail).join(' ');
       elements.boardInfoDetail.textContent = boardPin.detail || (resources.length
         ? resources.map(resource => resource.detail).filter(Boolean).join(' ')
         : '该引脚已引到板卡排针，模板没有预设额外板载功能。');
@@ -1430,7 +1600,7 @@
     renderStats();
     renderCategories();
     renderResources();
-    renderBoardBusStrip();
+    renderBoardHardwarePanel();
     renderStage();
     renderInspector();
     renderHistoryControls();
@@ -1613,9 +1783,9 @@
       const parsed = JSON.parse(await file.text());
       const imported = [];
       let skipped = 0;
-      if ([4, SCHEMA_VERSION].includes(parsed?.schemaVersion) && parsed.kind === 'mspm0-pin-project' && parsed.project) {
+      if ([4, 5, SCHEMA_VERSION].includes(parsed?.schemaVersion) && parsed.kind === 'mspm0-pin-project' && parsed.project) {
         imported.push(normalizeProject({ ...parsed.project, id: createId(), name: uniqueProjectName(parsed.project.name || file.name.replace(/\.json$/i, '')) }));
-      } else if ([4, SCHEMA_VERSION].includes(parsed?.version) && parsed.kind === 'mspm0-pin-workspace' && Array.isArray(parsed.projects)) {
+      } else if ([4, 5, SCHEMA_VERSION].includes(parsed?.version) && parsed.kind === 'mspm0-pin-workspace' && Array.isArray(parsed.projects)) {
         parsed.projects.slice(0, 40).forEach(project => imported.push(normalizeProject({ ...project, id: createId(), name: uniqueProjectName(project.name || '导入工程') })));
       } else {
         const legacy = dataFromLegacyExport(parsed);
@@ -1837,6 +2007,10 @@
     selectedSignal = '';
     commitMutation(`清空 ${state.activeDevice} ${pkg.label}`, () => {
       currentDeviceState().packages[currentDeviceState().activePackage].assignments = {};
+      // Clearing a package also clears board-resource planning state. Keep the
+      // board identity and its permanent annotations so switching back remains
+      // informative without silently re-enabling hardware.
+      state.enabledBoardResources = [];
     });
   });
   new ResizeObserver(() => { if (!currentView().initialized) fitView(false); }).observe(elements.canvasScroller);
