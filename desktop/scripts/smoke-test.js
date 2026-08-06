@@ -780,7 +780,7 @@ async function main() {
       || !result.fixedBoardInfo.includes('固定板载连接')
       || result.sharedRouteLabels.length !== 2
       || !result.sharedBoardInfo.includes('板载 SPI Flash')
-      || !result.sharedBoardInfo.includes('H8 LCD/OLED 接口')
+      || !result.sharedBoardInfo.includes('外接 H8 LCD/OLED 接口')
       || !result.sharedBoardInfo.includes('这不是引脚冲突')
       || JSON.stringify(result.sharedPinLabels) !== JSON.stringify(['FLASH · MOSI', 'LCD · SDA'])
       || !result.boardHardwareText.includes('SPI1 共享总线')
@@ -797,7 +797,7 @@ async function main() {
       || !result.boardReport.includes('U21-3')
       || !result.boardReport.includes('特殊电气条件')
       || !result.boardReport.includes('板载 SPI Flash[未启用]=MOSI')
-      || !result.boardReport.includes('H8 LCD/OLED 接口[未启用]=SDA')
+      || !result.boardReport.includes('外接 H8 LCD/OLED 接口[未启用]=SDA')
       || !markersReadable
       || !result.mismatchSubtitle.includes('模板对应 MSPM0G3507 PM-64')
     ) throw new Error(`Tianmengxing workflow failed: ${JSON.stringify(result)}`);
