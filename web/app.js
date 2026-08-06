@@ -1041,6 +1041,7 @@
     const category = pin.fixed ? 'Power' : functionCategory(fn) || (isMeaningfulAssignment(value) ? 'GPIO' : 'Unassigned');
     const candidate = Boolean(selectedSignal && pin.functions.some(item => item.signal === selectedSignal));
     const boardPin = boardPinFor(pin);
+    const activeBoardResources = activeBoardResourcesForPin(pin);
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'pin-button';
@@ -1056,6 +1057,7 @@
     if (value.function && conflicts.has(value.function)) button.classList.add('conflict');
     if (candidate) button.classList.add(isMeaningfulAssignment(value) && value.function !== selectedSignal ? 'candidate-occupied' : 'candidate');
     if (boardPin) button.classList.add(`board-${boardPin.status}`);
+    if (activeBoardResources.length) button.classList.add('board-resource-active');
 
     const pad = document.createElement('span');
     pad.className = 'pin-pad';
@@ -1069,8 +1071,10 @@
     if (boardPin) {
       const marker = document.createElement('span');
       marker.className = 'board-pin-marker';
-      marker.textContent = { header: 'H', occupied: 'B', special: '!', unexposed: '×', fixed: 'P' }[boardPin.status];
-      marker.title = boardStatusLabel(boardPin.status);
+      marker.textContent = activeBoardResources.length ? '✓' : { header: 'H', occupied: 'B', special: '!', unexposed: '×', fixed: 'P' }[boardPin.status];
+      marker.title = activeBoardResources.length
+        ? `已启用：${activeBoardResources.map(resource => resource.shortName || resource.name).join('、')}；物理状态：${boardStatusLabel(boardPin.status)}`
+        : boardStatusLabel(boardPin.status);
       pad.appendChild(marker);
     }
 
@@ -1081,7 +1085,7 @@
     functionLabel.textContent = pin.fixed ? pin.name : value.function || '—';
     external.appendChild(functionLabel);
     if (boardPin) {
-      activeBoardResourcesForPin(pin).forEach(resource => {
+      activeBoardResources.forEach(resource => {
         const boardLabel = document.createElement('span');
         boardLabel.className = 'pin-board-label';
         boardLabel.dataset.resource = resource.id;

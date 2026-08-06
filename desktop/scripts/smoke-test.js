@@ -312,16 +312,20 @@ const expressions = {
     };
     toggleResource('spi-flash');
     toggleResource('h8-lcd');
+    const flashActiveMarker = document.querySelector('[data-pin="58"] .board-pin-marker')?.textContent;
+    const lcdActiveMarker = document.querySelector('[data-pin="2"] .board-pin-marker')?.textContent;
     document.querySelector('[data-pin="60"]').click();
     sharedBoardInfo = document.querySelector('#boardInfoBox').textContent;
     sharedRouteLabels = [...document.querySelectorAll('#boardRouteList .board-route')].map(item => item.textContent);
     const sharedPinLabels = [...document.querySelectorAll('[data-pin="60"] .pin-board-label')].map(item => item.textContent);
     const boardHardwareText = boardHardwarePanel.textContent;
     toggleResource('spi-flash', false);
+    const flashInactiveMarker = document.querySelector('[data-pin="58"] .board-pin-marker')?.textContent;
     const lcdOnlyAssigned = Number(document.querySelector('#assignedCount').textContent);
     const lcdToggle = document.querySelector('#boardResourceControls [data-resource="h8-lcd"] input');
     lcdToggle.checked = false;
     change(lcdToggle);
+    const lcdInactiveMarker = document.querySelector('[data-pin="2"] .board-pin-marker')?.textContent;
 
     document.querySelector('[data-pin="33"]').click();
     const boardInfo = document.querySelector('#boardInfoBox').textContent;
@@ -378,7 +382,8 @@ const expressions = {
     return {
       g3507, g3519, defaultSignals, ledMatches, lcdMatches, unexposedMatches, connectorMatches, changedCheck,
       restoredSignal, assignedAfterClear, markersAfterClear, assignedAfterRestore, boardInfo, openDrainCheck,
-      printCalls, boardReport, markerChecks, mismatchSubtitle, sharedBoardInfo, sharedRouteLabels, sharedPinLabel, sharedPinLabels, boardHardwareText, lcdOnlyAssigned, fixedPinLabel, fixedBoardInfo
+      printCalls, boardReport, markerChecks, mismatchSubtitle, sharedBoardInfo, sharedRouteLabels, sharedPinLabel, sharedPinLabels, boardHardwareText, lcdOnlyAssigned, fixedPinLabel, fixedBoardInfo,
+      flashActiveMarker, flashInactiveMarker, lcdActiveMarker, lcdInactiveMarker
     };
   })()`,
   'seed-v4-workspace': `(() => {
@@ -440,9 +445,13 @@ const expressions = {
     const buttonRect = button.getBoundingClientRect();
     const padRect = pad.getBoundingClientRect();
     const labelRect = label.getBoundingClientRect();
+    const textRange = document.createRange();
+    textRange.selectNodeContents(label.querySelector('.pin-function-label'));
+    const textRect = textRange.getBoundingClientRect();
     return {
       pin: button.getAttribute('aria-label'),
       gap: labelRect.top - padRect.bottom,
+      visualGap: textRect.top - padRect.bottom,
       contained: labelRect.bottom <= buttonRect.bottom + 0.5,
       buttonHeight: buttonRect.height,
       labelHeight: labelRect.height,
@@ -778,6 +787,10 @@ async function main() {
       || !result.boardHardwareText.includes('PB6 / Pin 58 / W_CS')
       || !result.boardHardwareText.includes('PB14 / Pin 2 / LCD_CS')
       || result.lcdOnlyAssigned !== 14
+      || result.flashActiveMarker !== '✓'
+      || result.flashInactiveMarker !== 'B'
+      || result.lcdActiveMarker !== '✓'
+      || result.lcdInactiveMarker !== 'H'
       || !result.openDrainCheck.includes('仅支持开漏输出')
       || result.printCalls !== 1
       || !result.boardReport.includes('立创·天猛星 PM-64 最小系统板')
@@ -799,7 +812,7 @@ async function main() {
     || !result.pin?.includes('UART0_TX')
     || !result.pin?.includes('v4本地数据')
   )) throw new Error(`Version 4 workspace migration failed: ${JSON.stringify(result)}`);
-  if (mode === 'layout' && (!result.pin.includes('TIMG6_C0') || !result.pin.includes('TMC2209_1_STEP') || result.gap < 3 || !result.contained || result.trackHeight !== 210 || result.labelTrackLength !== 132 || result.turnDirection !== -1 || result.buttonHeight / result.labelHeight < 1.5)) {
+  if (mode === 'layout' && (!result.pin.includes('TIMG6_C0') || !result.pin.includes('TMC2209_1_STEP') || result.gap < 3 || result.visualGap < 3 || result.visualGap > 24 || !result.contained || result.trackHeight !== 210 || result.labelTrackLength !== 132 || result.turnDirection !== -1 || result.buttonHeight / result.labelHeight < 1.5)) {
     throw new Error(`Bottom pin label layout failed: ${JSON.stringify(result)}`);
   }
   if (mode === 'release' && (

@@ -694,6 +694,7 @@
     .pin-button.board-special .pin-pad { outline: 2px dashed var(--warning); outline-offset: -3px; }
     .pin-button.board-unexposed .pin-pad { outline: 2px dashed #687782; outline-offset: -3px; }
     .pin-button.board-fixed .pin-pad { outline: 2px solid var(--pin-power); outline-offset: -3px; }
+    .pin-button.board-resource-active .pin-pad { outline: 3px solid var(--warning); outline-offset: -3px; }
 
     .board-pin-marker {
       position: absolute;
@@ -715,6 +716,7 @@
     .board-special .board-pin-marker { color: var(--warning); }
     .board-unexposed .board-pin-marker { color: #687782; }
     .board-fixed .board-pin-marker { color: var(--pin-power); }
+    .board-resource-active .board-pin-marker { border-color: var(--warning); color: #101719; background: var(--warning); }
     .side.top .board-pin-marker, .side.bottom .board-pin-marker {
       top: auto;
       right: 4px;
@@ -783,6 +785,7 @@
       left: 5px;
       transform: rotate(-90deg);
       transform-origin: left top;
+      text-align: right;
     }
 
     .pin-button:hover { z-index: 2; }
