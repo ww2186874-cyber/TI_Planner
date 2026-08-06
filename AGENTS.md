@@ -1,56 +1,37 @@
 # MSPM0 项目协作规则
 
-本目录是 MSPM0 引脚规划器的唯一正式开发工作区。所有 Codex 任务在修改项目前必须先阅读 `README.md`、`docs/DEVELOPMENT.md`、`memory/README.md` 和本文件。
+`<USER_HOME>\Desktop\MSPM0` 是 MSPM0 引脚规划器的唯一正式开发工作区。用户最新明确要求优先于本文；实际行为以源码和测试为准，正式版本以 Git 标签和 `releases/` 归档为准，memory 只作辅助上下文。
 
-## 项目记忆
+## 开始任务
 
-开始任务时必须阅读：
+1. 检查 `git status --short --branch`、`desktop/package.json` 版本和最新 Git 标签，先识别已有未提交修改。
+2. 必读 `memory/PROJECT_STATE.md` 和 `memory/SESSION_HANDOFF.md`；按 `memory/README.md` 的路由检索相关决策、经验和已知问题，不要求每个任务重复通读全部历史。
+3. 修改产品源码、数据或构建链时读 `docs/DEVELOPMENT.md`；发布时读 `docs/RELEASE_CHECKLIST.md`；整理文件时读 `docs/WORKSPACE_HYGIENE.md`。
+4. 不覆盖来源不明或用户已有的修改。无法区分时先保留并说明。
 
-- `memory/PROJECT_STATE.md`
-- `memory/DECISIONS.md`
-- `memory/LESSONS.md`
-- `memory/KNOWN_ISSUES.md`
-- `memory/SESSION_HANDOFF.md`
+## 不可违反的边界
 
-结束任务前必须：
-
-1. 运行 `workspace-check.cmd` 或等价检查。
-2. 把新的长期决策写入 `DECISIONS.md`。
-3. 把可复用的故障原因和预防方法写入 `LESSONS.md`。
-4. 更新版本、发布和工作区状态到 `PROJECT_STATE.md`。
-5. 未完成事项写入 `SESSION_HANDOFF.md`；没有未完成事项时明确写“无”。
-6. 只记录以后有用的事实，不复制聊天过程，不写猜测，不记录密钥、令牌或隐私数据。
-
-记忆文件是辅助上下文，不得覆盖用户最新明确要求。内容与代码冲突时，以代码、Git 历史和实际测试结果为准，并修正记忆。
-
-## 固定流程
-
-1. 开始前检查 Git 状态，理解现有未提交修改，不覆盖用户工作。
-2. 只修改源码：主要入口是 `web/`，桌面功能入口是 `desktop/main.js` 和 `desktop/preload.js`。
-3. 不直接编辑 `outputs/mspm0g3519-pin-planner.html` 或 `desktop/app/index.html`，它们是自动生成文件。
-4. 普通界面和逻辑修改先运行 `build-web.cmd`，向用户提供 HTML 预览。
-5. 桌面窗口、文件对话框、应用图标等 Electron 专属修改使用 `run-dev.cmd` 预览。
-6. 候选确认优先运行 `build-folder.cmd` 生成快速启动文件夹版，不为每次迭代反复压缩单文件 EXE。
-7. 用户确认后再运行 `build-portable.cmd`；正式发布必须使用不带 `beta` 的版本号并运行 `create-release.cmd`。
-8. 正式版本保存在 `releases/vX.Y.Z/`。不得删除或覆盖旧版本，除非用户明确要求。
-9. 完成并验证后，由 Codex提交 Git 记录；预发布候选不创建正式标签，正式发布再创建对应的 `vX.Y.Z` 标签。
-10. 修改芯片数据或资源逻辑后必须运行 `web/validate-data.js` 或等价数据校验。
-11. 临时文件只放入 `.tmp/` 或既有测试目录，不在项目根目录散落截图、日志和临时脚本。
-
-## 兼容和安全
-
-- 保持 `appId`、应用名称和 `app://mspm0/` 地址稳定，确保升级后仍能读取原配置。
-- 改变本地存储结构时必须提升存储版本并提供旧数据迁移。
-- 不清理 `.pnpm-store/`、`.cache/` 或 `desktop/node_modules/`，除非依赖确实损坏或用户明确要求。
-- 不把不同芯片或封装的数据互相套用；引脚数据必须以官方资料为准并进行抽查。
-- 不因节省磁盘而删除正式版本、依赖缓存或可复现构建所需文件。
+- 只修改源码和配置。`outputs/mspm0g3519-pin-planner.html`、`desktop/app/index.html`、`desktop/dist/` 均由脚本生成，不直接编辑。
+- 不删除或覆盖 Git 历史、`releases/vX.Y.Z/` 历史版本、`.pnpm-store/`、`.cache/`、`desktop/node_modules/`。未知文件不自动删除。
+- 临时截图、日志、测试 JSON 和一次性脚本只放 `.tmp/` 或既有测试目录。
+- 保持 Electron `appId`、应用名称和 `app://mspm0/` 地址稳定。保存结构变更必须提升存储版本并提供旧数据迁移。
+- 芯片和封装数据以官方资料为准；不得因脚位相似而跨芯片复用完整 IOMUX。板卡走线与芯片官方数据分层保存。
 - 发布物必须保留 `legal/` 中的许可证、第三方声明、数据来源和非官方声明。
-- 不自动清理用户文件。保持工作区清爽以归类、忽略和报告为主，删除前必须确认文件确实是本任务生成且不再需要。
+- 产品以 Windows x64 桌面端为主，不把手机布局作为当前验收目标。
 
-## 版本规则
+## 阶段门禁
 
-- 补丁版本 `X.Y.Z+1`：图标、样式、文案和错误修复。
-- 次版本 `X.Y+1.0`：新功能、新芯片或新封装。
-- 主版本 `X+1.0.0`：不兼容的数据结构或产品方向变更。
+1. **源码候选**：完成源码与相应自动校验，运行 `build-web.cmd` 生成离线 HTML，交给用户确认。Electron 专属行为改用 `run-dev.cmd` 验证。
+2. **文件夹候选**：只有 HTML 得到确认后才运行 `build-folder.cmd`，再交给用户检查真实桌面运行效果。
+3. **正式发布**：只有文件夹候选得到确认且用户再次明确要求发布，才使用不含 `beta` 的正式版本运行 `create-release.cmd`。该脚本已经构建便携 EXE、文件夹版并归档，默认不再提前重复运行 `build-portable.cmd`。
+4. `outputs/` 可由同一候选反复生成；`releases/` 不可覆盖。beta 可以提交 Git，但不创建正式标签；正式归档验证通过后才创建对应 `vX.Y.Z` 标签。
 
-用户的最新明确要求始终优先于本文件。如果某项修改无法仅通过 HTML 预览，应直接说明原因并使用 Electron 开发模式验证。
+版本规则：修复和小型样式调整提升补丁版本；新功能、新芯片或新封装提升次版本；不兼容的数据或产品变化提升主版本。纯文档、测试或内部重构在不改变交付行为时不单独提升应用版本。
+
+## 验证与收尾
+
+- 验证范围随风险调整。芯片数据、板卡资源或功能映射变更必须运行 `web/validate-data.js` 或包含它的构建；存储变更必须覆盖旧数据迁移；桌面专属变更必须测试 Electron。
+- 结束前运行 `workspace-check.cmd` 或等价检查并查看最终 Git 状态。
+- memory 按事实变化更新，不要求每次机械修改全部文件：状态变化写 `PROJECT_STATE.md`，新长期取舍写 `DECISIONS.md`，已确认且可复用的故障规律写 `LESSONS.md`，未解决问题写 `KNOWN_ISSUES.md`，未完成动作和下一门禁写 `SESSION_HANDOFF.md`。
+- 不在 memory 复制聊天过程、一次性命令输出、发布哈希全文、猜测、密钥或个人数据。已有 release notes、源码或其他文档能准确承载的内容只链接，不重复抄写。
+- 源码和文档完成相应验证后由 Codex提交 Git。等待用户目视确认的 beta 可以保存为无标签检查点，后续反馈使用新提交修正。

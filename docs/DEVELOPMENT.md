@@ -1,74 +1,98 @@
 # 开发说明
 
-## 工作流程
+本文是源码结构、验证范围和候选构建的权威说明。不可删除内容、正式发布授权和 memory 维护边界由根目录 `AGENTS.md` 规定。
 
-1. 修改 `web/` 中的源码或芯片数据。
-2. 运行 `build-web.cmd`，先检查离线 HTML 的界面和逻辑。
-3. 涉及桌面保存、内部地址、图标或窗口行为时运行 `run-dev.cmd`。
-4. 对存储结构有改动时，为旧版 `localStorage` 增加迁移逻辑并更新烟雾测试。
-5. 运行 `build-folder.cmd` 生成启动更快的候选软件供确认。
-6. 用户确认后把候选版本改为正式版本，再运行 `create-release.cmd`。
-7. 按 `RELEASE_CHECKLIST.md` 检查，并由 Codex提交 Git 记录和正式版本标签。
+## 开发门禁
+
+| 阶段 | 允许动作 | 完成条件 |
+|---|---|---|
+| 源码候选 | 修改源码、数据、测试和文档；运行自动校验；生成 HTML | `build-web.cmd` 通过，向用户提供 `outputs/mspm0g3519-pin-planner.html` |
+| 文件夹候选 | 运行 `build-folder.cmd` | 用户已确认 HTML，并检查 `outputs/*-Folder/` 的真实桌面效果 |
+| 正式发布 | 改为不含 `beta` 的版本，运行 `create-release.cmd`，验证归档并打标签 | 用户已确认文件夹候选并再次明确要求发布 |
+
+`create-release.cmd` 已依次构建便携 EXE、文件夹版并归档。正常正式发布不需要先单独运行 `build-portable.cmd`；只有用户明确要求便携候选时才单独构建。
+
+## 源码入口
+
+| 范围 | 入口 |
+|---|---|
+| 页面结构与样式 | `web/template.html` |
+| 交互、搜索、状态、导入导出 | `web/app.js` |
+| MSPM0G3519 官方引脚数据 | `web/pin-data.json` |
+| MSPM0G3507 官方引脚数据 | `web/pin-data-3507.json` |
+| 板卡模板 | `web/board-presets.json` |
+| 数据与板卡校验 | `web/data-validation.js`、`web/board-validation.js`、`web/validate-data.js` |
+| 单文件网页构建 | `web/build.js` |
+| Electron 窗口与受限桥接 | `desktop/main.js`、`desktop/preload.js` |
+| 桌面烟雾测试 | `desktop/scripts/smoke-test.js` |
+| 应用版本 | `desktop/package.json` |
+
+不要直接编辑 `outputs/mspm0g3519-pin-planner.html`、`desktop/app/index.html` 或 `desktop/dist/`。
 
 ## 构建链路
 
-`web/build.js` 会把模板、交互脚本和两颗芯片的数据合并成单文件 HTML：
+```text
+web 源码与 JSON
+  -> build-web.cmd
+  -> outputs/mspm0g3519-pin-planner.html
+  -> desktop/app/index.html
+  -> Electron 文件夹版 / 便携 EXE
+```
 
-`web/* -> outputs/mspm0g3519-pin-planner.html -> desktop/app/index.html -> folder build / portable EXE`
+Electron 固定从 `app://mspm0/index.html` 加载页面，使升级或移动程序后仍能读取同一用户数据目录中的工程。
 
-`desktop/app/index.html` 是自动生成文件。Electron 使用固定的 `app://mspm0/index.html` 地址加载它，从而让应用升级或移动位置后仍能读取当前电脑上的已有进度。
+## 验证范围
+
+| 改动类型 | 最低验证 |
+|---|---|
+| 文案、流程文档、内部脚本整理 | `workspace-check.cmd` 和 `git diff --check` |
+| 页面样式或普通交互 | `build-web.cmd`，再由用户检查离线 HTML |
+| 芯片数据、封装、功能或板卡资源 | `build-web.cmd` 中的数据校验，并抽查受影响的芯片/封装 |
+| 保存结构、工程模型、导入导出 | 提升存储版本、增加迁移，并覆盖旧版导入和重启恢复 |
+| Electron 窗口、文件对话框、桥接、图标 | `run-dev.cmd` 和对应桌面烟雾测试 |
+| 正式发布 | 完整执行 `docs/RELEASE_CHECKLIST.md` |
+
+验证应与改动风险匹配，不为纯文档改动运行耗时的 Electron 全量测试。视觉验收优先使用用户在真实浏览器或桌面候选中的截图；自动浏览器不能打开 `file://` 时不重复等待。
 
 ## 数据兼容
 
-- 不要随意修改 Electron 的 `appId`、应用名称或内部 `app://mspm0/` 地址。
-- 增加芯片、封装和普通功能通常不需要清空用户数据。
-- 修改保存对象的字段或含义时，应先提升存储版本，再迁移旧结构。
-- 发布前至少用旧版创建一份方案，再用新版打开验证迁移。
-
-## Git 和版本归档
-
-- Git 只记录源码、脚本、文档、发布说明和哈希，不记录依赖缓存与大型 EXE。
-- `outputs/` 是候选构建区；同一版本重复构建时可能覆盖其中的文件。
-- `releases/vX.Y.Z/` 保存正式发布的 EXE、HTML、哈希和发布说明。
-- `create-release.cmd` 检测到相同版本已经存在时会停止，防止覆盖旧版本。
-- 预发布版本使用 `X.Y.Z-beta.N`，可以提交 Git，但不创建正式版本标签。
-- 普通小修复提升补丁版本，例如 `1.0.0 -> 1.0.1`。
-- 新功能提升次版本，例如 `1.0.1 -> 1.1.0`。
-- 不兼容的大改动提升主版本，例如 `1.1.0 -> 2.0.0`。
+- 保持 `appId`、应用名称和 `app://mspm0/` 不变。
+- 增加芯片、封装或普通功能通常不要求清空数据。
+- 保存对象字段或含义变化时，必须先提升存储版本并迁移旧结构。
+- 新工程默认值与旧工程规范化必须分开；加载、导入和清空不得悄悄补回新默认值。
+- 发布前使用受支持的旧版数据验证迁移，真实文件导入还要检查导入后立即搜索和输入。
 
 ## 增加芯片或封装
 
 1. 以官方数据手册为准生成独立 JSON 数据。
-2. 在 `web/build.js` 的 `dataPaths` 和 `requiredPackages` 中登记型号与脚数。
+2. 在 `web/build.js` 的数据入口和必需封装中登记型号与脚数。
 3. 在 `web/app.js` 中补充该芯片的外设实例和必要别名。
 4. 抽查电源脚、GPIO、复用功能、QEI、ADC、封装脚号和资源数量。
+5. 只有官方表确认一致时才能复用同一芯片的封装数据；不得跨芯片复制完整 IOMUX。
 
 ## 增加板卡模板
 
-1. 板级走线写入独立的 `web/board-presets.json`，不得混入芯片官方引脚 JSON。
-2. 模板默认功能必须逐项通过对应芯片和封装的官方功能表校验；物理脚相同不代表允许跨芯片复制复用功能。
-3. 板卡约束与用户备注分开保存。已有工程不得自动套用模板，只有用户明确从模板新建时才写入 `boardPresetId` 和默认安排。
-4. 修改板卡数据后运行 `web/validate-data.js`，核对默认功能、排针端子、未引出引脚和可选接口。
-5. 一个物理引脚连接多个板卡资源时，使用板卡 `resources` 和 `sharedBuses` 表达一对多关系；不要把共享 SPI 数据线误判为重复复用功能，也不要用单条引脚说明覆盖其他硬件连接。
+1. 板级走线只写入 `web/board-presets.json`，不混入芯片官方引脚 JSON。
+2. 共用 PCB 走线不等于共用功能表；每个目标芯片的默认功能都要独立校验。
+3. 板卡约束与用户备注分开保存，只有用户明确从模板新建时才写入 `boardPresetId` 和默认安排。
+4. 一个物理引脚连接多个板卡资源时使用 `resources`；总线共享关系使用 `sharedBuses`，不要让后录入的资源覆盖先前连接。
+5. 已有工程和导入文件不自动套用模板；板载冲突只提醒，不阻止用户修改。
 
-## 依赖和缓存
+## 依赖与缓存
 
 - Electron：`31.7.7`
 - electron-builder：`24.13.3`
-- 锁定文件：`desktop/pnpm-lock.yaml`
-- 依赖目录：`desktop/node_modules/`
+- 锁文件：`desktop/pnpm-lock.yaml`
+- 依赖：`desktop/node_modules/`
 - pnpm 缓存：`.pnpm-store/`
 - Electron 缓存：`.cache/electron/`
 - builder 缓存：`.cache/electron-builder/`
 
-这些目录会占用较多空间，但能显著减少下一次安装和打包时间。除非依赖损坏，不要主动删除。
+脚本从 `scripts/common.ps1` 统一定位 Codex 或系统 Node/pnpm、配置国内镜像并复用工作区缓存。除非确认依赖损坏，不重装或清空缓存。
 
-`build-portable.cmd` 会自动准备 `winCodeSign` 的 Windows 缓存，并跳过压缩包中 Windows 普通用户无法创建、同时也用不到的 macOS 符号链接。
+## Git 与版本
 
-## 常见问题
-
-- 单文件便携版启动较慢：每次启动需要解压 Chromium，属于 portable 目标的正常代价。
-- 文件夹版启动更快：直接运行文件夹中的 `MSPM0 引脚规划器.exe`，但传播时必须复制整个文件夹。
-- 首次构建慢：需要下载 Electron 和打包工具，之后会使用工作区缓存。
-- Windows 提示未知发布者：当前版本没有商业代码签名。
-- 打包路径错误：保持工作区路径简短；当前 D 盘路径比原临时路径更适合 NSIS。
+- Git 记录源码、脚本、文档、release notes 和哈希清单，不记录大型 EXE、HTML、依赖或构建目录。
+- `outputs/` 是可覆盖候选区；`releases/vX.Y.Z/` 是不可覆盖正式归档。
+- beta 候选可以提交，但不创建正式标签。正式归档验证通过后再创建对应 `vX.Y.Z` 标签。
+- 补丁版本用于修复和小型样式调整；次版本用于新功能、新芯片或新封装；主版本用于不兼容变化。纯内部重构不单独提升应用版本。

@@ -13,8 +13,12 @@ function Find-Git {
 }
 
 $required = @(
+  '.gitattributes',
   'AGENTS.md',
   'README.md',
+  'docs\DEVELOPMENT.md',
+  'docs\RELEASE_CHECKLIST.md',
+  'docs\WORKSPACE_HYGIENE.md',
   'desktop\package.json',
   'web\app.js',
   'web\data-validation.js',
@@ -22,6 +26,7 @@ $required = @(
   'legal\LICENSE.md',
   'legal\THIRD_PARTY_NOTICES.md',
   'legal\DATA_SOURCES.md',
+  'memory\README.md',
   'memory\PROJECT_STATE.md',
   'memory\DECISIONS.md',
   'memory\LESSONS.md',
@@ -41,13 +46,13 @@ foreach ($relative in $required) {
 $package = Get-Content -LiteralPath (Join-Path $root 'desktop\package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $version = [string]$package.version
 $releaseDir = Join-Path $root "releases\v$version"
-if (-not (Test-Path -LiteralPath $releaseDir)) {
+if (($version -notmatch '-') -and (-not (Test-Path -LiteralPath $releaseDir))) {
   $warnings.Add("Current package version has no formal release archive: v$version")
 }
 
 $allowedRootNames = @(
   '.cache', '.git', '.pnpm-store', '.tmp', 'desktop', 'docs', 'legal', 'memory', 'outputs', 'releases', 'scripts', 'web',
-  '.gitignore', 'AGENTS.md', 'CHANGELOG.md', 'README.md', 'build-portable.cmd', 'build-web.cmd',
+  '.gitattributes', '.gitignore', 'AGENTS.md', 'CHANGELOG.md', 'README.md', 'build-portable.cmd', 'build-web.cmd',
   'build-folder.cmd', 'create-release.cmd', 'install-dependencies.cmd', 'run-dev.cmd', 'workspace-check.cmd'
 )
 $unexpected = Get-ChildItem -LiteralPath $root -Force | Where-Object { $allowedRootNames -notcontains $_.Name }
@@ -61,6 +66,7 @@ foreach ($item in $trackedGenerated) { $errors.Add("Generated or cached file is 
 
 Write-Host "MSPM0 workspace: $root"
 Write-Host "Package version: $version"
+if ($version -match '-') { Write-Host 'Release archive check: skipped for prerelease version' }
 Write-Host "Git changes: $($status.Count)"
 if ($status.Count -gt 0) { $status | ForEach-Object { Write-Host "  $_" } }
 
