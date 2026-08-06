@@ -35,4 +35,6 @@
 
 - 正式工作区：`<USER_HOME>\Desktop\MSPM0`。
 - 候选功能检查点：Git 提交 `73b1db0`。
+- `outputs/` 只保留当前 `1.3.0-beta.1` HTML 和 `.gitkeep`；旧候选及已有正式版本副本已清理，正式版本仍完整保存在 `releases/`。
+- `.tmp/` 已移除隔离测试用户目录和可重建产物，保留目前仅存的芯片数据手册、原理图/EDA 参考资料及引脚规划转换文件。
 - `.pnpm-store/`、`.cache/`、`desktop/node_modules/` 和全部 `releases/` 必须长期保留。
