@@ -101,6 +101,51 @@
   let workspace = loadWorkspace();
   let state = currentProjectRecord().data;
 
+  if (globalThis.__MSPM0_TEST_MODE__) {
+    globalThis.__MSPM0_TEST_API__ = {
+      SCHEMA_VERSION,
+      PROJECT_DATA_VERSION,
+      DEVICE_ORDER: [...DEVICE_ORDER],
+      DEVICE_CONFIG,
+      createEmptyState,
+      createPresetState,
+      createWorkspace,
+      normalizeLoaded,
+      normalizeWorkspace,
+      migrateLegacy,
+      loadWorkspace,
+      sanitizeAssignments,
+      sanitizeView,
+      dataFromLegacyExport,
+      setState(nextState) {
+        state = normalizeLoaded(nextState);
+        const project = createProject('测试工程', state);
+        workspace = { version: SCHEMA_VERSION, activeProjectId: project.id, projects: [project] };
+        elements.searchInput.value = '';
+      },
+      getState() { return JSON.parse(JSON.stringify(state)); },
+      setAssignment(number, value) { assignments()[String(number)] = { ...emptyAssignment(), ...value }; },
+      searchPinNames(query) {
+        elements.searchInput.value = query;
+        const conflicts = conflictMap();
+        return currentPackage().pins.filter(pin => pinMatches(pin, conflicts)).map(pin => pin.name);
+      },
+      boardResourceConflictPins(resourceId) {
+        const resource = boardResourceById(resourceId);
+        return resource ? boardResourceConflicts(resource).map(item => item.number) : [];
+      },
+      applyBoardResource(resourceId, enabled) {
+        const resource = boardResourceById(resourceId);
+        if (resource) applyBoardResourceToggle(resource, enabled);
+        return JSON.parse(JSON.stringify(state));
+      },
+      csvEscape,
+      safeFileName,
+      escapeHtml
+    };
+    return;
+  }
+
   function packageOrder(device = state?.activeDevice || DEVICE_ORDER[0]) { return DEVICE_CONFIG[device].packageOrder; }
   function resourceCatalog(device = state?.activeDevice || DEVICE_ORDER[0]) { return RESOURCE_CATALOGS[device]; }
   function emptyView(device, code) {
@@ -901,6 +946,27 @@
     });
   }
 
+  function applyBoardResourceToggle(resource, enabled) {
+    if (enabled) {
+      const previouslyEnabled = enabledBoardResourceIds();
+      state.enabledBoardResources = [...previouslyEnabled, resource.id];
+      Object.entries(resource.assignments || {}).forEach(([number, signal]) => {
+        const value = assignmentFor(Number(number));
+        const sharedCompatible = (currentBoard()?.resources || []).some(other => other.id !== resource.id
+          && previouslyEnabled.has(other.id)
+          && other.assignments?.[number] === signal)
+          && value.function === signal;
+        if (!sharedCompatible) assignments()[number] = emptyAssignment(signal);
+      });
+      return;
+    }
+    state.enabledBoardResources = (state.enabledBoardResources || []).filter(id => id !== resource.id);
+    Object.entries(resource.assignments || {}).forEach(([number, signal]) => {
+      if (anotherEnabledResourceNeeds(number, signal, resource.id)) return;
+      if (assignmentFor(Number(number)).function === signal) delete assignments()[number];
+    });
+  }
+
   function setBoardResourceEnabled(resourceId, enabled) {
     if (!isBoardApplicable()) return;
     const resource = boardResourceById(resourceId);
@@ -911,26 +977,9 @@
         const list = conflicts.map(item => `${item.pin?.name || `Pin ${item.number}`}（当前 ${item.value.function || '仅有文字记录'}）`).join('、');
         if (!window.confirm(`启用“${resource.name}”将完整替换以下引脚的功能、标签、端子和备注：${list}。是否继续？`)) return;
       }
-      commitMutation(`启用板载资源 ${resource.name}`, () => {
-        const previouslyEnabled = enabledBoardResourceIds();
-        state.enabledBoardResources = [...previouslyEnabled, resource.id];
-        Object.entries(resource.assignments || {}).forEach(([number, signal]) => {
-          const value = assignmentFor(Number(number));
-          const sharedCompatible = (currentBoard()?.resources || []).some(other => other.id !== resource.id
-            && previouslyEnabled.has(other.id)
-            && other.assignments?.[number] === signal)
-            && value.function === signal;
-          if (!sharedCompatible) assignments()[number] = emptyAssignment(signal);
-        });
-      });
-      return;
     }
-    commitMutation(`关闭板载资源 ${resource.name}`, () => {
-      state.enabledBoardResources = (state.enabledBoardResources || []).filter(id => id !== resource.id);
-      Object.entries(resource.assignments || {}).forEach(([number, signal]) => {
-        if (anotherEnabledResourceNeeds(number, signal, resource.id)) return;
-        if (assignmentFor(Number(number)).function === signal) delete assignments()[number];
-      });
+    commitMutation(`${enabled ? '启用' : '关闭'}板载资源 ${resource.name}`, () => {
+      applyBoardResourceToggle(resource, enabled);
     });
   }
 
