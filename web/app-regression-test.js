@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { buildApplicationSource } = require('./app-bundle');
 
 const webRoot = __dirname;
 const devices = {
@@ -11,7 +12,7 @@ const devices = {
   MSPM0G3507: JSON.parse(fs.readFileSync(path.join(webRoot, 'pin-data-3507.json'), 'utf8'))
 };
 const boardPresets = JSON.parse(fs.readFileSync(path.join(webRoot, 'board-presets.json'), 'utf8'));
-const appSource = fs.readFileSync(path.join(webRoot, 'app.js'), 'utf8')
+const appSource = buildApplicationSource()
   .replace('__DEVICE_DATA__', JSON.stringify(devices))
   .replace('__BOARD_PRESETS__', JSON.stringify(boardPresets))
   .replace('__APP_META__', JSON.stringify({ version: 'test', author: 'test', productName: 'test' }));

@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const { buildApplicationSource } = require('./app-bundle');
 const { validateDevices } = require('./data-validation');
 const { validateBoardPresets } = require('./board-validation');
 
@@ -9,14 +10,13 @@ const dataPaths = {
   MSPM0G3519: path.join(__dirname, 'pin-data.json'),
   MSPM0G3507: path.join(__dirname, 'pin-data-3507.json')
 };
-const appPath = path.join(__dirname, 'app.js');
 const boardPresetsPath = path.join(__dirname, 'board-presets.json');
 const outputPath = path.join(root, 'outputs', 'mspm0g3519-pin-planner.html');
 const packageJsonPath = path.join(root, 'desktop', 'package.json');
 
 const template = fs.readFileSync(templatePath, 'utf8');
 const devices = Object.fromEntries(Object.entries(dataPaths).map(([device, dataPath]) => [device, JSON.parse(fs.readFileSync(dataPath, 'utf8'))]));
-const app = fs.readFileSync(appPath, 'utf8');
+const app = buildApplicationSource();
 const boardPresets = JSON.parse(fs.readFileSync(boardPresetsPath, 'utf8'));
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
 const requiredPackages = {
