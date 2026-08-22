@@ -5,15 +5,15 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { buildApplicationSource } = require('./app-bundle');
+const { createRuntimeDeviceConfig, loadDeviceData } = require('./device-catalog');
 
 const webRoot = __dirname;
-const devices = {
-  MSPM0G3519: JSON.parse(fs.readFileSync(path.join(webRoot, 'pin-data.json'), 'utf8')),
-  MSPM0G3507: JSON.parse(fs.readFileSync(path.join(webRoot, 'pin-data-3507.json'), 'utf8'))
-};
+const devices = loadDeviceData();
+const deviceConfig = createRuntimeDeviceConfig();
 const boardPresets = JSON.parse(fs.readFileSync(path.join(webRoot, 'board-presets.json'), 'utf8'));
 const appSource = buildApplicationSource()
   .replace('__DEVICE_DATA__', JSON.stringify(devices))
+  .replace('__DEVICE_CONFIG__', JSON.stringify(deviceConfig))
   .replace('__BOARD_PRESETS__', JSON.stringify(boardPresets))
   .replace('__APP_META__', JSON.stringify({ version: 'test', author: 'test', productName: 'test' }));
 
@@ -24,6 +24,7 @@ function plain(value) {
 function loadApp(storageValues = {}) {
   const storage = new Map(Object.entries(storageValues));
   const elements = new Map();
+  const downloads = [];
   const context = vm.createContext({
     __MSPM0_TEST_MODE__: true,
     document: {
@@ -36,10 +37,19 @@ function loadApp(storageValues = {}) {
       getItem(key) { return storage.has(key) ? storage.get(key) : null; },
       setItem(key, value) { storage.set(key, String(value)); },
       removeItem(key) { storage.delete(key); }
+    },
+    window: {
+      alert() {},
+      mspm0Desktop: {
+        saveFile(payload) {
+          downloads.push(JSON.parse(JSON.stringify(payload)));
+          return Promise.resolve();
+        }
+      }
     }
   });
   vm.runInContext(appSource, context, { filename: 'app.js' });
-  return { api: context.__MSPM0_TEST_API__, storage };
+  return { api: context.__MSPM0_TEST_API__, downloads, storage };
 }
 
 let passed = 0;
@@ -186,6 +196,63 @@ test('version 4 workspace migration preserves user data', () => {
   assert.deepEqual(data.enabledBoardResources, []);
 });
 
+test('version 5 and 6 workspaces load without changing user assignments', () => {
+  for (const [key, version] of [
+    ['mspm0g-pin-planner-v5', 5],
+    ['mspm0g-pin-planner-v6', 6]
+  ]) {
+    const project = {
+      id: `workspace-${version}`,
+      name: `工作区 v${version}`,
+      data: {
+        activeDevice: 'MSPM0G3519',
+        devices: {
+          MSPM0G3519: {
+            activePackage: 'PM',
+            packages: { PM: { assignments: { 33: { function: 'PA0', alias: `v${version}`, connector: 'J1', note: 'saved' } } } }
+          }
+        }
+      }
+    };
+    const { api } = loadApp({ [key]: JSON.stringify({ version, activeProjectId: project.id, projects: [project] }) });
+    const workspace = plain(api.loadWorkspace());
+    assert.equal(workspace.version, 6);
+    assert.equal(workspace.activeProjectId, project.id);
+    assert.equal(workspace.projects[0].data.devices.MSPM0G3519.packages.PM.assignments['33'].alias, `v${version}`);
+    assert.equal(workspace.projects[0].data.devices.MSPM0G3519.packages.PM.assignments['12'], undefined);
+  }
+});
+
+test('version 1, 2 and 3 storage migrations preserve their saved project', () => {
+  const legacyAssignments = { 33: { function: 'PA0', alias: '旧存储', note: 'keep' } };
+  const cases = [
+    {
+      key: 'mspm0g3519-pin-planner-v1',
+      data: { version: 1, device: 'MSPM0G3519', activePackage: 'PM', packages: { PM: { assignments: legacyAssignments } }, zoom: { PM: 120 } }
+    },
+    {
+      key: 'mspm0g3519-pin-planner-v2',
+      data: { version: 2, device: 'MSPM0G3519', activePackage: 'PM', packages: { PM: { assignments: legacyAssignments } }, views: { PM: { zoom: 125, rotation: 90 } } }
+    },
+    {
+      key: 'mspm0g-pin-planner-v3',
+      data: { version: 3, activeDevice: 'MSPM0G3519', devices: { MSPM0G3519: { activePackage: 'PM', packages: { PM: { assignments: legacyAssignments } } } } }
+    }
+  ];
+  cases.forEach(({ key, data }, index) => {
+    const { api } = loadApp({ [key]: JSON.stringify(data) });
+    const workspace = plain(api.loadWorkspace());
+    assert.equal(workspace.version, 6);
+    assert.equal(workspace.projects.length, 1);
+    const loaded = workspace.projects[0].data;
+    assert.equal(loaded.devices.MSPM0G3519.activePackage, 'PM');
+    assert.equal(loaded.devices.MSPM0G3519.packages.PM.assignments['33'].alias, '旧存储');
+    assert.equal(loaded.devices.MSPM0G3519.packages.PM.assignments['12'], undefined);
+    if (index === 0) assert.equal(loaded.devices.MSPM0G3519.views.PM.zoom, 120);
+    if (index === 1) assert.equal(loaded.devices.MSPM0G3519.views.PM.rotation, 90);
+  });
+});
+
 test('legacy project imports stay compatible', () => {
   const { api } = loadApp();
   const imported = plain(api.dataFromLegacyExport({
@@ -262,6 +329,67 @@ test('disabling a board resource preserves a user-selected replacement', () => {
   assert.deepEqual(state.devices.MSPM0G3519.packages.PM.assignments['21'], {
     function: replacement, alias: '用户功能', connector: 'J2', note: 'must survive'
   });
+});
+
+test('planning report detects duplicate peripheral signals and labels', () => {
+  const { api } = loadApp();
+  const state = api.createEmptyState();
+  state.activeDevice = 'MSPM0G3519';
+  state.devices.MSPM0G3519.activePackage = 'PZ';
+  api.setState(state);
+  const pins = devices.MSPM0G3519.packages.PZ.pins.filter(pin => !pin.fixed);
+  const bySignal = new Map();
+  pins.forEach(pin => pin.functions.forEach(fn => {
+    if (fn.signal === pin.name) return;
+    if (!bySignal.has(fn.signal)) bySignal.set(fn.signal, []);
+    bySignal.get(fn.signal).push(pin.number);
+  }));
+  const duplicate = [...bySignal].find(([, numbers]) => numbers.length > 1);
+  assert.ok(duplicate, 'test package must expose a signal on multiple pins');
+  const [signal, numbers] = duplicate;
+  api.setAssignment(numbers[0], { function: signal, alias: '重复标签' });
+  api.setAssignment(numbers[1], { function: signal, alias: '重复标签' });
+  const issues = plain(api.planIssues());
+  assert.ok(issues.some(issue => issue.severity === 'error' && issue.title.includes(`${signal} 被重复安排`)));
+  assert.ok(issues.some(issue => issue.severity === 'warning' && issue.title.includes('重复标签')));
+});
+
+test('history keeps 80 entries and merges rapid text edits', () => {
+  const { api } = loadApp();
+  api.resetHistory();
+  for (let index = 0; index < 85; index += 1) api.recordHistory(`step-${index}`);
+  let summary = plain(api.historySummary());
+  assert.equal(summary.undo.length, 80);
+  assert.equal(summary.undo[0].label, 'step-5');
+  assert.equal(summary.undo.at(-1).label, 'step-84');
+  assert.equal(summary.redoCount, 0);
+
+  api.resetHistory();
+  api.recordHistory('编辑 Pin 1', 'alias-1');
+  api.recordHistory('编辑 Pin 1', 'alias-1');
+  api.recordHistory('编辑 Pin 1', 'note-1');
+  summary = plain(api.historySummary());
+  assert.equal(summary.undo.length, 2);
+  assert.deepEqual(summary.undo.map(entry => entry.mergeKey), ['alias-1', 'note-1']);
+});
+
+test('project JSON and pin CSV exports include current user data', () => {
+  const { api, downloads } = loadApp();
+  const state = api.createEmptyState();
+  state.activeDevice = 'MSPM0G3507';
+  state.devices.MSPM0G3507.activePackage = 'PM';
+  api.setState(state);
+  api.setAssignment(33, { function: 'PA0', alias: '编码器,A', connector: 'J1-1', note: '第一路\n输入' });
+  api.exportProjectJson();
+  api.exportCsv();
+  assert.equal(downloads.length, 2);
+  const projectPayload = JSON.parse(downloads[0].content);
+  assert.equal(projectPayload.schemaVersion, 6);
+  assert.equal(projectPayload.kind, 'mspm0-pin-project');
+  assert.equal(projectPayload.project.data.devices.MSPM0G3507.packages.PM.assignments['33'].alias, '编码器,A');
+  assert.ok(downloads[1].content.startsWith('\ufeffProject,Device,Package'));
+  assert.ok(downloads[1].content.includes('"编码器,A"'));
+  assert.ok(downloads[1].content.includes('"第一路\n输入"'));
 });
 
 test('export text helpers keep CSV, file names and HTML safe', () => {

@@ -4,11 +4,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { validateBoardPresets } = require('./board-validation');
+const { loadDeviceData } = require('./device-catalog');
 
-const devices = {
-  MSPM0G3519: JSON.parse(fs.readFileSync(path.join(__dirname, 'pin-data.json'), 'utf8')),
-  MSPM0G3507: JSON.parse(fs.readFileSync(path.join(__dirname, 'pin-data-3507.json'), 'utf8'))
-};
+const devices = loadDeviceData();
 const realBoardData = JSON.parse(fs.readFileSync(path.join(__dirname, 'board-presets.json'), 'utf8'));
 
 function cloneRealBoardData() {

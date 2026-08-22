@@ -36,6 +36,19 @@ function installTestApi() {
       if (resource) applyBoardResourceToggle(resource, enabled);
       return JSON.parse(JSON.stringify(state));
     },
+    resetHistory() { historyByProject.clear(); },
+    recordHistory(label, mergeKey = '') { recordSnapshot(label, JSON.stringify(state), mergeKey); },
+    historySummary() {
+      const history = projectHistory();
+      return {
+        undo: history.undo.map(entry => ({ label: entry.label, mergeKey: entry.mergeKey })),
+        redoCount: history.redo.length
+      };
+    },
+    planIssues() { return planIssues().map(issue => ({ ...issue })); },
+    exportProjectJson,
+    exportWorkspaceJson,
+    exportCsv,
     csvEscape,
     safeFileName,
     escapeHtml
