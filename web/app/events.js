@@ -124,16 +124,29 @@ function bindEvents() {
     const name = elements.projectNameInput.value.trim();
     if (!name) return;
     if (projectDialogMode === 'new') {
-      const presetId = elements.projectPresetSelect.value;
-      const project = createProject(uniqueProjectName(name), presetId ? createPresetState(presetId) : createEmptyState());
-      workspace.projects.push(project);
-      workspace.activeProjectId = project.id;
-      state = project.data;
-      resetTransientSelection();
-      saveState();
-      render();
+      try {
+        const target = resolveProjectTarget({
+          templateId: elements.projectTemplateSelect.value,
+          device: elements.projectDeviceSelect.value,
+          packageCode: elements.projectPackageSelect.value
+        });
+        const data = target.templateId
+          ? createPresetState(target.templateId)
+          : createProjectState(target.device, target.package);
+        const project = createProject(uniqueProjectName(name), data);
+        workspace.projects.push(project);
+        workspace.activeProjectId = project.id;
+        state = project.data;
+        resetTransientSelection();
+        saveState();
+        render();
+      } catch (error) {
+        window.alert(error.message || '无法创建工程。');
+        return;
+      }
     } else {
       const project = currentProjectRecord();
+      if (!project) return;
       project.name = name.slice(0, 48);
       project.updatedAt = new Date().toISOString();
       saveState();
@@ -141,18 +154,10 @@ function bindEvents() {
     }
     elements.projectDialog.close();
   });
-  elements.deviceSelect.addEventListener('change', () => {
-    state.activeDevice = elements.deviceSelect.value;
-    expandedGroups = new Set(['Timer']);
-    resetTransientSelection();
-    saveState();
-    render();
-  });
-  elements.packageSelect.addEventListener('change', () => {
-    currentDeviceState().activePackage = elements.packageSelect.value;
-    resetTransientSelection();
-    saveState();
-    render();
+  elements.projectTemplateSelect.addEventListener('change', updateProjectCreationTarget);
+  elements.projectDeviceSelect.addEventListener('change', () => updateProjectPackageOptions());
+  elements.projectDialog.addEventListener('cancel', event => {
+    if (projectCreationRequired()) event.preventDefault();
   });
   elements.sidebarViewTabs.addEventListener('click', event => {
     const button = event.target.closest('[data-view]');
@@ -250,16 +255,14 @@ function bindEvents() {
   elements.importFile.addEventListener('change', () => { const file = elements.importFile.files?.[0]; if (file) importJson(file); });
   elements.resetBtn.addEventListener('click', () => {
     const pkg = currentPackage();
-    if (!window.confirm(`确定清空 ${state.activeDevice} ${pkg.label} 的全部引脚安排吗？其他芯片和封装不会受影响。`)) return;
+    if (!window.confirm(`确定清空 ${state.device} ${pkg.label} 的全部引脚安排吗？`)) return;
     selectedPinNumber = null;
     selectedSignal = '';
-    commitMutation(`清空 ${state.activeDevice} ${pkg.label}`, () => {
-      currentDeviceState().packages[currentDeviceState().activePackage].assignments = {};
-      // Clearing a package also clears board-resource planning state. Keep the
-      // board identity and its permanent annotations so switching back remains
-      // informative without silently re-enabling hardware.
+    commitMutation(`清空 ${state.device} ${pkg.label}`, () => {
+      state.assignments = {};
+      // Keep board identity and permanent annotations while releasing planning state.
       state.enabledBoardResources = [];
     });
   });
-  new ResizeObserver(() => { if (!currentView().initialized) fitView(false); }).observe(elements.canvasScroller);
+  new ResizeObserver(() => { if (state && !currentView().initialized) fitView(false); }).observe(elements.canvasScroller);
 }

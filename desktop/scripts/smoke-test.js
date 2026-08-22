@@ -33,48 +33,92 @@ async function evaluate(webSocketUrl, expression) {
   });
 }
 
-const expressions = {
-  inspect: `(() => ({
-    title: document.title,
-    url: location.href,
-    devices: [...document.querySelectorAll('#deviceSelect option')].map(option => option.value),
-    packages: [...document.querySelectorAll('#packageSelect option')].map(option => option.value),
-    bridge: typeof window.mspm0Desktop?.saveFile === 'function',
-    focusBridge: typeof window.mspm0Desktop?.focusWindow === 'function',
-    projectActions: document.querySelectorAll('[data-project-action]').length,
-    exportActions: document.querySelectorAll('[data-export]').length,
-    hasAbout: Boolean(document.querySelector('#aboutBtn')),
-    hasCheck: Boolean(document.querySelector('#checkBtn')),
-    hasThemeToggle: Boolean(document.querySelector('#themeToggleBtn')),
-    colorScheme: getComputedStyle(document.documentElement).colorScheme
-  }))()`,
-  write: `(() => {
-    const device = document.querySelector('#deviceSelect');
-    device.value = 'MSPM0G3507';
-    device.dispatchEvent(new Event('change', { bubbles: true }));
-    const pkg = document.querySelector('#packageSelect');
-    const packages = [...pkg.options].map(option => option.value);
-    pkg.value = 'RHB';
-    pkg.dispatchEvent(new Event('change', { bubbles: true }));
-    const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v6') || '{}');
-    const project = stored.projects?.find(item => item.id === stored.activeProjectId);
-    return { activeDevice: document.querySelector('#deviceSelect').value, activePackage: document.querySelector('#packageSelect').value, packages, saved: stored.version === 6, storedDevice: project?.data?.activeDevice, storedPackage: project?.data?.devices?.MSPM0G3507?.activePackage };
-  })()`,
-  restore: `(() => ({
-    activeDevice: document.querySelector('#deviceSelect').value,
-    activePackage: document.querySelector('#packageSelect').value,
-    saved: JSON.parse(localStorage.getItem('mspm0g-pin-planner-v6') || '{}').version === 6,
-    storedDevice: (() => { const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v6') || '{}'); return stored.projects?.find(item => item.id === stored.activeProjectId)?.data?.activeDevice; })(),
-    storedPackage: (() => { const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v6') || '{}'); return stored.projects?.find(item => item.id === stored.activeProjectId)?.data?.devices?.MSPM0G3507?.activePackage; })()
-  }))()`,
-  defaults: `(() => {
+const fixedProjectHelpers = `
     const change = element => element.dispatchEvent(new Event('change', { bubbles: true }));
-    document.querySelector('[data-project-action="new"]').click();
-    document.querySelector('#projectNameInput').value = '官方默认接口测试';
-    document.querySelector('#projectForm').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    const storedWorkspace = () => JSON.parse(localStorage.getItem('mspm0g-pin-planner-v7') || '{}');
+    const activeProject = () => {
+      const stored = storedWorkspace();
+      return stored.projects?.find(item => item.id === stored.activeProjectId);
+    };
+    const activeTarget = () => {
+      const data = activeProject()?.data;
+      return {
+        device: data?.device,
+        package: data?.package,
+        chipDevice: document.querySelector('#chipDevice')?.textContent,
+        chipPackage: document.querySelector('#chipPackage')?.textContent
+      };
+    };
+    const openNewProject = () => {
+      const dialog = document.querySelector('#projectDialog');
+      if (!dialog.open) document.querySelector('[data-project-action="new"]').click();
+    };
+    const createFixedProject = (name, device, packageCode, templateId = '') => {
+      openNewProject();
+      document.querySelector('#projectNameInput').value = name;
+      const template = document.querySelector('#projectTemplateSelect');
+      template.value = templateId;
+      change(template);
+      if (!templateId) {
+        const deviceSelect = document.querySelector('#projectDeviceSelect');
+        deviceSelect.value = device;
+        change(deviceSelect);
+        document.querySelector('#projectPackageSelect').value = packageCode;
+      }
+      document.querySelector('#projectForm').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      return document.querySelector('#projectSelect').value;
+    };
+    const selectProject = projectId => {
+      const select = document.querySelector('#projectSelect');
+      select.value = projectId;
+      change(select);
+    };
+`;
 
-    const device = document.querySelector('#deviceSelect');
-    const pkg = document.querySelector('#packageSelect');
+const expressions = {
+  inspect: `(() => {
+    if (!document.querySelector('#projectDialog').open) document.querySelector('[data-project-action="new"]').click();
+    const deviceSelect = document.querySelector('#projectDeviceSelect');
+    const packageSelect = document.querySelector('#projectPackageSelect');
+    const devices = [...deviceSelect.options].map(option => option.value);
+    const packagesByDevice = {};
+    devices.forEach(device => {
+      deviceSelect.value = device;
+      deviceSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      packagesByDevice[device] = [...packageSelect.options].map(option => option.value);
+    });
+    return {
+      title: document.title,
+      url: location.href,
+      devices,
+      packagesByDevice,
+      fixedTargetSelectorsMissing: !document.querySelector('#deviceSelect') && !document.querySelector('#packageSelect'),
+      chipTextPresent: Boolean(document.querySelector('#chipDevice')) && Boolean(document.querySelector('#chipPackage')),
+      bridge: typeof window.mspm0Desktop?.saveFile === 'function',
+      focusBridge: typeof window.mspm0Desktop?.focusWindow === 'function',
+      projectActions: document.querySelectorAll('[data-project-action]').length,
+      exportActions: document.querySelectorAll('[data-export]').length,
+      hasAbout: Boolean(document.querySelector('#aboutBtn')),
+      hasCheck: Boolean(document.querySelector('#checkBtn')),
+      hasThemeToggle: Boolean(document.querySelector('#themeToggleBtn')),
+      colorScheme: getComputedStyle(document.documentElement).colorScheme
+    };
+  })()`,
+  write: `(() => {
+    ${fixedProjectHelpers}
+    createFixedProject('固定状态保存测试', 'MSPM0G3507', 'RHB');
+    const stored = storedWorkspace();
+    const project = activeProject();
+    return { target: activeTarget(), saved: stored.version === 7, projectVersion: project?.data?.version, storedDevice: project?.data?.device, storedPackage: project?.data?.package };
+  })()`,
+  restore: `(() => {
+    ${fixedProjectHelpers}
+    const stored = storedWorkspace();
+    const project = activeProject();
+    return { target: activeTarget(), saved: stored.version === 7, projectVersion: project?.data?.version, storedDevice: project?.data?.device, storedPackage: project?.data?.package };
+  })()`,
+  defaults: `(() => {
+    ${fixedProjectHelpers}
     const packageCodes = {
       MSPM0G3519: ['RHB', 'RGZ', 'PT', 'PM', 'PN', 'PZ'],
       MSPM0G3507: ['RHB', 'RGZ', 'PT', 'PM']
@@ -83,12 +127,10 @@ const expressions = {
     const buttonForFunction = signal => [...document.querySelectorAll('#packageStage .pin-button')]
       .find(button => button.querySelector('.pin-function-label')?.textContent === signal);
 
+    const projectIds = {};
     Object.entries(packageCodes).forEach(([deviceCode, codes]) => {
-      device.value = deviceCode;
-      change(device);
       codes.forEach(packageCode => {
-        pkg.value = packageCode;
-        change(pkg);
+        projectIds[deviceCode + '-' + packageCode] = createFixedProject('官方默认-' + deviceCode + '-' + packageCode, deviceCode, packageCode);
         const swdio = buttonForFunction('SWDIO');
         const swclk = buttonForFunction('SWCLK');
         const nrst = buttonForFunction('NRST');
@@ -110,10 +152,7 @@ const expressions = {
       });
     });
 
-    device.value = 'MSPM0G3507';
-    change(device);
-    pkg.value = 'PM';
-    change(pkg);
+    selectProject(projectIds['MSPM0G3507-PM']);
     const swdio = buttonForFunction('SWDIO');
     swdio.click();
     const swdioOptions = [...document.querySelector('#functionSelect').options].map(option => option.value);
@@ -140,10 +179,7 @@ const expressions = {
       status: document.querySelector('#pinStatus').textContent
     };
 
-    device.value = 'MSPM0G3519';
-    change(device);
-    pkg.value = 'PM';
-    change(pkg);
+    selectProject(projectIds['MSPM0G3519-PM']);
     buttonForFunction('NRST').click();
     const nrstAlternativeOptions = [...document.querySelector('#functionSelect').options].map(option => option.value);
     document.querySelector('#functionSelect').value = 'WAKE';
@@ -169,13 +205,10 @@ const expressions = {
     };
   })()`,
   'default-restore': `(() => {
-    const change = element => element.dispatchEvent(new Event('change', { bubbles: true }));
-    const device = document.querySelector('#deviceSelect');
-    const pkg = document.querySelector('#packageSelect');
-    device.value = 'MSPM0G3507';
-    change(device);
-    pkg.value = 'PM';
-    change(pkg);
+    ${fixedProjectHelpers}
+    const projects = storedWorkspace().projects || [];
+    const findProject = (device, packageCode) => projects.filter(project => project.name.startsWith('官方默认-' + device + '-' + packageCode) && project.data?.device === device && project.data?.package === packageCode).at(-1)?.id;
+    selectProject(findProject('MSPM0G3507', 'PM'));
     const g3507 = {
       assigned: Number(document.querySelector('#assignedCount').textContent),
       swdio: document.querySelector('[data-pin="12"]').getAttribute('aria-label'),
@@ -183,10 +216,7 @@ const expressions = {
       nrst: document.querySelector('[data-pin="38"]').getAttribute('aria-label'),
       nrstColor: document.querySelector('[data-pin="38"]').style.getPropertyValue('--pin-color')
     };
-    device.value = 'MSPM0G3519';
-    change(device);
-    pkg.value = 'PM';
-    change(pkg);
+    selectProject(findProject('MSPM0G3519', 'PM'));
     const g3519 = {
       assigned: Number(document.querySelector('#assignedCount').textContent),
       nrst: document.querySelector('[data-pin="38"]').getAttribute('aria-label'),
@@ -195,20 +225,17 @@ const expressions = {
     return { g3507, g3519 };
   })()`,
   vqfn: `(() => {
-    const device = document.querySelector('#deviceSelect');
-    const pkg = document.querySelector('#packageSelect');
+    ${fixedProjectHelpers}
     const capture = (deviceCode, packageCode) => {
-      device.value = deviceCode;
-      device.dispatchEvent(new Event('change', { bubbles: true }));
-      pkg.value = packageCode;
-      pkg.dispatchEvent(new Event('change', { bubbles: true }));
+      createFixedProject('VQFN-' + deviceCode + '-' + packageCode, deviceCode, packageCode);
       const pins = [...document.querySelectorAll('#packageStage button[aria-label^="Pin "]')];
+      const target = activeTarget();
       return {
-        device: device.value,
-        package: pkg.value,
-        options: [...pkg.options].map(option => option.value),
+        device: target.device,
+        package: target.package,
+        chipDevice: target.chipDevice,
         title: document.querySelector('#canvasTitle')?.textContent,
-        chipPackage: document.querySelector('#chipPackage')?.textContent,
+        chipPackage: target.chipPackage,
         pinCount: pins.length,
         firstPin: pins.find(pin => pin.getAttribute('aria-label')?.startsWith('Pin 1 '))?.getAttribute('aria-label'),
         lastPin: pins.find(pin => pin.getAttribute('aria-label')?.startsWith('Pin ' + pins.length + ' '))?.getAttribute('aria-label')
@@ -222,12 +249,8 @@ const expressions = {
     ];
   })()`,
   search: `(() => {
-    const device = document.querySelector('#deviceSelect');
-    device.value = 'MSPM0G3519';
-    device.dispatchEvent(new Event('change', { bubbles: true }));
-    const pkg = document.querySelector('#packageSelect');
-    pkg.value = 'PZ';
-    pkg.dispatchEvent(new Event('change', { bubbles: true }));
+    ${fixedProjectHelpers}
+    createFixedProject('搜索测试', 'MSPM0G3519', 'PZ');
     const input = document.querySelector('#searchInput');
     input.value = 'PB1';
     input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -236,17 +259,28 @@ const expressions = {
     return { query: input.value, matches };
   })()`,
   'board-preset': `(() => {
-    const change = element => element.dispatchEvent(new Event('change', { bubbles: true }));
+    ${fixedProjectHelpers}
     const input = element => element.dispatchEvent(new Event('input', { bubbles: true }));
-    const createPreset = (name, presetId) => {
-      document.querySelector('[data-project-action="new"]').click();
+    let templateLock;
+    const createPreset = (name, presetId, device) => {
+      openNewProject();
       document.querySelector('#projectNameInput').value = name;
-      document.querySelector('#projectPresetSelect').value = presetId;
+      const template = document.querySelector('#projectTemplateSelect');
+      template.value = presetId;
+      change(template);
+      templateLock = {
+        device: document.querySelector('#projectDeviceSelect').value,
+        package: document.querySelector('#projectPackageSelect').value,
+        deviceDisabled: document.querySelector('#projectDeviceSelect').disabled,
+        packageDisabled: document.querySelector('#projectPackageSelect').disabled,
+        hint: document.querySelector('#projectTargetHint').textContent
+      };
+      if (templateLock.device !== device) throw new Error('Template did not force the expected device');
       document.querySelector('#projectForm').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     };
     const capture = () => ({
-      device: document.querySelector('#deviceSelect').value,
-      package: document.querySelector('#packageSelect').value,
+      device: activeTarget().device,
+      package: activeTarget().package,
       assigned: Number(document.querySelector('#assignedCount').textContent),
       boardMarkers: document.querySelectorAll('#packageStage .board-pin-marker').length,
       headerMarkers: document.querySelectorAll('#packageStage .board-header').length,
@@ -256,14 +290,14 @@ const expressions = {
       fixedMarkers: document.querySelectorAll('#packageStage .board-fixed').length,
       subtitle: document.querySelector('#canvasSubtitle').textContent,
       storedPreset: (() => {
-        const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v6') || '{}');
+        const stored = storedWorkspace();
         const data = stored.projects?.find(item => item.id === stored.activeProjectId)?.data;
         return { id: data?.boardPresetId, enabled: data?.enabledBoardResources || [] };
       })(),
       hardwareSummary: document.querySelector('#boardHardwareSummary')?.textContent
     });
 
-    createPreset('天猛星3507测试', 'tianmengxing-g3507-pm64');
+    createPreset('天猛星3507测试', 'tianmengxing-g3507-pm64', 'MSPM0G3507');
     const g3507 = capture();
     const defaultSignals = [42, 43, 44, 45, 46]
       .map(number => document.querySelector('[data-pin="' + number + '"] .pin-function-label')?.textContent);
@@ -372,65 +406,58 @@ const expressions = {
       left: markerCheck(1)
     };
 
-    const device = document.querySelector('#deviceSelect');
-    device.value = 'MSPM0G3519';
-    change(device);
-    const mismatchSubtitle = document.querySelector('#canvasSubtitle').textContent;
-
-    createPreset('天猛星3519测试', 'tianmengxing-g3519-pm64');
+    const g3507TemplateLock = templateLock;
+    createPreset('天猛星3519测试', 'tianmengxing-g3519-pm64', 'MSPM0G3519');
+    const g3519TemplateLock = templateLock;
     const g3519 = capture();
     return {
       g3507, g3519, defaultSignals, ledMatches, lcdMatches, unexposedMatches, connectorMatches, changedCheck,
       restoredSignal, assignedAfterClear, markersAfterClear, assignedAfterRestore, boardInfo, openDrainCheck,
-      printCalls, boardReport, markerChecks, mismatchSubtitle, sharedBoardInfo, sharedRouteLabels, sharedPinLabel, sharedPinLabels, boardHardwareText, lcdOnlyAssigned, fixedPinLabel, fixedBoardInfo,
+      printCalls, boardReport, markerChecks, g3507TemplateLock, g3519TemplateLock, sharedBoardInfo, sharedRouteLabels, sharedPinLabel, sharedPinLabels, boardHardwareText, lcdOnlyAssigned, fixedPinLabel, fixedBoardInfo,
       flashActiveMarker, flashInactiveMarker, lcdActiveMarker, lcdInactiveMarker
     };
   })()`,
   'seed-v4-workspace': `(() => {
     const project = {
-      id: 'legacy-v4-project',
-      name: 'v4 本地迁移',
+      id: 'fixed-v7-project',
+      name: 'v7 固定状态恢复',
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
       data: {
-        version: 3,
-        activeDevice: 'MSPM0G3507',
-        theme: 'dark',
+        version: 6,
+        device: 'MSPM0G3507',
+        package: 'PT',
+        boardPresetId: '',
+        enabledBoardResources: [],
         layout: { leftWidth: 275, rightWidth: 355 },
-        devices: {
-          MSPM0G3507: {
-            activePackage: 'PT',
-            packages: { PT: { assignments: { '1': { function: 'UART0_TX', alias: 'v4本地数据', connector: 'J4-1', note: 'storage migration' } } } },
-            views: {}
-          }
-        }
+        view: { zoom: 80, x: 0, y: 0, rotation: 0, initialized: false },
+        assignments: { '1': { function: 'UART0_TX', alias: 'v7本地数据', connector: 'J4-1', note: 'storage restore' } }
       }
     };
-    localStorage.removeItem('mspm0g-pin-planner-v6');
-    localStorage.setItem('mspm0g-pin-planner-v4', JSON.stringify({ version: 4, activeProjectId: project.id, projects: [project] }));
+    localStorage.setItem('mspm0g-pin-planner-v7', JSON.stringify({ version: 7, activeProjectId: project.id, projects: [project] }));
     setTimeout(() => location.reload(), 50);
     return true;
   })()`,
   'migration-v4': `(() => {
-    const stored = JSON.parse(localStorage.getItem('mspm0g-pin-planner-v6') || '{}');
-    const project = stored.projects?.find(item => item.id === stored.activeProjectId);
+    ${fixedProjectHelpers}
+    const stored = storedWorkspace();
+    const project = activeProject();
+    const target = activeTarget();
     return {
       workspaceVersion: stored.version,
       projectVersion: project?.data?.version,
       boardPresetId: project?.data?.boardPresetId,
       projectName: document.querySelector('#projectSelect option:checked')?.textContent,
-      device: document.querySelector('#deviceSelect').value,
-      package: document.querySelector('#packageSelect').value,
+      device: project?.data?.device,
+      package: project?.data?.package,
+      chipDevice: target.chipDevice,
+      chipPackage: target.chipPackage,
       pin: document.querySelector('[data-pin="1"]')?.getAttribute('aria-label')
     };
   })()`,
   layout: `(() => {
-    const device = document.querySelector('#deviceSelect');
-    device.value = 'MSPM0G3507';
-    device.dispatchEvent(new Event('change', { bubbles: true }));
-    const pkg = document.querySelector('#packageSelect');
-    pkg.value = 'PM';
-    pkg.dispatchEvent(new Event('change', { bubbles: true }));
+    ${fixedProjectHelpers}
+    createFixedProject('布局测试', 'MSPM0G3507', 'PM');
     const pin = document.querySelector('[data-pin="17"]');
     pin.click();
     const functionSelect = document.querySelector('#functionSelect');
@@ -462,7 +489,7 @@ const expressions = {
     };
   })()`,
   release: `(() => {
-    const change = element => element.dispatchEvent(new Event('change', { bubbles: true }));
+    ${fixedProjectHelpers}
     const input = element => element.dispatchEvent(new Event('input', { bubbles: true }));
     const projectAction = action => document.querySelector('[data-project-action="' + action + '"]').click();
     const submitProjectName = name => {
@@ -472,20 +499,13 @@ const expressions = {
     };
 
     const projectSelect = document.querySelector('#projectSelect');
-    const originalProjectId = projectSelect.value;
-    projectAction('new');
-    submitProjectName('发布验收');
-    const testProjectId = projectSelect.value;
-
-    const device = document.querySelector('#deviceSelect');
-    device.value = 'MSPM0G3507';
-    change(device);
-    const pkg = document.querySelector('#packageSelect');
-    pkg.value = 'RHB';
-    change(pkg);
+    const originalProjectId = createFixedProject('发布原始工程', 'MSPM0G3519', 'PZ');
+    const originalState = activeTarget();
+    const testProjectId = createFixedProject('发布验收', 'MSPM0G3507', 'RHB');
 
     projectAction('rename');
     submitProjectName('发布验收重命名');
+    const projectCountBeforeDuplicate = projectSelect.options.length;
     projectAction('duplicate');
     const duplicatedProject = projectSelect.options[projectSelect.selectedIndex].textContent;
     const projectCountAfterDuplicate = projectSelect.options.length;
@@ -494,11 +514,10 @@ const expressions = {
     projectAction('delete');
     window.confirm = originalConfirm;
 
-    projectSelect.value = originalProjectId;
-    change(projectSelect);
-    const originalState = { device: device.value, package: pkg.value };
-    projectSelect.value = testProjectId;
-    change(projectSelect);
+    selectProject(originalProjectId);
+    const restoredOriginalState = activeTarget();
+    selectProject(testProjectId);
+    const testState = activeTarget();
 
     const pin = document.querySelector('[aria-label^="Pin 1 PA0"]');
     pin.click();
@@ -533,12 +552,14 @@ const expressions = {
     document.querySelector('#checkBtn').click();
 
     return {
+      projectCountBeforeDuplicate,
       projectCountAfterDuplicate,
       projectCountAfterDelete: projectSelect.options.length,
       duplicatedProject,
       selectedProject: projectSelect.options[projectSelect.selectedIndex].textContent,
       originalState,
-      testState: { device: device.value, package: pkg.value },
+      restoredOriginalState,
+      testState,
       selectedFunction,
       assignedAfterEdit,
       functionAfterUndo,
@@ -554,27 +575,27 @@ const expressions = {
     };
   })()`,
   'import-v4': `(async () => {
+    ${fixedProjectHelpers}
+    if (!activeProject()) createFixedProject('导入前工程', 'MSPM0G3519', 'PM');
     const alerts = [];
     const originalAlert = window.alert;
     window.alert = message => alerts.push(String(message));
     const payload = {
-      schemaVersion: 4,
+      schemaVersion: 7,
+      projectDataVersion: 6,
       kind: 'mspm0-pin-project',
       project: {
-        id: 'fixture-v4-project',
+        id: 'fixture-v7-project',
         name: '新版导入测试',
         data: {
-          version: 3,
-          activeDevice: 'MSPM0G3507',
-          theme: 'dark',
+          version: 6,
+          device: 'MSPM0G3507',
+          package: 'PT',
+          boardPresetId: '',
+          enabledBoardResources: [],
           layout: { leftWidth: 280, rightWidth: 360 },
-          devices: {
-            MSPM0G3507: {
-              activePackage: 'PT',
-              packages: { PT: { assignments: { '1': { function: 'UART0_TX', alias: '新版导入', connector: 'J2-1', note: 'v4 compatibility test' } } } },
-              views: {}
-            }
-          }
+          view: { zoom: 80, x: 0, y: 0, rotation: 0, initialized: false },
+          assignments: { '1': { function: 'UART0_TX', alias: '新版导入', connector: 'J2-1', note: 'v7 import test' } }
         }
       }
     };
@@ -598,9 +619,11 @@ const expressions = {
     alias.dispatchEvent(new Event('input', { bubbles: true }));
     return {
       activeProject: document.querySelector('#projectSelect option:checked')?.textContent,
-      activeDevice: document.querySelector('#deviceSelect').value,
-      activePackage: document.querySelector('#packageSelect').value,
-      packages: [...document.querySelectorAll('#packageSelect option')].map(option => option.value),
+      activeDevice: activeTarget().device,
+      activePackage: activeTarget().package,
+      chipDevice: activeTarget().chipDevice,
+      chipPackage: activeTarget().chipPackage,
+      projectVersion: activeProject()?.data?.version,
       pin: document.querySelector('[aria-label^="Pin 1 PA0"]')?.getAttribute('aria-label'),
       alert: alerts[0],
       focusAfterImport,
@@ -610,6 +633,11 @@ const expressions = {
     };
   })()`,
   'import-v3': `(async () => {
+    ${fixedProjectHelpers}
+    if (!activeProject()) createFixedProject('旧格式拒绝基线', 'MSPM0G3519', 'PM');
+    const before = storedWorkspace();
+    const beforeCount = before.projects?.length || 0;
+    const beforeActiveProjectId = before.activeProjectId;
     const alerts = [];
     const originalAlert = window.alert;
     window.alert = message => alerts.push(String(message));
@@ -627,17 +655,19 @@ const expressions = {
     input.dispatchEvent(new Event('change', { bubbles: true }));
     await new Promise(resolve => setTimeout(resolve, 150));
     window.alert = originalAlert;
+    const after = storedWorkspace();
     return {
-      activeProject: document.querySelector('#projectSelect option:checked')?.textContent,
-      activeDevice: document.querySelector('#deviceSelect').value,
-      activePackage: document.querySelector('#packageSelect').value,
-      packages: [...document.querySelectorAll('#packageSelect option')].map(option => option.value),
-      pin: document.querySelector('[aria-label^="Pin 1 PA0"]')?.getAttribute('aria-label'),
-      assigned: Number(document.querySelector('#assignedCount').textContent),
+      beforeCount,
+      afterCount: after.projects?.length || 0,
+      beforeActiveProjectId,
+      afterActiveProjectId: after.activeProjectId,
+      activeTarget: activeTarget(),
       alert: alerts[0]
     };
   })()`,
   print: `(() => {
+    ${fixedProjectHelpers}
+    if (!activeProject()) createFixedProject('打印测试', 'MSPM0G3519', 'PM');
     let printCalls = 0;
     const originalPrint = window.print;
     window.print = () => { printCalls += 1; };
@@ -660,15 +690,17 @@ async function main() {
     if (result.url !== 'app://mspm0/index.html') throw new Error('Unexpected application URL');
     if (!result.bridge || !result.focusBridge) throw new Error('Desktop bridge is incomplete');
     if (!result.devices.includes('MSPM0G3507') || !result.devices.includes('MSPM0G3519')) throw new Error('Device list is incomplete');
-    if (!result.packages.includes('RHB') || !result.packages.includes('RGZ')) throw new Error('MSPM0G3519 VQFN package list is incomplete');
+    if (!['RHB', 'RGZ', 'PT', 'PM', 'PN', 'PZ'].every(code => result.packagesByDevice.MSPM0G3519?.includes(code))) throw new Error('MSPM0G3519 package list is incomplete');
+    if (!['RHB', 'RGZ', 'PT', 'PM'].every(code => result.packagesByDevice.MSPM0G3507?.includes(code))) throw new Error('MSPM0G3507 package list is incomplete');
+    if (!result.fixedTargetSelectorsMissing || !result.chipTextPresent) throw new Error('Fixed project target interface is incomplete');
     if (result.hasThemeToggle || result.colorScheme !== 'dark') throw new Error('Night-only interface is not active');
     if (result.projectActions !== 5 || result.exportActions !== 7 || !result.hasAbout || !result.hasCheck) throw new Error('Candidate feature controls are incomplete');
   }
-  if (mode === 'write' && (result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'RHB' || !result.packages.includes('RGZ') || !result.saved)) {
-    throw new Error('MSPM0G3507 VQFN state was not saved');
+  if (mode === 'write' && (result.storedDevice !== 'MSPM0G3507' || result.storedPackage !== 'RHB' || result.target.device !== 'MSPM0G3507' || result.target.package !== 'RHB' || result.projectVersion !== 6 || !result.saved)) {
+    throw new Error('MSPM0G3507 fixed VQFN state was not saved');
   }
-  if (mode === 'restore' && (result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'RHB' || !result.saved)) {
-    throw new Error('Desktop state was not restored');
+  if (mode === 'restore' && (result.storedDevice !== 'MSPM0G3507' || result.storedPackage !== 'RHB' || result.target.device !== 'MSPM0G3507' || result.target.package !== 'RHB' || result.projectVersion !== 6 || !result.saved)) {
+    throw new Error('Desktop fixed project state was not restored');
   }
   if (mode === 'defaults') {
     const expectedPins = {
@@ -736,7 +768,7 @@ async function main() {
     ];
     expected.forEach(([device, packageCode, pinCount, firstPin, lastPin], index) => {
       const item = result[index];
-      if (item?.device !== device || item?.package !== packageCode || item?.pinCount !== pinCount || !item?.options.includes('RHB') || !item?.options.includes('RGZ') || !item?.title?.includes(`${packageCode}-${pinCount} VQFN`) || item?.chipPackage !== `${packageCode}-${pinCount} VQFN` || !item?.firstPin?.includes(firstPin) || !item?.lastPin?.includes(lastPin)) {
+      if (item?.device !== device || item?.package !== packageCode || item?.chipDevice !== device || item?.pinCount !== pinCount || !item?.title?.includes(`${packageCode}-${pinCount} VQFN`) || !item?.chipPackage?.includes(`${packageCode}-${pinCount} VQFN`) || !item?.firstPin?.includes(firstPin) || !item?.lastPin?.includes(lastPin)) {
         throw new Error(`${device} ${packageCode} VQFN package smoke test failed`);
       }
     });
@@ -799,29 +831,41 @@ async function main() {
       || !result.boardReport.includes('板载 SPI Flash[未启用]=MOSI')
       || !result.boardReport.includes('外接 H8 LCD/OLED 接口[未启用]=SDA')
       || !markersReadable
-      || !result.mismatchSubtitle.includes('模板对应 MSPM0G3507 PM-64')
+      || result.g3507TemplateLock.device !== 'MSPM0G3507'
+      || result.g3507TemplateLock.package !== 'PM'
+      || !result.g3507TemplateLock.deviceDisabled
+      || !result.g3507TemplateLock.packageDisabled
+      || !result.g3507TemplateLock.hint.includes('不能修改')
+      || result.g3519TemplateLock.device !== 'MSPM0G3519'
+      || result.g3519TemplateLock.package !== 'PM'
+      || !result.g3519TemplateLock.deviceDisabled
+      || !result.g3519TemplateLock.packageDisabled
     ) throw new Error(`Tianmengxing workflow failed: ${JSON.stringify(result)}`);
   }
   if (mode === 'migration-v4' && (
-    result.workspaceVersion !== 6
-    || result.projectVersion !== 5
+    result.workspaceVersion !== 7
+    || result.projectVersion !== 6
     || result.boardPresetId !== ''
-    || result.projectName !== 'v4 本地迁移'
+    || result.projectName !== 'v7 固定状态恢复'
     || result.device !== 'MSPM0G3507'
     || result.package !== 'PT'
+    || result.chipDevice !== 'MSPM0G3507'
+    || !result.chipPackage?.includes('PT')
     || !result.pin?.includes('UART0_TX')
-    || !result.pin?.includes('v4本地数据')
-  )) throw new Error(`Version 4 workspace migration failed: ${JSON.stringify(result)}`);
+    || !result.pin?.includes('v7本地数据')
+  )) throw new Error(`Version 7 fixed workspace restore failed: ${JSON.stringify(result)}`);
   if (mode === 'layout' && (!result.pin.includes('TIMG6_C0') || !result.pin.includes('TMC2209_1_STEP') || result.gap < 3 || result.visualGap < 3 || result.visualGap > 24 || !result.contained || result.trackHeight !== 210 || result.labelTrackLength !== 132 || result.turnDirection !== -1 || result.buttonHeight / result.labelHeight < 1.5)) {
     throw new Error(`Bottom pin label layout failed: ${JSON.stringify(result)}`);
   }
   if (mode === 'release' && (
-    result.projectCountAfterDuplicate !== 3
-    || result.projectCountAfterDelete !== 2
+    result.projectCountAfterDuplicate !== result.projectCountBeforeDuplicate + 1
+    || result.projectCountAfterDelete !== result.projectCountBeforeDuplicate
     || !result.duplicatedProject.includes('副本')
     || result.selectedProject !== '发布验收重命名'
     || result.originalState.device !== 'MSPM0G3519'
     || result.originalState.package !== 'PZ'
+    || result.restoredOriginalState.device !== result.originalState.device
+    || result.restoredOriginalState.package !== result.originalState.package
     || result.testState.device !== 'MSPM0G3507'
     || result.testState.package !== 'RHB'
     || !result.selectedFunction
@@ -839,11 +883,11 @@ async function main() {
   )) {
     throw new Error(`Release workflow smoke test failed: ${JSON.stringify(result)}`);
   }
-  if (mode === 'import-v4' && (result.activeProject !== '新版导入测试' || result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'PT' || !result.packages.includes('RHB') || !result.packages.includes('RGZ') || !result.pin?.includes('UART0_TX') || result.assigned !== 1 || result.focusAfterImport !== 'searchInput' || result.searchMatches.length !== 1 || result.searchMatches[0] !== 'PA0' || !result.editedPin?.includes('导入后输入'))) {
-    throw new Error('Version 4 project import failed');
+  if (mode === 'import-v4' && (result.activeProject !== '新版导入测试' || result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'PT' || result.chipDevice !== 'MSPM0G3507' || !result.chipPackage?.includes('PT') || result.projectVersion !== 6 || !result.pin?.includes('UART0_TX') || result.assigned !== 1 || result.focusAfterImport !== 'searchInput' || result.searchMatches.length !== 1 || result.searchMatches[0] !== 'PA0' || !result.editedPin?.includes('导入后输入') || !result.alert?.includes('已导入'))) {
+    throw new Error('Version 7/project data 6 import failed');
   }
-  if (mode === 'import-v3' && (result.activeProject !== 'import-v3' || result.activeDevice !== 'MSPM0G3507' || result.activePackage !== 'PT' || !result.packages.includes('RHB') || !result.packages.includes('RGZ') || !result.pin?.includes('UART0_TX') || result.assigned !== 1 || !result.pin?.includes('旧版导入'))) {
-    throw new Error('Version 3 project import failed');
+  if (mode === 'import-v3' && (result.afterCount !== result.beforeCount || result.afterActiveProjectId !== result.beforeActiveProjectId || !result.alert?.includes('不支持'))) {
+    throw new Error('Legacy version 3 project was not rejected cleanly');
   }
   if (mode === 'print' && (result.printCalls !== 1 || !result.report.includes('MSPM0 引脚规划报告') || !result.report.includes('非 TI 官方工具'))) {
     throw new Error('Print report generation failed');

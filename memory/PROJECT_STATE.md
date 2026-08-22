@@ -6,7 +6,7 @@
 
 - 当前正式版本与最新正式标签：`1.2.2` / `v1.2.2`。
 - 正式归档：`releases/v1.0.0` 至 `releases/v1.2.2`，历史版本完整保留。
-- 当前候选版本：`1.3.0-beta.9`。
+- 当前候选版本：`1.3.0-beta.10`。
 - 当前门禁：默认仅生成离线 HTML，等待用户目视确认；除非用户明确说“发布”，不生成候选文件夹版、便携 EXE 或正式 `v1.3.0`。
 - 当前候选 HTML：`outputs/mspm0g3519-pin-planner.html`。
 
@@ -21,22 +21,22 @@
 ## 兼容基线
 
 - Electron 内部地址：`app://mspm0/index.html`。
-- 本地存储：workspace v6、project v5，工程可选保存 `boardPresetId` 和 `enabledBoardResources`；v4/v5 工作区及旧 JSON 可读取。
+- 本地存储：workspace v7、project data v6；每个工程固定保存一个 `device/package`，并可保存 `boardPresetId` 和 `enabledBoardResources`。软件尚未投入使用，本候选不读取旧预发布工作区或 JSON。
 - 用户数据保存在当前电脑的 Electron 用户数据目录，不随程序移动。
 - 依赖版本：Electron `31.7.7`、electron-builder `24.13.3`。
 
 ## 最近验证
 
-- `1.3.0-beta.9` 为全部四种 CSV 导出增加公式文字保护：以 `=、+、-、@` 开头或前置空白后出现这些符号的单元格按普通文本导出，不改写工程或 JSON 中的原始文字。
-- `1.3.0-beta.8` 的板卡资源关闭修复继续保留：只释放预设功能，保留用户标签、连接器、备注和用户改选功能；共享 SPI1 会等最后一个资源关闭后再释放。
-- `build-web.cmd` 会自动运行芯片清单、可扩展板卡校验、v1-v6 迁移、新工程默认、搜索、板卡资源/共享总线、规划报告、撤销历史、JSON/四种 CSV 导出和内联构建保护。
-- 未运行本轮 Electron 全量烟雾测试；当前候选等待用户检查 CSV 在常用表格软件中的显示。
+- `1.3.0-beta.10` 将每个工程固定为一个芯片型号和一个封装；目标只在新建工程时选择，开发板模板会自动锁定对应目标，顶部切换控件已删除。
+- 首次启动没有 v7 工程时必须先完成新建工程；工程数据改为单目标 workspace v7/project data v6，旧预发布存储键保留但不读取。
+- `build-web.cmd` 会自动运行芯片清单、板卡校验、固定目标创建/加载/导入导出、新工程默认、搜索、板卡资源/共享总线、规划报告、撤销历史、四种 CSV 和内联构建保护。
+- 未运行本轮 Electron 全量烟雾测试；当前候选等待用户目视检查新建工程、模板锁定和多工程切换。
 
 ## 工作区
 
 - 正式工作区：`<WORKSPACE>`。
-- 候选功能检查点：`1.3.0-beta.9` 源码检查点，不创建正式标签。
-- Git 远程 `origin` 已配置为 `https://github.com/ww2186874-cyber/TI_Planner.git`；全部正式标签已推送，当前 `1.3.0-beta.9` 候选提交保留在本地 `main`，尚未推送至 `origin/main`。
-- `outputs/` 只保留当前 `1.3.0-beta.9` HTML 和 `.gitkeep`；旧候选及已有正式版本副本已清理，正式版本仍完整保存在 `releases/`。
+- 候选功能检查点：`1.3.0-beta.10` 源码检查点，不创建正式标签。
+- Git 远程 `origin` 已配置为 `https://github.com/ww2186874-cyber/TI_Planner.git`；全部正式标签已推送，当前 `1.3.0-beta.10` 候选提交保留在本地 `main`，尚未推送至 `origin/main`。
+- `outputs/` 只保留当前 `1.3.0-beta.10` HTML 和 `.gitkeep`；旧候选及已有正式版本副本已清理，正式版本仍完整保存在 `releases/`。
 - `.tmp/` 已移除隔离测试用户目录和可重建产物，保留目前仅存的芯片数据手册、原理图/EDA 参考资料及引脚规划转换文件。
 - `.pnpm-store/`、`.cache/`、`desktop/node_modules/` 和全部 `releases/` 必须长期保留。

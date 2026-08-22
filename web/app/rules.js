@@ -113,13 +113,6 @@ function planIssues() {
         detail: `${value.function} 具有输出方向。使用前请核对天猛星板上的参考电压选择、滤波与焊接配置。`
       });
     });
-  } else if (currentBoardPreset()) {
-    const preset = currentBoardPreset();
-    issues.push({
-      severity: 'info',
-      title: '当前视图不适用天猛星板卡标注',
-      detail: `此工程模板对应 ${preset.device} ${preset.package}-64；切回对应芯片和封装即可恢复板卡标注。现有引脚安排未被删除。`
-    });
   }
 
   const fixedPins = pkg.pins.filter(pin => pin.fixed);
@@ -277,32 +270,105 @@ function pinMatches(pin, conflicts) {
   return filterMatch && categoryMatch && resourceMatch && searchMatch;
 }
 
-function uniqueProjectName(base) {
+function uniqueProjectName(baseValue) {
+  const base = String(baseValue || '工程').slice(0, 48);
   const names = new Set(workspace.projects.map(project => project.name.toLowerCase()));
   if (!names.has(base.toLowerCase())) return base;
   let index = 2;
-  while (names.has(`${base} ${index}`.toLowerCase())) index += 1;
-  return `${base} ${index}`;
+  let result = '';
+  do {
+    const suffix = ` ${index}`;
+    result = `${base.slice(0, 48 - suffix.length)}${suffix}`;
+    index += 1;
+  } while (names.has(result.toLowerCase()));
+  return result;
+}
+
+function updateProjectPackageOptions(preferredPackage = '') {
+  const device = elements.projectDeviceSelect.value;
+  const codes = packageOrder(device);
+  elements.projectPackageSelect.replaceChildren(...codes.map(code => {
+    const option = document.createElement('option');
+    option.value = code;
+    option.textContent = DEVICE_DATA[device].packages[code].label;
+    return option;
+  }));
+  elements.projectPackageSelect.value = codes.includes(preferredPackage)
+    ? preferredPackage
+    : DEVICE_CONFIG[device].defaultPackage;
+}
+
+function updateProjectCreationTarget() {
+  const preset = BOARD_PRESETS.presets[elements.projectTemplateSelect.value];
+  if (preset) {
+    elements.projectDeviceSelect.value = preset.device;
+    updateProjectPackageOptions(preset.package);
+    elements.projectDeviceSelect.disabled = true;
+    elements.projectPackageSelect.disabled = true;
+    elements.projectTargetHint.textContent = '芯片型号和封装由所选开发板模板固定，工程创建后不能修改。';
+    return;
+  }
+  elements.projectDeviceSelect.disabled = false;
+  elements.projectPackageSelect.disabled = false;
+  updateProjectPackageOptions(elements.projectPackageSelect.value);
+  elements.projectTargetHint.textContent = '芯片型号和封装在工程创建后不能修改。';
+}
+
+function prepareProjectCreationFields() {
+  const blank = document.createElement('option');
+  blank.value = '';
+  blank.textContent = '空白工程';
+  const presets = Object.values(BOARD_PRESETS.presets).map(preset => {
+    const option = document.createElement('option');
+    option.value = preset.id;
+    option.textContent = preset.name;
+    return option;
+  });
+  elements.projectTemplateSelect.replaceChildren(blank, ...presets);
+  elements.projectDeviceSelect.replaceChildren(...DEVICE_ORDER.map(device => {
+    const option = document.createElement('option');
+    option.value = device;
+    option.textContent = device;
+    return option;
+  }));
+  elements.projectTemplateSelect.value = '';
+  elements.projectDeviceSelect.value = DEVICE_ORDER[0];
+  updateProjectCreationTarget();
+}
+
+function projectCreationRequired() {
+  return projectDialogMode === 'new' && workspace.projects.length === 0;
 }
 
 function createNewProject() {
+  try {
+    ensureProjectCapacity();
+  } catch (error) {
+    window.alert(error.message);
+    return;
+  }
   const suggested = uniqueProjectName('新工程');
   projectDialogMode = 'new';
   elements.projectDialogTitle.textContent = '新建工程';
   elements.projectNameInput.value = suggested;
-  elements.projectPresetField.classList.remove('hidden');
-  elements.projectPresetSelect.value = '';
-  elements.projectDialog.showModal();
+  elements.projectCreationFields.classList.remove('hidden');
+  elements.projectDialogClose.classList.toggle('hidden', workspace.projects.length === 0);
+  elements.projectDialogCancel.classList.toggle('hidden', workspace.projects.length === 0);
+  prepareProjectCreationFields();
+  if (!elements.projectDialog.open) elements.projectDialog.showModal();
   elements.projectNameInput.focus();
   elements.projectNameInput.select();
 }
 
 function renameCurrentProject() {
   const project = currentProjectRecord();
+  if (!project) return;
   projectDialogMode = 'rename';
   elements.projectDialogTitle.textContent = '重命名工程';
   elements.projectNameInput.value = project.name;
-  elements.projectPresetField.classList.add('hidden');
+  elements.projectCreationFields.classList.add('hidden');
+  elements.projectDialogClose.classList.remove('hidden');
+  elements.projectDialogCancel.classList.remove('hidden');
   elements.projectDialog.showModal();
   elements.projectNameInput.focus();
   elements.projectNameInput.select();
@@ -310,6 +376,13 @@ function renameCurrentProject() {
 
 function duplicateCurrentProject() {
   const source = currentProjectRecord();
+  if (!source) return;
+  try {
+    ensureProjectCapacity();
+  } catch (error) {
+    window.alert(error.message);
+    return;
+  }
   const project = createProject(uniqueProjectName(`${source.name} 副本`), normalizeLoaded(JSON.parse(JSON.stringify(state))));
   workspace.projects.push(project);
   workspace.activeProjectId = project.id;
@@ -402,10 +475,7 @@ function setBoardResourceEnabled(resourceId, enabled) {
 
 function restoreBoardDefaults() {
   if (!isBoardApplicable()) {
-    const preset = currentBoardPreset();
-    window.alert(preset
-      ? `此模板对应 ${preset.device} ${preset.package}-64，请先切换到对应芯片和封装。`
-      : '当前工程没有板卡模板。');
+    window.alert('当前工程没有可恢复的开发板模板。');
     return;
   }
   const board = currentBoard();

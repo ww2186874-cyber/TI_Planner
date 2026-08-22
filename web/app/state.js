@@ -1,5 +1,5 @@
 const elements = Object.fromEntries([
-  'projectSelect', 'projectMenuBtn', 'projectMenu', 'deviceSelect', 'packageSelect', 'undoBtn', 'redoBtn', 'importBtn', 'importFile',
+  'projectSelect', 'projectMenuBtn', 'projectMenu', 'undoBtn', 'redoBtn', 'importBtn', 'importFile',
   'exportMenuBtn', 'exportMenu', 'checkBtn', 'checkBadge', 'aboutBtn', 'resetBtn', 'saveState',
   'packagePinCount', 'assignedCount', 'unassignedCount', 'fixedCount', 'systemCount', 'conflictCount', 'searchInput',
   'filterTabs', 'categoryList', 'sidebarViewTabs', 'sidebarTitle', 'pinPanel', 'resourcePanel', 'resourceSummary',
@@ -9,7 +9,7 @@ const elements = Object.fromEntries([
   'inspectorEmpty', 'inspectorContent', 'pinTitle', 'pinSubtitle', 'pinStatus', 'physicalPin', 'logicalPin',
   'iomuxRegister', 'bufferType', 'editableFields', 'functionSelect', 'functionInfo', 'aliasInput', 'connectorInput', 'noteInput',
   'conflictBox', 'clearPinBtn', 'fixedBox', 'leftResizer', 'rightResizer', 'sourceFooter',
-  'boardInfoBox', 'boardInfoTitle', 'boardInfoStatus', 'boardInfoMeta', 'boardRouteList', 'boardInfoSharedNote', 'boardInfoDetail', 'checkDialog', 'checkDialogBody', 'projectDialog', 'projectDialogTitle', 'projectForm', 'projectNameInput', 'projectPresetField', 'projectPresetSelect',
+  'boardInfoBox', 'boardInfoTitle', 'boardInfoStatus', 'boardInfoMeta', 'boardRouteList', 'boardInfoSharedNote', 'boardInfoDetail', 'checkDialog', 'checkDialogBody', 'projectDialog', 'projectDialogTitle', 'projectForm', 'projectNameInput', 'projectCreationFields', 'projectTemplateSelect', 'projectDeviceSelect', 'projectPackageSelect', 'projectTargetHint', 'projectDialogClose', 'projectDialogCancel',
   'aboutDialog', 'aboutDialogBody', 'printReport'
 ].map(id => [id, document.getElementById(id)]));
 
@@ -26,10 +26,10 @@ let resizeState = null;
 let projectDialogMode = 'new';
 const historyByProject = new Map();
 let workspace = loadWorkspace();
-let state = currentProjectRecord().data;
+let state = currentProjectRecord()?.data || null;
 
-function packageOrder(device = state?.activeDevice || DEVICE_ORDER[0]) { return DEVICE_CONFIG[device].packageOrder; }
-function resourceCatalog(device = state?.activeDevice || DEVICE_ORDER[0]) { return RESOURCE_CATALOGS[device]; }
+function packageOrder(device = state?.device || DEVICE_ORDER[0]) { return DEVICE_CONFIG[device].packageOrder; }
+function resourceCatalog(device = state?.device || DEVICE_ORDER[0]) { return RESOURCE_CATALOGS[device]; }
 function emptyView(device, code) {
   return { zoom: DEVICE_CONFIG[device].defaultZoom[code], x: 0, y: 0, rotation: 0, initialized: false };
 }
@@ -48,44 +48,51 @@ function defaultAssignments(device, code) {
   return output;
 }
 
-function createDeviceState(device) {
-  const codes = DEVICE_CONFIG[device].packageOrder;
-  return {
-    activePackage: DEVICE_CONFIG[device].defaultPackage,
-    views: Object.fromEntries(codes.map(code => [code, emptyView(device, code)])),
-    packages: Object.fromEntries(codes.map(code => [code, { assignments: defaultAssignments(device, code) }]))
-  };
+function isValidProjectTarget(device, packageCode) {
+  return DEVICE_ORDER.includes(device) && packageOrder(device).includes(packageCode);
 }
 
-function createEmptyState() {
+function resolveProjectTarget({ templateId = '', device, packageCode }) {
+  if (templateId) {
+    const preset = BOARD_PRESETS.presets[templateId];
+    if (!preset) throw new Error('所选模板不存在。');
+    if (device !== preset.device || packageCode !== preset.package) throw new Error('芯片型号或封装与所选模板不匹配。');
+    if (!isValidProjectTarget(preset.device, preset.package)) throw new Error('模板指定的芯片型号或封装不可用。');
+    return { templateId, device: preset.device, package: preset.package };
+  }
+  if (!isValidProjectTarget(device, packageCode)) throw new Error('请选择有效的芯片型号和封装。');
+  return { templateId: '', device, package: packageCode };
+}
+
+function createProjectState(device, packageCode) {
+  if (!isValidProjectTarget(device, packageCode)) throw new Error('无法为无效的芯片型号或封装创建工程。');
   return {
     version: PROJECT_DATA_VERSION,
+    device,
+    package: packageCode,
     boardPresetId: '',
     enabledBoardResources: [],
-    activeDevice: 'MSPM0G3519',
     layout: { leftWidth: 250, rightWidth: 330 },
-    devices: Object.fromEntries(DEVICE_ORDER.map(device => [device, createDeviceState(device)]))
+    view: emptyView(device, packageCode),
+    assignments: defaultAssignments(device, packageCode)
   };
 }
 
 function createPresetState(presetId) {
   const preset = BOARD_PRESETS.presets[presetId];
   const board = preset && BOARD_PRESETS.boards[preset.boardId];
-  if (!preset || !board) return createEmptyState();
-  const data = createEmptyState();
+  if (!preset || !board || !isValidProjectTarget(preset.device, preset.package)) throw new Error('所选模板不可用。');
+  const data = createProjectState(preset.device, preset.package);
   data.boardPresetId = presetId;
-  data.activeDevice = preset.device;
-  data.devices[preset.device].activePackage = preset.package;
-  const target = data.devices[preset.device].packages[preset.package].assignments;
-  Object.keys(target).forEach(number => delete target[number]);
+  data.assignments = {};
   const pins = new Map(DEVICE_DATA[preset.device].packages[preset.package].pins.map(pin => [String(pin.number), pin]));
   Object.entries(board.fixedDefaults || {}).forEach(([number, signal]) => {
-    if (pins.get(number)?.functions.some(fn => fn.signal === signal)) target[number] = emptyAssignment(signal);
+    if (pins.get(number)?.functions.some(fn => fn.signal === signal)) data.assignments[number] = emptyAssignment(signal);
   });
   const defaultResources = (board.resources || []).filter(resource => resource.defaultEnabled === true);
   data.enabledBoardResources = defaultResources.map(resource => resource.id);
   defaultResources.forEach(resource => Object.entries(resource.assignments || {}).forEach(([number, signal]) => {
-    if (pins.get(number)?.functions.some(fn => fn.signal === signal)) target[number] = emptyAssignment(signal);
+    if (pins.get(number)?.functions.some(fn => fn.signal === signal)) data.assignments[number] = emptyAssignment(signal);
   }));
   return data;
 }
@@ -95,14 +102,23 @@ function createId() {
   return `project-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function createProject(name = '默认工程', data = createEmptyState()) {
+function createProject(name, data) {
+  if (!data || data.version !== PROJECT_DATA_VERSION || !isValidProjectTarget(data.device, data.package)) {
+    throw new Error('创建工程时缺少有效的芯片和封装。');
+  }
   const now = new Date().toISOString();
   return { id: createId(), name: String(name || '未命名工程').slice(0, 48), createdAt: now, updatedAt: now, data };
 }
 
-function createWorkspace(data = createEmptyState()) {
-  const project = createProject('默认工程', data);
-  return { version: SCHEMA_VERSION, activeProjectId: project.id, projects: [project] };
+function createWorkspace() {
+  return { version: SCHEMA_VERSION, activeProjectId: '', projects: [] };
+}
+
+function ensureProjectCapacity(additionalCount = 1) {
+  const count = Number(additionalCount);
+  if (!Number.isSafeInteger(count) || count < 0 || workspace.projects.length + count > MAX_PROJECTS) {
+    throw new Error(`最多只能保留 ${MAX_PROJECTS} 个工程。`);
+  }
 }
 
 function sanitizeAssignments(device, packageCode, assignments) {
@@ -124,9 +140,9 @@ function sanitizeAssignments(device, packageCode, assignments) {
   return { assignments: output, skipped };
 }
 
-function sanitizeView(device, code, value, legacyZoom) {
+function sanitizeView(device, code, value) {
   const defaultZoom = DEVICE_CONFIG[device].defaultZoom[code];
-  const zoom = Math.min(180, Math.max(35, Number(value?.zoom ?? legacyZoom ?? defaultZoom) || defaultZoom));
+  const zoom = Math.min(180, Math.max(35, Number(value?.zoom ?? defaultZoom) || defaultZoom));
   return {
     zoom,
     x: Number.isFinite(Number(value?.x)) ? Number(value.x) : 0,
@@ -134,17 +150,6 @@ function sanitizeView(device, code, value, legacyZoom) {
     rotation: [0, 90, 180, 270].includes(Number(value?.rotation)) ? Number(value.rotation) : 0,
     initialized: Boolean(value?.initialized)
   };
-}
-
-function normalizeDeviceState(device, parsed, legacy = false) {
-  const empty = createDeviceState(device);
-  const codes = DEVICE_CONFIG[device].packageOrder;
-  empty.activePackage = codes.includes(parsed?.activePackage) ? parsed.activePackage : DEVICE_CONFIG[device].defaultPackage;
-  codes.forEach(code => {
-    empty.packages[code].assignments = sanitizeAssignments(device, code, parsed?.packages?.[code]?.assignments || {}).assignments;
-    empty.views[code] = sanitizeView(device, code, parsed?.views?.[code], legacy ? parsed?.zoom?.[code] : undefined);
-  });
-  return empty;
 }
 
 function normalizeBoardResourceIds(boardPresetId, parsed) {
@@ -156,66 +161,65 @@ function normalizeBoardResourceIds(boardPresetId, parsed) {
 }
 
 function normalizeLoaded(parsed) {
-  const empty = createEmptyState();
-  empty.boardPresetId = BOARD_PRESETS.presets[parsed?.boardPresetId] ? parsed.boardPresetId : '';
-  empty.enabledBoardResources = normalizeBoardResourceIds(empty.boardPresetId, parsed);
-  empty.activeDevice = DEVICE_ORDER.includes(parsed?.activeDevice) ? parsed.activeDevice : 'MSPM0G3519';
-  empty.layout.leftWidth = Math.min(460, Math.max(190, Number(parsed?.layout?.leftWidth) || 250));
-  empty.layout.rightWidth = Math.min(540, Math.max(260, Number(parsed?.layout?.rightWidth) || 330));
-  DEVICE_ORDER.forEach(device => { empty.devices[device] = normalizeDeviceState(device, parsed?.devices?.[device]); });
-  return empty;
+  if (parsed?.version !== PROJECT_DATA_VERSION) throw new Error('工程数据版本不受支持。');
+  const device = parsed.device;
+  const packageCode = parsed.package;
+  if (!isValidProjectTarget(device, packageCode)) throw new Error('工程的芯片型号或封装无效。');
+  const preset = BOARD_PRESETS.presets[parsed.boardPresetId];
+  const boardPresetId = preset && preset.device === device && preset.package === packageCode ? preset.id : '';
+  return {
+    version: PROJECT_DATA_VERSION,
+    device,
+    package: packageCode,
+    boardPresetId,
+    enabledBoardResources: normalizeBoardResourceIds(boardPresetId, parsed),
+    layout: {
+      leftWidth: Math.min(460, Math.max(190, Number(parsed?.layout?.leftWidth) || 250)),
+      rightWidth: Math.min(540, Math.max(260, Number(parsed?.layout?.rightWidth) || 330))
+    },
+    view: sanitizeView(device, packageCode, parsed.view),
+    assignments: sanitizeAssignments(device, packageCode, parsed.assignments).assignments
+  };
 }
 
 function normalizeProject(project, index = 0) {
   const now = new Date().toISOString();
-  const data = normalizeLoaded(project?.data || project || {});
   return {
     id: String(project?.id || createId()),
     name: String(project?.name || `工程 ${index + 1}`).slice(0, 48),
     createdAt: String(project?.createdAt || now),
     updatedAt: String(project?.updatedAt || now),
-    data
+    data: normalizeLoaded(project?.data)
   };
 }
 
 function normalizeWorkspace(parsed) {
-  const projects = Array.isArray(parsed?.projects) && parsed.projects.length
-    ? parsed.projects.slice(0, 40).map(normalizeProject)
-    : [createProject()];
-  const activeProjectId = projects.some(project => project.id === parsed?.activeProjectId)
+  if (parsed?.version !== SCHEMA_VERSION) return createWorkspace();
+  const projects = [];
+  const ids = new Set();
+  (Array.isArray(parsed.projects) ? parsed.projects.slice(0, MAX_PROJECTS) : []).forEach((project, index) => {
+    try {
+      const normalized = normalizeProject(project, index);
+      if (ids.has(normalized.id)) normalized.id = createId();
+      ids.add(normalized.id);
+      projects.push(normalized);
+    } catch { /* ignore invalid prerelease projects */ }
+  });
+  const activeProjectId = projects.some(project => project.id === parsed.activeProjectId)
     ? parsed.activeProjectId
-    : projects[0].id;
+    : projects[0]?.id || '';
   return { version: SCHEMA_VERSION, activeProjectId, projects };
-}
-
-function migrateLegacy(parsed, legacy = false) {
-  const empty = createEmptyState();
-  empty.layout.leftWidth = Math.min(460, Math.max(190, Number(parsed?.layout?.leftWidth) || 250));
-  empty.layout.rightWidth = Math.min(540, Math.max(260, Number(parsed?.layout?.rightWidth) || 330));
-  empty.devices.MSPM0G3519 = normalizeDeviceState('MSPM0G3519', parsed, legacy);
-  return empty;
 }
 
 function loadWorkspace() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (parsed?.version === SCHEMA_VERSION) return normalizeWorkspace(parsed);
-    const legacyV5 = JSON.parse(localStorage.getItem(LEGACY_V5_STORAGE_KEY));
-    if (legacyV5?.version === 5) return normalizeWorkspace(legacyV5);
-    const legacyV4 = JSON.parse(localStorage.getItem(LEGACY_V4_STORAGE_KEY));
-    if (legacyV4?.version === 4) return normalizeWorkspace(legacyV4);
-    const legacyV3 = JSON.parse(localStorage.getItem(LEGACY_V3_STORAGE_KEY));
-    if (legacyV3?.version === 3) return createWorkspace(normalizeLoaded(legacyV3));
-    const legacyV2 = JSON.parse(localStorage.getItem(LEGACY_V2_STORAGE_KEY));
-    if (legacyV2?.version === 2 && legacyV2.device === 'MSPM0G3519') return createWorkspace(migrateLegacy(legacyV2));
-    const legacyV1 = JSON.parse(localStorage.getItem(LEGACY_V1_STORAGE_KEY));
-    if (legacyV1?.version === 1 && legacyV1.device === 'MSPM0G3519') return createWorkspace(migrateLegacy(legacyV1, true));
-  } catch (error) { /* start clean */ }
-  return createWorkspace();
+    return normalizeWorkspace(parsed);
+  } catch { return createWorkspace(); }
 }
 
 function currentProjectRecord() {
-  return workspace.projects.find(project => project.id === workspace.activeProjectId) || workspace.projects[0];
+  return workspace.projects.find(project => project.id === workspace.activeProjectId) || workspace.projects[0] || null;
 }
 
 function activateProject(projectId) {
@@ -229,8 +233,10 @@ function activateProject(projectId) {
 }
 
 function touchProject() {
-  currentProjectRecord().data = state;
-  currentProjectRecord().updatedAt = new Date().toISOString();
+  const project = currentProjectRecord();
+  if (!project || !state) return;
+  project.data = state;
+  project.updatedAt = new Date().toISOString();
 }
 
 function saveState() {
@@ -243,15 +249,14 @@ function saveState() {
   }, 900);
 }
 
-function currentDeviceData() { return DEVICE_DATA[state.activeDevice]; }
-function currentDeviceState() { return state.devices[state.activeDevice]; }
-function currentPackage() { return currentDeviceData().packages[currentDeviceState().activePackage]; }
-function assignments() { return currentDeviceState().packages[currentDeviceState().activePackage].assignments; }
+function currentDeviceData() { return DEVICE_DATA[state.device]; }
+function currentPackage() { return currentDeviceData().packages[state.package]; }
+function assignments() { return state.assignments; }
 function assignmentFor(number) { return assignments()[String(number)] || emptyAssignment(); }
 function selectedPin() { return currentPackage().pins.find(pin => pin.number === selectedPinNumber) || null; }
 function selectedFunction(pin, value) { return pin.functions.find(item => item.signal === value.function) || null; }
 function isMeaningfulAssignment(value) { return Boolean(value.function || value.alias.trim() || value.connector?.trim() || value.note.trim()); }
-function currentView() { return currentDeviceState().views[currentDeviceState().activePackage]; }
+function currentView() { return state.view; }
 function functionCategory(fn) { return DEBUG_SIGNALS.has(fn?.signal) ? 'Debug' : fn?.category || ''; }
 function categoryLabel(category) { return CATEGORY_LABELS[category] || category; }
 function isPortPin(pin) { return /^P[A-Z]\d+$/.test(pin.name); }
@@ -261,7 +266,7 @@ function currentBoardPreset() { return BOARD_PRESETS.presets[state.boardPresetId
 function currentBoard() { const preset = currentBoardPreset(); return preset ? BOARD_PRESETS.boards[preset.boardId] || null : null; }
 function isBoardApplicable() {
   const preset = currentBoardPreset();
-  return Boolean(preset && preset.device === state.activeDevice && preset.package === currentDeviceState().activePackage);
+  return Boolean(preset && preset.device === state.device && preset.package === state.package);
 }
 function boardPinFor(pin) { return isBoardApplicable() ? currentBoard()?.pins?.[String(pin.number)] || null : null; }
 function enabledBoardResourceIds() { return new Set(isBoardApplicable() ? state.enabledBoardResources || [] : []); }

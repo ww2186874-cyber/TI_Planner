@@ -1034,14 +1034,6 @@
             <button class="danger" type="button" data-project-action="delete">删除当前工程</button>
           </div>
         </div>
-        <div class="select-control">
-          <label for="deviceSelect">芯片型号</label>
-          <select id="deviceSelect" aria-label="选择芯片型号"></select>
-        </div>
-        <div class="select-control">
-          <label for="packageSelect">封装</label>
-          <select id="packageSelect" aria-label="选择封装"></select>
-        </div>
       </div>
 
       <div class="toolbar">
@@ -1053,7 +1045,7 @@
           <div class="dropdown-menu hidden" id="exportMenu" role="menu">
             <button type="button" data-export="json">当前工程 JSON</button>
             <button type="button" data-export="workspace">全部工程 JSON</button>
-            <button type="button" data-export="csv">当前封装 CSV</button>
+            <button type="button" data-export="csv">引脚 CSV</button>
             <button type="button" data-export="grouped">外设分组 CSV</button>
             <button type="button" data-export="connector">连接器对应表 CSV</button>
             <button type="button" data-export="kicad">KiCad 网络标签 CSV</button>
@@ -1062,7 +1054,7 @@
         </div>
         <button class="btn" id="checkBtn" type="button">检查 <span id="checkBadge"></span></button>
         <button class="btn" id="aboutBtn" type="button">关于</button>
-        <button class="btn danger" id="resetBtn" type="button">清空当前封装</button>
+        <button class="btn danger" id="resetBtn" type="button">清空引脚安排</button>
         <span class="save-state" id="saveState">已保存</span>
       </div>
       <input class="hidden" id="importFile" type="file" accept="application/json,.json">
@@ -1245,24 +1237,31 @@
       <form class="modal-shell" id="projectForm" method="dialog">
         <div class="modal-header">
           <h2 id="projectDialogTitle">新建工程</h2>
-          <button class="btn small modal-close" type="button" data-close-dialog="projectDialog">关闭</button>
+          <button class="btn small modal-close" id="projectDialogClose" type="button" data-close-dialog="projectDialog">关闭</button>
         </div>
         <div class="modal-body">
           <div class="field">
             <label for="projectNameInput">工程名称</label>
             <input id="projectNameInput" type="text" maxlength="48" autocomplete="off" required>
           </div>
-          <div class="field" id="projectPresetField">
-            <label for="projectPresetSelect">基础模板</label>
-            <select id="projectPresetSelect">
-              <option value="">空白工程</option>
-              <option value="tianmengxing-g3507-pm64">天猛星 · MSPM0G3507 · PM-64</option>
-              <option value="tianmengxing-g3519-pm64">天猛星 · MSPM0G3519 · PM-64</option>
-            </select>
-            <p class="field-hint">模板会预选固定时钟并显示排针、板卡连接和电气限制；其余板卡资源在画布顶部按需启用。</p>
+          <div id="projectCreationFields">
+            <div class="field">
+              <label for="projectTemplateSelect">模板</label>
+              <select id="projectTemplateSelect"></select>
+              <p class="field-hint">开发板模板会固定对应的芯片型号和封装，并加入板卡连接、默认资源和电气限制。</p>
+            </div>
+            <div class="field">
+              <label for="projectDeviceSelect">芯片型号</label>
+              <select id="projectDeviceSelect"></select>
+            </div>
+            <div class="field">
+              <label for="projectPackageSelect">封装</label>
+              <select id="projectPackageSelect"></select>
+              <p class="field-hint" id="projectTargetHint">芯片型号和封装在工程创建后不能修改。</p>
+            </div>
           </div>
           <div class="inspector-actions">
-            <button class="btn" type="button" data-close-dialog="projectDialog">取消</button>
+            <button class="btn" id="projectDialogCancel" type="button" data-close-dialog="projectDialog">取消</button>
             <button class="btn primary" type="submit">确定</button>
           </div>
         </div>

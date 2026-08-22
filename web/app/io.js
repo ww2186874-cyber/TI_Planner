@@ -24,6 +24,7 @@ function exportProjectJson() {
   const project = currentProjectRecord();
   const payload = {
     schemaVersion: SCHEMA_VERSION,
+    projectDataVersion: PROJECT_DATA_VERSION,
     kind: 'mspm0-pin-project',
     exportedAt: new Date().toISOString(),
     project: { ...project, data: state }
@@ -32,7 +33,7 @@ function exportProjectJson() {
 }
 
 function exportWorkspaceJson() {
-  const payload = { ...workspace, exportedAt: new Date().toISOString(), kind: 'mspm0-pin-workspace' };
+  const payload = { ...workspace, projectDataVersion: PROJECT_DATA_VERSION, exportedAt: new Date().toISOString(), kind: 'mspm0-pin-workspace' };
   downloadFile('mspm0-pin-planner-workspace.json', JSON.stringify(payload, null, 2), 'application/json;charset=utf-8');
 }
 
@@ -50,9 +51,9 @@ function exportCsv() {
     const value = assignmentFor(pin.number);
     const fn = selectedFunction(pin, value);
     const boardPin = boardPinFor(pin);
-    rows.push([currentProjectRecord().name, state.activeDevice, pkg.code, isBoardApplicable() ? currentBoard().name : '', pin.number, pin.name, pin.fixed ? pin.name : value.function, value.alias, value.connector, value.note, boardPin?.header || '', boardStatusLabel(boardPin?.status), boardExportDetail(pin), pin.fixed ? 'Power' : functionCategory(fn), fn?.signalType || '', fn ? (fn.iomuxManaged ? fn.pf : fn.pfLabel) : '', pin.iomuxRegister, pin.bufferType]);
+    rows.push([currentProjectRecord().name, state.device, pkg.code, isBoardApplicable() ? currentBoard().name : '', pin.number, pin.name, pin.fixed ? pin.name : value.function, value.alias, value.connector, value.note, boardPin?.header || '', boardStatusLabel(boardPin?.status), boardExportDetail(pin), pin.fixed ? 'Power' : functionCategory(fn), fn?.signalType || '', fn ? (fn.iomuxManaged ? fn.pf : fn.pfLabel) : '', pin.iomuxRegister, pin.bufferType]);
   });
-  downloadFile(`${state.activeDevice.toLowerCase()}-${pkg.code.toLowerCase()}-pin-plan.csv`, '\ufeff' + rows.map(row => row.map(csvEscape).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
+  downloadFile(`${state.device.toLowerCase()}-${pkg.code.toLowerCase()}-pin-plan.csv`, '\ufeff' + rows.map(row => row.map(csvEscape).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
 }
 
 function resourceForSignal(signal) {
@@ -122,7 +123,7 @@ function printReport() {
     : '<p>未发现错误或缺失提醒。</p>';
   elements.printReport.innerHTML = `
     <h1>MSPM0 引脚规划报告</h1>
-    <p>工程：${escapeHtml(project.name)} · 芯片：${escapeHtml(state.activeDevice)} · 封装：${escapeHtml(pkg.label)}${isBoardApplicable() ? ` · 板卡：${escapeHtml(currentBoard().name)}` : ''}</p>
+    <p>工程：${escapeHtml(project.name)} · 芯片：${escapeHtml(state.device)} · 封装：${escapeHtml(pkg.label)}${isBoardApplicable() ? ` · 板卡：${escapeHtml(currentBoard().name)}` : ''}</p>
     <p>生成时间：${escapeHtml(new Date().toLocaleString())} · 软件版本：${escapeHtml(APP_META.version)}</p>
     <p>非 TI 官方工具。本报告仅用于规划，不替代数据手册和电气设计审查。</p>
     <h2>检查摘要</h2>${issueRows}
@@ -145,52 +146,57 @@ function runExport(action) {
   actions[action]?.();
 }
 
-function dataFromLegacyExport(parsed) {
-  if (!DEVICE_ORDER.includes(parsed.device) || ![1, 2, 3].includes(parsed.schemaVersion)) throw new Error('文件不是兼容的 MSPM0G 引脚规划 JSON。');
-  if ([1, 2].includes(parsed.schemaVersion) && parsed.device !== 'MSPM0G3519') throw new Error('旧版 JSON 只支持 MSPM0G3519。');
-  const data = createEmptyState();
-  const device = parsed.device;
-  const deviceState = data.devices[device];
-  const codes = DEVICE_CONFIG[device].packageOrder;
-  let skipped = 0;
-  codes.forEach(code => {
-    const result = sanitizeAssignments(device, code, parsed.packages?.[code]?.assignments || {});
-    deviceState.packages[code].assignments = result.assignments;
-    skipped += result.skipped;
-    if (parsed.schemaVersion >= 2 && parsed.views?.[code]) deviceState.views[code] = sanitizeView(device, code, parsed.views[code]);
-    if (parsed.schemaVersion === 1 && parsed.zoom?.[code]) deviceState.views[code] = sanitizeView(device, code, null, parsed.zoom[code]);
-  });
-  deviceState.activePackage = codes.includes(parsed.activePackage) ? parsed.activePackage : deviceState.activePackage;
-  if (parsed.schemaVersion >= 2) {
-    data.layout.leftWidth = Math.min(460, Math.max(190, Number(parsed.layout?.leftWidth) || data.layout.leftWidth));
-    data.layout.rightWidth = Math.min(540, Math.max(260, Number(parsed.layout?.rightWidth) || data.layout.rightWidth));
-  }
-  data.activeDevice = device;
-  return { data, skipped };
+function projectSourcesFromImportPayload(parsed) {
+  if (parsed?.schemaVersion === SCHEMA_VERSION
+    && parsed.projectDataVersion === PROJECT_DATA_VERSION
+    && parsed.kind === 'mspm0-pin-project'
+    && parsed.project) return [parsed.project];
+  if (parsed?.version === SCHEMA_VERSION
+    && parsed.projectDataVersion === PROJECT_DATA_VERSION
+    && parsed.kind === 'mspm0-pin-workspace'
+    && Array.isArray(parsed.projects)) return parsed.projects;
+  throw new Error('当前预发布版本不支持此工程文件格式。');
 }
 
 async function importJson(file) {
   try {
     const parsed = JSON.parse(await file.text());
-    const imported = [];
-    let skipped = 0;
-    if ([4, 5, SCHEMA_VERSION].includes(parsed?.schemaVersion) && parsed.kind === 'mspm0-pin-project' && parsed.project) {
-      imported.push(normalizeProject({ ...parsed.project, id: createId(), name: uniqueProjectName(parsed.project.name || file.name.replace(/\.json$/i, '')) }));
-    } else if ([4, 5, SCHEMA_VERSION].includes(parsed?.version) && parsed.kind === 'mspm0-pin-workspace' && Array.isArray(parsed.projects)) {
-      parsed.projects.slice(0, 40).forEach(project => imported.push(normalizeProject({ ...project, id: createId(), name: uniqueProjectName(project.name || '导入工程') })));
-    } else {
-      const legacy = dataFromLegacyExport(parsed);
-      skipped = legacy.skipped;
-      imported.push(createProject(uniqueProjectName(file.name.replace(/\.json$/i, '') || '导入工程'), legacy.data));
+    const sourceProjects = projectSourcesFromImportPayload(parsed);
+    if (!sourceProjects.length) throw new Error('文件中没有可导入的工程。');
+    const reservedNames = new Set(workspace.projects.map(project => project.name.toLowerCase()));
+    const reserveName = baseValue => {
+      const base = String(baseValue || '导入工程').slice(0, 48);
+      if (!reservedNames.has(base.toLowerCase())) {
+        reservedNames.add(base.toLowerCase());
+        return base;
+      }
+      let index = 2;
+      let result = '';
+      do {
+        const suffix = ` ${index}`;
+        result = `${base.slice(0, 48 - suffix.length)}${suffix}`;
+        index += 1;
+      } while (reservedNames.has(result.toLowerCase()));
+      reservedNames.add(result.toLowerCase());
+      return result;
+    };
+    const imported = sourceProjects.map((project, index) => normalizeProject({
+      ...project,
+      id: createId(),
+      name: reserveName(project?.name || (index ? '导入工程' : file.name.replace(/\.json$/i, '')))
+    }, index));
+    try {
+      ensureProjectCapacity(imported.length);
+    } catch {
+      throw new Error(`导入后最多只能保留 ${MAX_PROJECTS} 个工程，请先删除不需要的工程。`);
     }
-    if (!imported.length) throw new Error('文件中没有可导入的工程。');
     workspace.projects.push(...imported);
     workspace.activeProjectId = imported[0].id;
     state = imported[0].data;
     resetTransientSelection();
     saveState();
     render();
-    window.alert(`${imported.length} 个工程已导入为新工程${skipped ? `，忽略 ${skipped} 条不兼容记录` : ''}。`);
+    window.alert(`${imported.length} 个工程已导入为新工程。`);
   } catch (error) {
     window.alert(error.message || 'JSON 导入失败。');
   } finally {

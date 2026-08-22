@@ -2,25 +2,33 @@ function installTestApi() {
   globalThis.__MSPM0_TEST_API__ = {
     SCHEMA_VERSION,
     PROJECT_DATA_VERSION,
+    MAX_PROJECTS,
+    STORAGE_KEY,
     DEVICE_ORDER: [...DEVICE_ORDER],
     DEVICE_CONFIG,
-    createEmptyState,
+    createProjectState,
     createPresetState,
+    createProject,
     createWorkspace,
+    ensureProjectCapacity,
     normalizeLoaded,
+    normalizeProject,
     normalizeWorkspace,
-    migrateLegacy,
     loadWorkspace,
+    projectSourcesFromImportPayload,
+    projectCreationRequired,
+    resolveProjectTarget,
+    isValidProjectTarget,
     sanitizeAssignments,
     sanitizeView,
-    dataFromLegacyExport,
-    setState(nextState) {
+    setState(nextState, name = '测试工程') {
       state = normalizeLoaded(nextState);
-      const project = createProject('测试工程', state);
+      const project = createProject(name, state);
       workspace = { version: SCHEMA_VERSION, activeProjectId: project.id, projects: [project] };
       elements.searchInput.value = '';
     },
     getState() { return JSON.parse(JSON.stringify(state)); },
+    getWorkspace() { return JSON.parse(JSON.stringify(workspace)); },
     setAssignment(number, value) { assignments()[String(number)] = { ...emptyAssignment(), ...value }; },
     searchPinNames(query) {
       elements.searchInput.value = query;

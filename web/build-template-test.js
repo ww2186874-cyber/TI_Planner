@@ -33,6 +33,20 @@ run('real template builds one parseable offline application script', () => {
   new vm.Script(source, { filename: 'offline-app.js' });
 });
 
+run('project target controls exist only inside the creation dialog', () => {
+  const { template } = loadBuildInputs();
+  assert.equal(template.includes('id="deviceSelect"'), false);
+  assert.equal(template.includes('id="packageSelect"'), false);
+  assert.ok(template.includes('id="projectTemplateSelect"'));
+  assert.ok(template.includes('id="projectDeviceSelect"'));
+  assert.ok(template.includes('id="projectPackageSelect"'));
+  assert.ok(template.includes('id="projectCreationFields"'));
+  assert.equal(template.includes('基础模板'), false);
+  assert.ok(template.includes('>模板</label>'));
+  assert.ok(template.includes('清空引脚安排'));
+  assert.ok(template.includes('>引脚 CSV</button>'));
+});
+
 run('inline JSON escapes script-closing and special line characters', () => {
   const serialized = safeInlineJson({ text: '</script><script>alert(1)</script>&\u2028\u2029' });
   assert.equal(serialized.includes('</script>'), false);

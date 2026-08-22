@@ -57,7 +57,7 @@ function showAboutDialog() {
     ['版本', APP_META.version],
     ['作者', APP_META.author],
     ['当前工程', project.name],
-    ['芯片', state.activeDevice],
+    ['芯片', state.device],
     ['封装', currentPackage().label],
     ['存储结构', `v${SCHEMA_VERSION}`],
     ['许可证', '免费学习版：允许分发未修改的二进制副本，禁止冒充官方或移除声明'],
@@ -117,26 +117,6 @@ function toggleMenu(button, menu) {
     menu.classList.remove('hidden');
     button.setAttribute('aria-expanded', 'true');
   }
-}
-
-function renderDeviceSelect() {
-  elements.deviceSelect.replaceChildren(...DEVICE_ORDER.map(device => {
-    const option = document.createElement('option');
-    option.value = device;
-    option.textContent = device;
-    option.selected = device === state.activeDevice;
-    return option;
-  }));
-}
-
-function renderPackageSelect() {
-  elements.packageSelect.replaceChildren(...packageOrder().map(code => {
-    const option = document.createElement('option');
-    option.value = code;
-    option.textContent = currentDeviceData().packages[code].label;
-    option.selected = code === currentDeviceState().activePackage;
-    return option;
-  }));
 }
 
 function sidePins(pins) {
@@ -258,15 +238,13 @@ function renderStage() {
   const portPins = pkg.pins.filter(pin => !pin.fixed && isPortPin(pin));
   const systemPins = pkg.pins.filter(pin => !pin.fixed && !isPortPin(pin));
   const fixedPins = pkg.pins.filter(pin => pin.fixed);
-  elements.canvasTitle.textContent = `${state.activeDevice} · ${pkg.label}`;
+  elements.canvasTitle.textContent = `${state.device} · ${pkg.label}`;
   elements.canvasSubtitle.textContent = selectedSignal
     ? `正在安排 ${selectedSignal}：点击绿色候选引脚，橙色表示将替换已有安排`
     : isBoardApplicable()
       ? `${currentBoard().name} · H 排针 · B 板载占用 · P 固定电源 · ! 特殊限制 · × 未引出`
-      : currentBoardPreset()
-        ? `模板对应 ${currentBoardPreset().device} ${currentBoardPreset().package}-64，当前视图仅显示芯片官方数据`
-        : `${pkg.pinCount} 个物理引脚 · ${portPins.length} 个 GPIO/复用引脚 · ${systemPins.length} 个系统引脚 · ${fixedPins.length} 个电源/地`;
-  elements.chipDevice.textContent = state.activeDevice;
+      : `${pkg.pinCount} 个物理引脚 · ${portPins.length} 个 GPIO/复用引脚 · ${systemPins.length} 个系统引脚 · ${fixedPins.length} 个电源/地`;
+  elements.chipDevice.textContent = state.device;
   elements.chipPackage.textContent = pkg.label;
   elements.chipSummary.textContent = `${assigned} pins assigned · ${view.rotation}°${conflicts.size ? ` · ${conflicts.size} conflicts` : ''}`;
 }
@@ -276,19 +254,13 @@ function renderBoardHardwarePanel() {
   const board = currentBoard();
   elements.boardHardwarePanel.classList.toggle('hidden', !preset || !board);
   if (!preset || !board) return;
-  const applicable = isBoardApplicable();
   const enabled = new Set(state.enabledBoardResources || []);
   const resourceMismatchCount = resource => Object.entries(resource.assignments || {})
     .filter(([number, signal]) => assignmentFor(Number(number)).function !== signal).length;
-  const conflicts = applicable
-    ? (board.resources || []).filter(resource => enabled.has(resource.id)).reduce((sum, resource) => sum + resourceMismatchCount(resource), 0)
-    : 0;
-  elements.boardHardwareSummary.textContent = applicable
-    ? `${enabled.size}/${(board.resources || []).length} 启用${conflicts ? ` · ${conflicts} 项需处理` : ''}`
-    : `对应 ${preset.device} ${preset.package}-64 · 当前不可用`;
-  elements.boardHardwareNote.textContent = applicable
-    ? '开关只控制当前规划，不会断开真实器件与走线。模板默认启用 SWD、BSL 和 NRST；其中 SWD 与 NRST 建议保留。'
-    : `切回 ${preset.device} ${preset.package}-64 后可以继续配置，现有安排不会删除。`;
+  const conflicts = (board.resources || []).filter(resource => enabled.has(resource.id))
+    .reduce((sum, resource) => sum + resourceMismatchCount(resource), 0);
+  elements.boardHardwareSummary.textContent = `${enabled.size}/${(board.resources || []).length} 启用${conflicts ? ` · ${conflicts} 项需处理` : ''}`;
+  elements.boardHardwareNote.textContent = '开关只控制当前规划，不会断开真实器件与走线。模板默认启用 SWD、BSL 和 NRST；其中 SWD 与 NRST 建议保留。';
 
   const pinByNumber = new Map(Object.entries(board.pins || {}));
   const resourceRows = (board.resources || []).map(resource => {
@@ -299,7 +271,6 @@ function renderBoardHardwarePanel() {
     toggle.type = 'checkbox';
     toggle.className = 'board-resource-toggle';
     toggle.checked = enabled.has(resource.id);
-    toggle.disabled = !applicable;
     toggle.setAttribute('aria-label', `${toggle.checked ? '关闭' : '启用'}${resource.name}`);
     const copy = document.createElement('span');
     copy.className = 'board-resource-copy';
@@ -310,7 +281,7 @@ function renderBoardHardwarePanel() {
     copy.append(title, pins);
     const status = document.createElement('span');
     status.className = 'board-resource-state';
-    const mismatchCount = applicable && enabled.has(resource.id) ? resourceMismatchCount(resource) : 0;
+    const mismatchCount = enabled.has(resource.id) ? resourceMismatchCount(resource) : 0;
     status.textContent = enabled.has(resource.id)
       ? mismatchCount ? `需处理 ${mismatchCount}` : '已启用'
       : resource.recommended ? '建议启用' : resource.kind === 'optional' ? '未启用' : '未纳入规划';
@@ -320,7 +291,7 @@ function renderBoardHardwarePanel() {
   });
   elements.boardResourceControls.replaceChildren(...resourceRows);
 
-  const activeSharedBuses = applicable ? (board.sharedBuses || []).filter(bus => bus.resources.every(id => enabled.has(id))) : [];
+  const activeSharedBuses = (board.sharedBuses || []).filter(bus => bus.resources.every(id => enabled.has(id)));
   elements.boardSharedNote.classList.toggle('hidden', activeSharedBuses.length === 0);
   elements.boardSharedNote.textContent = activeSharedBuses.map(bus => `${bus.name}：${bus.summary}；${Object.values(bus.chipSelectPins || {}).join(' · ')}`).join(' ');
 
@@ -502,7 +473,7 @@ function renderInspector() {
   const boardPin = boardPinFor(pin);
   const conflictPins = value.function ? conflictMap().get(value.function) || [] : [];
   elements.pinTitle.textContent = `Pin ${pin.number} · ${pin.name}`;
-  elements.pinSubtitle.textContent = `${state.activeDevice} · ${currentPackage().label}`;
+  elements.pinSubtitle.textContent = `${state.device} · ${currentPackage().label}`;
   elements.physicalPin.textContent = String(pin.number);
   elements.logicalPin.textContent = pin.name;
   elements.iomuxRegister.textContent = pin.iomuxRegister || '—';
@@ -660,8 +631,6 @@ function renderSidebarMode() {
 function render() {
   applyLayout();
   renderProjectSelect();
-  renderDeviceSelect();
-  renderPackageSelect();
   const source = currentDeviceData().source;
   elements.sourceFooter.textContent = `非 TI 官方工具 · 数据来源：${source.document}，${source.revision}，页 ${source.pages} · v${APP_META.version}`;
   renderSidebarMode();
