@@ -49,6 +49,9 @@ function installTestApi() {
     exportProjectJson,
     exportWorkspaceJson,
     exportCsv,
+    exportGroupedCsv,
+    exportConnectorCsv,
+    exportKicadCsv,
     csvEscape,
     safeFileName,
     escapeHtml

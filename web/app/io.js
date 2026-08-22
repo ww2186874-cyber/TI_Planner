@@ -37,8 +37,10 @@ function exportWorkspaceJson() {
 }
 
 function csvEscape(value) {
-  const text = String(value ?? '');
-  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+  let text = String(value ?? '');
+  const formulaLike = /^[\s\u0000-\u001f\u007f-\u009f]*[=+\-@]/u.test(text);
+  if (formulaLike) text = `'${text}`;
+  return formulaLike || /[",\r\n\t]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
 function exportCsv() {

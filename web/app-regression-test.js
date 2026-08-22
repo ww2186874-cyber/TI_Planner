@@ -421,9 +421,35 @@ test('project JSON and pin CSV exports include current user data', () => {
   assert.ok(downloads[1].content.includes('"第一路\n输入"'));
 });
 
+test('all CSV exports neutralize spreadsheet formulas in user text', () => {
+  const { api, downloads } = loadApp();
+  const state = api.createEmptyState();
+  state.activeDevice = 'MSPM0G3507';
+  state.devices.MSPM0G3507.activePackage = 'PM';
+  api.setState(state);
+  api.setAssignment(33, { function: 'PA0', alias: '=1+1', connector: '+SUM(A1:A2)', note: '  @danger' });
+  api.exportCsv();
+  api.exportGroupedCsv();
+  api.exportConnectorCsv();
+  api.exportKicadCsv();
+  assert.equal(downloads.length, 4);
+  downloads.forEach(download => {
+    assert.ok(download.content.includes("'=1+1"), download.name);
+    assert.ok(download.content.includes("'+SUM(A1:A2)"), download.name);
+  });
+  assert.ok(downloads.slice(0, 3).every(download => download.content.includes("'  @danger")));
+  assert.deepEqual(plain(api.getState().devices.MSPM0G3507.packages.PM.assignments['33']), {
+    function: 'PA0', alias: '=1+1', connector: '+SUM(A1:A2)', note: '  @danger'
+  });
+});
+
 test('export text helpers keep CSV, file names and HTML safe', () => {
   const { api } = loadApp();
   assert.equal(api.csvEscape('a,"b"'), '"a,""b"""');
+  assert.equal(api.csvEscape('=1+1'), '"\'=1+1"');
+  assert.equal(api.csvEscape('  @danger'), '"\'  @danger"');
+  assert.equal(api.csvEscape('-42'), '"\'-42"');
+  assert.equal(api.csvEscape('\t=hidden'), '"\'\t=hidden"');
   assert.equal(api.safeFileName('  bad:name / project  '), 'bad-name---project');
   assert.equal(api.escapeHtml('<b title="x">&\'</b>'), '&lt;b title=&quot;x&quot;&gt;&amp;&#39;&lt;/b&gt;');
 });
