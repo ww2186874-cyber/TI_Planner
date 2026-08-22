@@ -377,7 +377,10 @@ function applyBoardResourceToggle(resource, enabled) {
   state.enabledBoardResources = (state.enabledBoardResources || []).filter(id => id !== resource.id);
   Object.entries(resource.assignments || {}).forEach(([number, signal]) => {
     if (anotherEnabledResourceNeeds(number, signal, resource.id)) return;
-    if (assignmentFor(Number(number)).function === signal) delete assignments()[number];
+    const value = assignmentFor(Number(number));
+    if (value.function !== signal) return;
+    const cleared = { ...value, function: '' };
+    isMeaningfulAssignment(cleared) ? assignments()[number] = cleared : delete assignments()[number];
   });
 }
 

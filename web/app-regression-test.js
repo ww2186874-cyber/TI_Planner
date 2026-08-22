@@ -318,6 +318,35 @@ test('board resource conflicts and shared SPI lines stay predictable', () => {
   assert.equal(assignments['42'].function, 'ROSC');
 });
 
+test('shared board resources preserve text until the final resource is disabled', () => {
+  const { api } = loadApp();
+  api.setState(api.createPresetState('tianmengxing-g3519-pm64'));
+  api.applyBoardResource('spi-flash', true);
+  api.applyBoardResource('h8-lcd', true);
+  api.setAssignment(60, { function: 'SPI1_PICO', alias: '共享数据线', connector: 'J8-3', note: 'Flash 与 LCD 共用' });
+
+  let state = plain(api.applyBoardResource('spi-flash', false));
+  assert.deepEqual(state.devices.MSPM0G3519.packages.PM.assignments['60'], {
+    function: 'SPI1_PICO', alias: '共享数据线', connector: 'J8-3', note: 'Flash 与 LCD 共用'
+  });
+
+  state = plain(api.applyBoardResource('h8-lcd', false));
+  assert.deepEqual(state.devices.MSPM0G3519.packages.PM.assignments['60'], {
+    function: '', alias: '共享数据线', connector: 'J8-3', note: 'Flash 与 LCD 共用'
+  });
+});
+
+test('disabling a board resource preserves text attached to its preset function', () => {
+  const { api } = loadApp();
+  api.setState(api.createPresetState('tianmengxing-g3519-pm64'));
+  api.applyBoardResource('user-led', true);
+  api.setAssignment(21, { function: 'PB22', alias: '状态灯', connector: 'J2', note: '保留这条用户说明' });
+  const state = plain(api.applyBoardResource('user-led', false));
+  assert.deepEqual(state.devices.MSPM0G3519.packages.PM.assignments['21'], {
+    function: '', alias: '状态灯', connector: 'J2', note: '保留这条用户说明'
+  });
+});
+
 test('disabling a board resource preserves a user-selected replacement', () => {
   const { api } = loadApp();
   api.setState(api.createPresetState('tianmengxing-g3519-pm64'));
