@@ -786,7 +786,7 @@ async function main() {
       || !result.boardHardwareText.includes('SPI1 共享总线')
       || !result.boardHardwareText.includes('PB6 / Pin 58 / W_CS')
       || !result.boardHardwareText.includes('PB14 / Pin 2 / LCD_CS')
-      || result.lcdOnlyAssigned !== 14
+      || result.lcdOnlyAssigned !== 15
       || result.flashActiveMarker !== '✓'
       || result.flashInactiveMarker !== 'B'
       || result.lcdActiveMarker !== '✓'
