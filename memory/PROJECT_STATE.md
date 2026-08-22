@@ -1,6 +1,6 @@
 # 当前项目状态
 
-更新日期：2026-08-06
+更新日期：2026-08-23
 
 ## 版本与门禁
 
@@ -33,9 +33,9 @@
 
 ## 工作区
 
-- 正式工作区：`<USER_HOME>\Desktop\MSPM0`。
+- 正式工作区：`<WORKSPACE>`。
 - 候选功能检查点：`1.3.0-beta.7` 源码检查点，不创建正式标签。
-- Git 远程 `origin` 已配置为 `https://github.com/ww2186874-cyber/TI_Planner.git`，`main` 和全部正式标签已推送并与远程一致。
+- Git 远程 `origin` 已配置为 `https://github.com/ww2186874-cyber/TI_Planner.git`；全部正式标签已推送，当前 `1.3.0-beta.7` 候选提交保留在本地 `main`，尚未推送至 `origin/main`。
 - `outputs/` 只保留当前 `1.3.0-beta.7` HTML 和 `.gitkeep`；旧候选及已有正式版本副本已清理，正式版本仍完整保存在 `releases/`。
 - `.tmp/` 已移除隔离测试用户目录和可重建产物，保留目前仅存的芯片数据手册、原理图/EDA 参考资料及引脚规划转换文件。
 - `.pnpm-store/`、`.cache/`、`desktop/node_modules/` 和全部 `releases/` 必须长期保留。
