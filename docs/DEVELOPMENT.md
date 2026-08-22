@@ -16,11 +16,14 @@
 | 范围 | 入口 |
 |---|---|
 | 页面结构与样式 | `web/template.html` |
-| 交互、搜索、状态、导入导出 | `web/app.js` |
+| 前端入口与源码合并顺序 | `web/app.js`、`web/app-bundle.js` |
+| 工程状态、规则、显示、导入导出与事件 | `web/app/` |
+| 芯片文件、封装、默认视图与外设清单 | `web/device-catalog.js` |
 | MSPM0G3519 官方引脚数据 | `web/pin-data.json` |
 | MSPM0G3507 官方引脚数据 | `web/pin-data-3507.json` |
 | 板卡模板 | `web/board-presets.json` |
-| 数据与板卡校验 | `web/data-validation.js`、`web/board-validation.js`、`web/validate-data.js` |
+| 数据与板卡校验 | `web/data-validation.js`、`web/board-schema-validation.js`、`web/board-validation.js`、`web/validate-data.js` |
+| 快速回归检查 | `web/run-tests.js` 及 `web/*-test.js` |
 | 单文件网页构建 | `web/build.js` |
 | Electron 窗口与受限桥接 | `desktop/main.js`、`desktop/preload.js` |
 | 桌面烟雾测试 | `desktop/scripts/smoke-test.js` |
@@ -28,11 +31,13 @@
 
 不要直接编辑 `outputs/mspm0g3519-pin-planner.html`、`desktop/app/index.html` 或 `desktop/dist/`。
 
+`web/app/` 中各文件按职责维护，`web/app-bundle.js` 在构建时把它们放入同一个原生 JavaScript 作用域，最终仍只交付一个离线 HTML。`web/app.js` 只负责启动，不再堆放业务代码。修改共享变量或调整文件顺序时，必须同步检查 `SOURCE_FILES`。
+
 ## 构建链路
 
 ```text
-web 源码与 JSON
-  -> build-web.cmd
+web 分层源码、芯片清单与 JSON
+  -> build-web.cmd（快速回归检查、数据校验、源码合并）
   -> outputs/mspm0g3519-pin-planner.html
   -> desktop/app/index.html（仅在正式发布流程中继续打包）
   -> Electron 文件夹版 / 便携 EXE
@@ -64,9 +69,9 @@ Electron 固定从 `app://mspm0/index.html` 加载页面，使升级或移动程
 ## 增加芯片或封装
 
 1. 以官方数据手册为准生成独立 JSON 数据。
-2. 在 `web/build.js` 的数据入口和必需封装中登记型号与脚数。
-3. 在 `web/app.js` 中补充该芯片的外设实例和必要别名。
-4. 抽查电源脚、GPIO、复用功能、QEI、ADC、封装脚号和资源数量。
+2. 在 `web/device-catalog.js` 中登记数据文件、封装脚数、默认封装、缩放和外设实例。
+3. 在 `web/data-validation.js` 的独立官方预期中登记封装、关键默认脚和外设范围；不能只依赖运行清单自证正确。
+4. 运行 `build-web.cmd`，抽查电源脚、GPIO、复用功能、QEI、ADC、封装脚号和资源数量。
 5. 只有官方表确认一致时才能复用同一芯片的封装数据；不得跨芯片复制完整 IOMUX。
 
 ## 增加板卡模板
