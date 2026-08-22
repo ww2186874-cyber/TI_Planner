@@ -35,15 +35,16 @@ for (const [device, packages] of Object.entries(requiredPackages)) {
 validateDevices(devices);
 validateBoardPresets(boardPresets, devices);
 
-const scriptStart = template.lastIndexOf('<script>');
-const scriptEnd = template.indexOf('</script>', scriptStart);
-if (scriptStart < 0 || scriptEnd < 0) throw new Error('Inline script block was not found');
-const shell = `${template.slice(0, scriptStart)}<script>\n${app}\n${template.slice(scriptEnd)}`;
+const appBundleMarker = '<!--__APP_BUNDLE__-->';
+const appBundleMarkerCount = template.split(appBundleMarker).length - 1;
+if (appBundleMarkerCount !== 1) throw new Error(`Expected exactly one app bundle marker, found ${appBundleMarkerCount}`);
+const shell = template.replace(appBundleMarker, () => `<script>\n${app}\n</script>`);
 const appMeta = { version: packageJson.version, author: packageJson.author, productName: packageJson.build.productName };
 const html = shell
   .replace('__DEVICE_DATA__', JSON.stringify(devices))
   .replace('__BOARD_PRESETS__', JSON.stringify(boardPresets))
   .replace('__APP_META__', JSON.stringify(appMeta));
+if (html.includes(appBundleMarker)) throw new Error('App bundle marker was not replaced');
 if (html.includes('__DEVICE_DATA__') || html.includes('__BOARD_PRESETS__') || html.includes('__APP_META__')) throw new Error('Build placeholder was not replaced');
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 fs.writeFileSync(outputPath, html, 'utf8');
