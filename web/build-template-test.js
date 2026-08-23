@@ -47,6 +47,18 @@ run('project target controls exist only inside the creation dialog', () => {
   assert.ok(template.includes('>引脚 CSV</button>'));
 });
 
+run('desktop top bar keeps project controls and actions in one row', () => {
+  const { template } = loadBuildInputs();
+  const header = template.match(/<header class="topbar">([\s\S]*?)<\/header>/)?.[1];
+  assert.ok(header, 'top bar must exist');
+  assert.ok(header.includes('class="project-control"'));
+  assert.ok(header.includes('class="toolbar"'));
+  assert.equal(header.includes('<p>'), false, 'brand subtitle must be removed');
+  assert.match(template, /\.topbar\s*\{[\s\S]*?display:\s*flex;/);
+  assert.equal(template.includes('grid-template-areas:'), false);
+  assert.equal(template.includes('非 TI 官方工具 · 基于公开数据手册整理 · 仅用于规划'), false);
+});
+
 run('inline JSON escapes script-closing and special line characters', () => {
   const serialized = safeInlineJson({ text: '</script><script>alert(1)</script>&\u2028\u2029' });
   assert.equal(serialized.includes('</script>'), false);

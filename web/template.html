@@ -94,15 +94,10 @@
       position: sticky;
       top: 0;
       z-index: 20;
-      display: grid;
-      grid-template-columns: minmax(190px, 215px) minmax(0, 1fr);
-      grid-template-areas:
-        "brand package"
-        "brand toolbar";
+      display: flex;
       align-items: center;
-      column-gap: 16px;
-      row-gap: 8px;
-      min-height: 104px;
+      gap: 14px;
+      min-height: 58px;
       padding: 10px 18px;
       border-bottom: 1px solid var(--line);
       background: color-mix(in srgb, var(--surface) 96%, transparent);
@@ -111,29 +106,25 @@
     }
 
     .brand {
-      grid-area: brand;
-      min-width: 215px;
+      flex: 0 0 215px;
+      min-width: 0;
     }
 
     .brand h1 {
       margin: 0;
       font-size: 1.22rem;
       line-height: 1.2;
+      white-space: nowrap;
     }
 
-    .brand p {
-      margin: 4px 0 0;
-      color: var(--muted);
-      font-size: 0.78rem;
-    }
-
-    .package-control {
-      grid-area: package;
+    .project-control {
       display: flex;
+      flex: 1 1 440px;
       align-items: center;
-      justify-content: flex-end;
+      justify-content: flex-start;
       gap: 8px;
-      min-width: 0;
+      min-width: 175px;
+      max-width: 440px;
     }
 
     .select-control {
@@ -146,7 +137,7 @@
     .select-control { flex: 1; }
     .select-control.project-select { flex: 1.25; }
 
-    .package-control label {
+    .project-control label {
       color: var(--muted);
       font-size: 0.82rem;
       white-space: nowrap;
@@ -180,8 +171,10 @@
     }
 
     .toolbar {
-      grid-area: toolbar;
       display: flex;
+      flex: 0 1 auto;
+      min-width: 0;
+      margin-left: auto;
       align-items: center;
       justify-content: flex-end;
       gap: 8px;
@@ -989,12 +982,12 @@
     @media (max-width: 700px) {
       .topbar {
         position: static;
-        grid-template-columns: minmax(0, 1fr);
-        grid-template-areas: "brand" "package" "toolbar";
+        flex-direction: column;
         align-items: stretch;
       }
-      .package-control { min-width: 0; }
-      .toolbar { justify-content: flex-start; }
+      .brand { flex-basis: auto; }
+      .project-control { width: 100%; max-width: none; min-width: 0; flex: none; }
+      .toolbar { margin-left: 0; justify-content: flex-start; }
       .save-state { text-align: left; }
       .workspace { display: block; }
       .sidebar, .inspector { min-height: auto; border: 0; border-bottom: 1px solid var(--line); }
@@ -1016,10 +1009,9 @@
     <header class="topbar">
       <div class="brand">
         <h1>MSPM0G 引脚规划器</h1>
-        <p>非 TI 官方工具 · 基于公开数据手册整理 · 仅用于规划</p>
       </div>
 
-      <div class="package-control">
+      <div class="project-control">
         <div class="select-control project-select">
           <label for="projectSelect">工程</label>
           <select id="projectSelect" aria-label="选择工程"></select>
