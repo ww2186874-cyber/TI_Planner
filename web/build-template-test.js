@@ -70,6 +70,9 @@ run('desktop top bar keeps project controls and actions in one row', () => {
   assert.ok(header.includes('class="toolbar"'));
   assert.equal(header.includes('<p>'), false, 'brand subtitle must be removed');
   assert.match(template, /\.topbar\s*\{[\s\S]*?display:\s*flex;/);
+  const projectControlCss = template.match(/\.project-control\s*\{([\s\S]*?)\}/)?.[1] || '';
+  assert.match(projectControlCss, /margin-left:\s*clamp\(0px,\s*calc\(12\.5vw - 160px\),\s*96px\)/);
+  assert.match(template, /@media \(max-width: 800px\)[\s\S]*?\.project-control\s*\{[^}]*margin-left:\s*0;/);
   assert.equal(template.includes('grid-template-areas:'), false);
   assert.equal(template.includes('非 TI 官方工具 · 基于公开数据手册整理 · 仅用于规划'), false);
 });

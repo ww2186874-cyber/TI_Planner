@@ -127,6 +127,7 @@
       gap: 8px;
       min-width: 175px;
       max-width: 440px;
+      margin-left: clamp(0px, calc(12.5vw - 160px), 96px);
     }
 
     .select-control {
@@ -1014,7 +1015,7 @@
         align-items: stretch;
       }
       .brand { flex-basis: auto; }
-      .project-control { width: 100%; max-width: none; min-width: 0; flex: none; }
+      .project-control { width: 100%; max-width: none; min-width: 0; margin-left: 0; flex: none; }
       .toolbar { margin-left: 0; justify-content: flex-start; }
       .save-state { text-align: left; }
       .workspace { display: block; overflow-y: auto; }
