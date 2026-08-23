@@ -51,6 +51,8 @@
       --chip: #242a2e;
       --chip-inset: #191e21;
       --left-panel-width: 250px;
+      --resource-detail-width: 0px;
+      --left-region-width: 250px;
       --right-panel-width: 330px;
     }
 
@@ -248,12 +250,22 @@
     .workspace {
       flex: 1;
       display: grid;
-      grid-template-columns: var(--left-panel-width) 7px minmax(360px, 1fr) 7px var(--right-panel-width);
+      grid-template-columns: var(--left-region-width) 7px minmax(360px, 1fr) 7px var(--right-panel-width);
       min-height: 0;
       overflow: hidden;
     }
 
-    .sidebar, .inspector {
+    .left-region {
+      grid-column: 1;
+      display: grid;
+      grid-template-columns: var(--left-panel-width) var(--resource-detail-width);
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      background: var(--surface);
+    }
+
+    .sidebar, .resource-detail, .inspector {
       min-width: 0;
       min-height: 0;
       overflow-y: auto;
@@ -263,7 +275,7 @@
       scrollbar-gutter: stable;
     }
 
-    .sidebar { grid-column: 1; overflow-anchor: none; }
+    .sidebar { overflow-anchor: none; }
     .center { grid-column: 3; }
     .inspector { grid-column: 5; }
 
@@ -448,15 +460,23 @@
     .resource-instance-feature { color: var(--warning); font-family: "Segoe UI", "Microsoft YaHei", sans-serif; font-size: 0.65rem; }
 
     .resource-detail {
-      margin-bottom: 9px;
-      padding-bottom: 9px;
-      border-bottom: 1px solid var(--line);
+      border-left: 1px solid var(--line-strong);
       overflow-anchor: none;
+      box-shadow: inset 8px 0 18px rgba(0, 0, 0, 0.12);
     }
 
-    .resource-detail-title { margin: 0 0 4px; font-size: 0.82rem; }
-    .resource-detail-note { margin: 0 0 7px; color: var(--muted); font-size: 0.69rem; line-height: 1.45; }
-    .resource-signals { display: grid; gap: 3px; }
+    .resource-detail-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 7px;
+    }
+
+    .resource-detail-title { min-width: 0; margin: 0; font-size: 0.9rem; }
+    .resource-detail-close { flex: 0 0 auto; }
+    .resource-detail-note { margin: 0 0 12px; color: var(--muted); font-size: 0.71rem; line-height: 1.5; }
+    .resource-signals { display: grid; gap: 5px; }
 
     .resource-signal {
       display: grid;
@@ -974,12 +994,20 @@
 
     .hidden { display: none !important; }
 
-    @media (max-width: 900px) {
-      .workspace { grid-template-columns: 220px minmax(0, 1fr); }
-      .inspector { grid-column: 1 / -1; min-height: auto; border-top: 1px solid var(--line); border-left: 0; }
+    @media (max-width: 1064px) {
+      .workspace {
+        grid-template-columns: var(--left-region-width) 7px minmax(360px, 1fr);
+        grid-template-rows: minmax(520px, 1fr) auto;
+        overflow-y: auto;
+      }
+      .left-region { grid-column: 1; grid-row: 1; }
+      .panel-resizer.left { grid-column: 2; grid-row: 1; }
+      .center { grid-column: 3; grid-row: 1; }
+      .panel-resizer.right { display: none; }
+      .inspector { grid-column: 1 / -1; grid-row: 2; min-height: 260px; border-top: 1px solid var(--line); border-left: 0; }
     }
 
-    @media (max-width: 700px) {
+    @media (max-width: 800px) {
       .topbar {
         position: static;
         flex-direction: column;
@@ -989,8 +1017,10 @@
       .project-control { width: 100%; max-width: none; min-width: 0; flex: none; }
       .toolbar { margin-left: 0; justify-content: flex-start; }
       .save-state { text-align: left; }
-      .workspace { display: block; }
-      .sidebar, .inspector { min-height: auto; border: 0; border-bottom: 1px solid var(--line); }
+      .workspace { display: block; overflow-y: auto; }
+      .left-region { display: block; }
+      .sidebar, .resource-detail, .inspector { min-height: auto; border: 0; border-bottom: 1px solid var(--line); }
+      .resource-detail { box-shadow: none; }
       .canvas-scroller { min-height: 520px; }
       .canvas-toolbar { align-items: flex-start; flex-direction: column; }
       .canvas-actions { width: 100%; justify-content: flex-start; }
@@ -1052,46 +1082,52 @@
       <input class="hidden" id="importFile" type="file" accept="application/json,.json">
     </header>
 
-    <main class="workspace">
-      <aside class="sidebar">
-        <div class="sidebar-view-tabs" id="sidebarViewTabs" aria-label="规划视图">
-          <button class="sidebar-view-btn active" type="button" data-view="pins">引脚</button>
-          <button class="sidebar-view-btn" type="button" data-view="resources">外设资源</button>
-        </div>
-        <h2 class="panel-title"><span id="sidebarTitle">引脚筛选</span><span id="packagePinCount"></span></h2>
-        <div class="stats-grid">
-          <div class="stat"><span>已安排</span><strong id="assignedCount">0</strong></div>
-          <div class="stat"><span>未安排</span><strong id="unassignedCount">0</strong></div>
-          <div class="stat"><span>电源/地</span><strong id="fixedCount">0</strong></div>
-          <div class="stat"><span>系统引脚</span><strong id="systemCount">0</strong></div>
-          <div class="stat"><span>冲突</span><strong id="conflictCount">0</strong></div>
-        </div>
-
-        <input id="searchInput" type="search" placeholder="搜索引脚、LED、晶振、U21-3 或外设" aria-label="搜索引脚、板卡连接和外设">
-
-        <div id="pinPanel">
-          <div class="filter-tabs" id="filterTabs" aria-label="引脚状态筛选">
-            <button class="filter-btn active" type="button" data-filter="all">全部</button>
-            <button class="filter-btn" type="button" data-filter="assigned">已安排</button>
-            <button class="filter-btn" type="button" data-filter="unassigned">未安排</button>
-            <button class="filter-btn" type="button" data-filter="conflict">有冲突</button>
-            <button class="filter-btn" type="button" data-filter="board">板卡提醒</button>
+    <main class="workspace" id="workspace">
+      <div class="left-region" id="leftRegion">
+        <aside class="sidebar">
+          <div class="sidebar-view-tabs" id="sidebarViewTabs" aria-label="规划视图">
+            <button class="sidebar-view-btn active" type="button" data-view="pins">引脚</button>
+            <button class="sidebar-view-btn" type="button" data-view="resources">外设资源</button>
+          </div>
+          <h2 class="panel-title"><span id="sidebarTitle">引脚筛选</span><span id="packagePinCount"></span></h2>
+          <div class="stats-grid">
+            <div class="stat"><span>已安排</span><strong id="assignedCount">0</strong></div>
+            <div class="stat"><span>未安排</span><strong id="unassignedCount">0</strong></div>
+            <div class="stat"><span>电源/地</span><strong id="fixedCount">0</strong></div>
+            <div class="stat"><span>系统引脚</span><strong id="systemCount">0</strong></div>
+            <div class="stat"><span>冲突</span><strong id="conflictCount">0</strong></div>
           </div>
 
-          <h2 class="panel-title">信号类别</h2>
-          <div class="category-list" id="categoryList"></div>
-        </div>
+          <input id="searchInput" type="search" placeholder="搜索引脚、LED、晶振、U21-3 或外设" aria-label="搜索引脚、板卡连接和外设">
 
-        <div id="resourcePanel" class="hidden">
-          <p class="resource-summary" id="resourceSummary"></p>
-          <div class="resource-detail hidden" id="resourceDetail">
+          <div id="pinPanel">
+            <div class="filter-tabs" id="filterTabs" aria-label="引脚状态筛选">
+              <button class="filter-btn active" type="button" data-filter="all">全部</button>
+              <button class="filter-btn" type="button" data-filter="assigned">已安排</button>
+              <button class="filter-btn" type="button" data-filter="unassigned">未安排</button>
+              <button class="filter-btn" type="button" data-filter="conflict">有冲突</button>
+              <button class="filter-btn" type="button" data-filter="board">板卡提醒</button>
+            </div>
+
+            <h2 class="panel-title">信号类别</h2>
+            <div class="category-list" id="categoryList"></div>
+          </div>
+
+          <div id="resourcePanel" class="hidden">
+            <p class="resource-summary" id="resourceSummary"></p>
+            <div class="resource-list" id="resourceList"></div>
+          </div>
+        </aside>
+
+        <aside class="resource-detail hidden" id="resourceDetail" aria-label="外设信号选择">
+          <div class="resource-detail-header">
             <h3 class="resource-detail-title" id="resourceDetailTitle"></h3>
-            <p class="resource-detail-note" id="resourceDetailNote"></p>
-            <div class="resource-signals" id="resourceSignals"></div>
+            <button class="btn small resource-detail-close" id="resourceDetailClose" type="button" aria-label="关闭外设信号选择">关闭</button>
           </div>
-          <div class="resource-list" id="resourceList"></div>
-        </div>
-      </aside>
+          <p class="resource-detail-note" id="resourceDetailNote"></p>
+          <div class="resource-signals" id="resourceSignals"></div>
+        </aside>
+      </div>
 
       <div class="panel-resizer left" id="leftResizer" role="separator" aria-label="调整左侧菜单宽度" aria-orientation="vertical"></div>
 

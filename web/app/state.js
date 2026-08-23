@@ -3,7 +3,7 @@ const elements = Object.fromEntries([
   'exportMenuBtn', 'exportMenu', 'checkBtn', 'checkBadge', 'aboutBtn', 'resetBtn', 'saveState',
   'packagePinCount', 'assignedCount', 'unassignedCount', 'fixedCount', 'systemCount', 'conflictCount', 'searchInput',
   'filterTabs', 'categoryList', 'sidebarViewTabs', 'sidebarTitle', 'pinPanel', 'resourcePanel', 'resourceSummary',
-  'resourceList', 'resourceDetail', 'resourceDetailTitle', 'resourceDetailNote', 'resourceSignals', 'canvasTitle',
+  'resourceList', 'workspace', 'leftRegion', 'resourceDetail', 'resourceDetailTitle', 'resourceDetailClose', 'resourceDetailNote', 'resourceSignals', 'canvasTitle',
   'canvasSubtitle', 'boardHardwarePanel', 'boardHardwareSummary', 'boardHardwareNote', 'boardResourceControls', 'boardFixedHardwareList', 'boardSharedNote', 'zoomSlider', 'zoomValue', 'rotateCcwBtn', 'rotateCwBtn', 'fitViewBtn', 'centerViewBtn', 'canvasScroller', 'stageScale',
   'packageStage', 'topPins', 'rightPins', 'bottomPins', 'leftPins', 'chipDevice', 'chipPackage', 'chipSummary',
   'inspectorEmpty', 'inspectorContent', 'pinTitle', 'pinSubtitle', 'pinStatus', 'physicalPin', 'logicalPin',
@@ -23,6 +23,8 @@ let expandedGroups = new Set(['Timer']);
 let saveTimer = null;
 let panState = null;
 let resizeState = null;
+let layoutViewOverride = null;
+let layoutReflowFrame = null;
 let projectDialogMode = 'new';
 const historyByProject = new Map();
 let workspace = loadWorkspace();

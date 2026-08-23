@@ -488,6 +488,41 @@ const expressions = {
       turnDirection: Math.sign(new DOMMatrix(getComputedStyle(label).transform).b)
     };
   })()`,
+  'resource-detail-layout': `(async () => {
+    ${fixedProjectHelpers}
+    createFixedProject('外设详情分栏测试', 'MSPM0G3519', 'PM');
+    const settle = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const rect = element => {
+      const value = element.getBoundingClientRect();
+      return { left: value.left, right: value.right, width: value.width };
+    };
+    const sidebar = document.querySelector('.sidebar');
+    const center = document.querySelector('.center');
+    const canvas = document.querySelector('#canvasScroller');
+    const detail = document.querySelector('#resourceDetail');
+    const capture = () => ({
+      sidebar: rect(sidebar),
+      center: rect(center),
+      canvas: rect(canvas),
+      detail: detail.getClientRects().length ? rect(detail) : null,
+      detailVisible: detail.getClientRects().length > 0,
+      detailParent: detail.parentElement?.id || '',
+      title: document.querySelector('#resourceDetailTitle')?.textContent || '',
+      selected: document.querySelector('[data-resource="UART0"]')?.classList.contains('active') || false
+    });
+    document.querySelector('[data-view="resources"]').click();
+    await settle();
+    const closed = capture();
+    const uart0 = document.querySelector('[data-resource="UART0"]');
+    if (!uart0) throw new Error('UART0 resource instance was not rendered');
+    uart0.click();
+    await settle();
+    const open = capture();
+    document.querySelector('#resourceDetailClose').click();
+    await settle();
+    const reclosed = capture();
+    return { closed, open, reclosed };
+  })()`,
   release: `(() => {
     ${fixedProjectHelpers}
     const input = element => element.dispatchEvent(new Event('input', { bubbles: true }));
@@ -856,6 +891,30 @@ async function main() {
   )) throw new Error(`Version 7 fixed workspace restore failed: ${JSON.stringify(result)}`);
   if (mode === 'layout' && (!result.pin.includes('TIMG6_C0') || !result.pin.includes('TMC2209_1_STEP') || result.gap < 3 || result.visualGap < 3 || result.visualGap > 24 || !result.contained || result.trackHeight !== 210 || result.labelTrackLength !== 132 || result.turnDirection !== -1 || result.buttonHeight / result.labelHeight < 1.5)) {
     throw new Error(`Bottom pin label layout failed: ${JSON.stringify(result)}`);
+  }
+  if (mode === 'resource-detail-layout') {
+    const near = (a, b, tolerance = 1.5) => Math.abs(a - b) <= tolerance;
+    const { closed, open, reclosed } = result;
+    if (
+      closed.detailVisible
+      || !open.detailVisible
+      || !open.title.includes('UART0')
+      || !open.selected
+      || open.detailParent !== 'leftRegion'
+      || open.detail.left < open.sidebar.right - 1.5
+      || open.detail.right > open.center.left + 1.5
+      || open.center.width >= closed.center.width
+      || open.canvas.width >= closed.canvas.width
+      || !near(open.sidebar.left, closed.sidebar.left)
+      || !near(open.sidebar.width, closed.sidebar.width)
+      || !near(open.center.right, closed.center.right)
+      || !near(closed.center.width - open.center.width, open.detail.width, 9)
+      || reclosed.detailVisible
+      || !near(reclosed.center.left, closed.center.left)
+      || !near(reclosed.center.width, closed.center.width)
+      || !near(reclosed.canvas.left, closed.canvas.left)
+      || !near(reclosed.canvas.width, closed.canvas.width)
+    ) throw new Error(`Peripheral detail column layout failed: ${JSON.stringify(result)}`);
   }
   if (mode === 'release' && (
     result.projectCountAfterDuplicate !== result.projectCountBeforeDuplicate + 1

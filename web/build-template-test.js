@@ -47,6 +47,21 @@ run('project target controls exist only inside the creation dialog', () => {
   assert.ok(template.includes('>引脚 CSV</button>'));
 });
 
+run('peripheral signals use an adjacent non-overlay detail column', () => {
+  const { template } = loadBuildInputs();
+  const leftRegion = template.match(/<div class="left-region" id="leftRegion">([\s\S]*?)<\/div>\s*<div class="panel-resizer left"/)?.[1];
+  assert.ok(leftRegion, 'left region must wrap the list and detail columns');
+  const resourcePanelStart = leftRegion.indexOf('id="resourcePanel"');
+  const resourcePanelEnd = leftRegion.indexOf('</aside>', resourcePanelStart);
+  const detailStart = leftRegion.indexOf('id="resourceDetail"');
+  assert.ok(resourcePanelStart >= 0 && resourcePanelEnd > resourcePanelStart);
+  assert.ok(detailStart > resourcePanelEnd, 'resource detail must be adjacent to, not nested in, the list panel');
+  assert.ok(leftRegion.includes('id="resourceDetailClose"'));
+  assert.match(template, /grid-template-columns:\s*var\(--left-panel-width\)\s+var\(--resource-detail-width\)/);
+  const detailCss = template.match(/\.resource-detail\s*\{([\s\S]*?)\}/)?.[1] || '';
+  assert.equal(/position:\s*(absolute|fixed)/.test(detailCss), false, 'resource detail must participate in layout');
+});
+
 run('desktop top bar keeps project controls and actions in one row', () => {
   const { template } = loadBuildInputs();
   const header = template.match(/<header class="topbar">([\s\S]*?)<\/header>/)?.[1];

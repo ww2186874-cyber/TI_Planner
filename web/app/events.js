@@ -45,15 +45,9 @@ function bindEvents() {
     const button = event.target.closest('.resource-instance');
     if (!button || !elements.resourceList.contains(button)) return;
     button.blur();
-    const selected = resourceInstance(button.dataset.resource);
     preserveSidebarScroll(() => {
-      selectedResourceId = selectedResourceId === button.dataset.resource ? '' : button.dataset.resource;
-      selectedSignal = '';
-      if (selectedResourceId && selected) expandedGroups.add(selected.group.key);
-      elements.resourceList.querySelectorAll('.resource-instance').forEach(item => {
-        item.classList.toggle('active', item.dataset.resource === selectedResourceId);
-      });
-      renderResourceDetail();
+      selectResourceInstance(button.dataset.resource);
+      renderResources();
       renderStage();
     });
   };
@@ -61,9 +55,11 @@ function bindEvents() {
   const handleResourceSignalClick = event => {
     const button = event.target.closest('.resource-signal');
     if (!button || !elements.resourceSignals.contains(button)) return;
-    selectedSignal = selectedSignal === button.dataset.signal ? '' : button.dataset.signal;
+    selectResourceSignal(button.dataset.signal);
     elements.resourceSignals.querySelectorAll('.resource-signal').forEach(item => {
-      item.classList.toggle('active', item.dataset.signal === selectedSignal);
+      const active = item.dataset.signal === selectedSignal;
+      item.classList.toggle('active', active);
+      item.setAttribute('aria-pressed', String(active));
     });
     renderStage();
   };
@@ -92,11 +88,9 @@ function bindEvents() {
     if (!resizeState) return;
     const delta = event.clientX - resizeState.startX;
     if (resizeState.side === 'left') {
-      const maxLeft = Math.max(190, Math.min(460, window.innerWidth - state.layout.rightWidth - 434));
-      state.layout.leftWidth = Math.min(maxLeft, Math.max(190, resizeState.leftWidth + delta));
+      state.layout.leftWidth = Math.min(460, Math.max(190, resizeState.leftWidth + delta));
     } else {
-      const maxRight = Math.max(260, Math.min(540, window.innerWidth - state.layout.leftWidth - 434));
-      state.layout.rightWidth = Math.min(maxRight, Math.max(260, resizeState.rightWidth - delta));
+      state.layout.rightWidth = Math.min(540, Math.max(260, resizeState.rightWidth - delta));
     }
     applyLayout();
   }
@@ -107,6 +101,7 @@ function bindEvents() {
     elements.rightResizer.classList.remove('dragging');
     document.body.style.cursor = '';
     resizeState = null;
+    if (resourceDetailIsOpen()) scheduleCanvasLayoutReflow();
     saveState();
   }
 
@@ -162,8 +157,7 @@ function bindEvents() {
   elements.sidebarViewTabs.addEventListener('click', event => {
     const button = event.target.closest('[data-view]');
     if (!button) return;
-    sidebarView = button.dataset.view;
-    if (sidebarView === 'pins') { selectedResourceId = ''; selectedSignal = ''; }
+    setSidebarMode(button.dataset.view);
     render();
   });
   elements.searchInput.addEventListener('input', () => {
@@ -179,15 +173,22 @@ function bindEvents() {
   elements.categoryList.addEventListener('click', handleCategoryClick);
   elements.resourceList.addEventListener('click', handleResourceListClick);
   elements.resourceSignals.addEventListener('click', handleResourceSignalClick);
+  elements.resourceDetailClose.addEventListener('click', () => {
+    selectResourceInstance('');
+    renderResources();
+    renderStage();
+  });
   elements.packageStage.addEventListener('click', handlePinClick);
   elements.boardResourceControls.addEventListener('change', handleBoardResourceChange);
   elements.zoomSlider.addEventListener('input', () => setZoom(Number(elements.zoomSlider.value)));
   elements.rotateCcwBtn.addEventListener('click', () => {
+    markCanvasViewInteraction();
     currentView().rotation = (currentView().rotation + 270) % 360;
     saveState();
     render();
   });
   elements.rotateCwBtn.addEventListener('click', () => {
+    markCanvasViewInteraction();
     currentView().rotation = (currentView().rotation + 90) % 360;
     saveState();
     render();
@@ -198,12 +199,13 @@ function bindEvents() {
     event.preventDefault();
     const rect = elements.canvasScroller.getBoundingClientRect();
     const factor = Math.exp(-event.deltaY * 0.0015);
-    setZoom(currentView().zoom * factor, { x: event.clientX - rect.left, y: event.clientY - rect.top });
+    setZoom(effectiveView().zoom * factor, { x: event.clientX - rect.left, y: event.clientY - rect.top });
   }, { passive: false });
   elements.canvasScroller.addEventListener('contextmenu', event => event.preventDefault());
   elements.canvasScroller.addEventListener('pointerdown', event => {
     const touchPan = event.pointerType === 'touch' && !event.target.closest('.pin-button');
     if (event.button !== 2 && !touchPan) return;
+    markCanvasViewInteraction();
     panState = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, x: currentView().x, y: currentView().y };
     elements.canvasScroller.setPointerCapture(event.pointerId);
     elements.canvasScroller.classList.add('panning');
@@ -211,6 +213,7 @@ function bindEvents() {
   });
   elements.canvasScroller.addEventListener('pointermove', event => {
     if (!panState || panState.pointerId !== event.pointerId) return;
+    markCanvasViewInteraction();
     currentView().x = panState.x + event.clientX - panState.startX;
     currentView().y = panState.y + event.clientY - panState.startY;
     currentView().initialized = true;
@@ -242,6 +245,10 @@ function bindEvents() {
   elements.rightResizer.addEventListener('mousedown', event => beginResize(event, 'right'));
   window.addEventListener('mousemove', moveResize);
   window.addEventListener('mouseup', endResize);
+  window.addEventListener('resize', () => {
+    applyLayout();
+    if (resourceDetailIsOpen()) scheduleCanvasLayoutReflow();
+  });
   elements.functionSelect.addEventListener('change', () => updateSelectedAssignment({ function: elements.functionSelect.value }));
   elements.aliasInput.addEventListener('input', () => updateSelectedAssignment({ alias: elements.aliasInput.value }, false, `alias-${selectedPinNumber}`));
   elements.connectorInput.addEventListener('input', () => updateSelectedAssignment({ connector: elements.connectorInput.value }, false, `connector-${selectedPinNumber}`));

@@ -362,6 +362,8 @@ function renderResources() {
         button.type = 'button';
         button.className = `resource-instance${instance.id === selectedResourceId ? ' active' : ''}`;
         button.dataset.resource = instance.id;
+        button.setAttribute('aria-controls', 'resourceDetail');
+        button.setAttribute('aria-expanded', String(instance.id === selectedResourceId));
         const name = document.createElement('span');
         const healthText = health.required.length && health.active
           ? `<span class="resource-health${health.complete ? '' : ' incomplete'}">${health.complete ? '完整' : `缺 ${health.missing.length}`}</span>`
@@ -388,9 +390,20 @@ function renderResources() {
 }
 
 function renderResourceDetail() {
-  const selected = resourceInstance(selectedResourceId);
-  elements.resourceDetail.classList.toggle('hidden', !selected);
-  if (!selected) return;
+  const wasOpen = !elements.resourceDetail.classList.contains('hidden');
+  const selected = resourceDetailIsOpen() ? resourceInstance(selectedResourceId) : null;
+  const isOpen = Boolean(selected);
+  elements.resourceDetail.classList.toggle('hidden', !isOpen);
+  elements.resourceDetail.setAttribute('aria-hidden', String(!isOpen));
+  elements.workspace.classList.toggle('resource-detail-open', isOpen);
+  if (!selected) {
+    elements.resourceDetailTitle.textContent = '';
+    elements.resourceDetailNote.textContent = '';
+    elements.resourceSignals.replaceChildren();
+    applyLayout();
+    if (wasOpen) scheduleCanvasLayoutReflow();
+    return;
+  }
   const { group, instance } = selected;
   const health = resourceCompleteness(group, instance);
   elements.resourceDetailTitle.textContent = `${instance.display || instance.id}${instance.feature ? ` · ${instance.feature}` : ''}`;
@@ -412,6 +425,7 @@ function renderResourceDetail() {
     button.type = 'button';
     button.className = `resource-signal${selectedSignal === fn.signal ? ' active' : ''}`;
     button.dataset.signal = fn.signal;
+    button.setAttribute('aria-pressed', String(selectedSignal === fn.signal));
     const label = document.createElement('span');
     label.innerHTML = `<span class="resource-signal-role">${signalRole(fn.signal)}</span><span class="resource-signal-name">${fn.signal}</span>`;
     const meta = document.createElement('span');
@@ -421,6 +435,8 @@ function renderResourceDetail() {
     return button;
   });
   elements.resourceSignals.replaceChildren(...nodes);
+  applyLayout();
+  if (!wasOpen) scheduleCanvasLayoutReflow();
 }
 
 function renderStats() {
@@ -553,8 +569,12 @@ function renderInspector() {
   if (conflictPins.length >= 2) elements.conflictBox.textContent = `${value.function} 同时安排在 Pin ${conflictPins.join('、Pin ')}。这是提示性冲突，请自行确认是否有意重复。`;
 }
 
+function effectiveView() {
+  return layoutViewOverride || currentView();
+}
+
 function applyView() {
-  const view = currentView();
+  const view = effectiveView();
   const scale = view.zoom / 100;
   const gridSize = 24 * scale;
   const gridX = ((view.x % gridSize) + gridSize) % gridSize;
@@ -566,23 +586,118 @@ function applyView() {
   elements.zoomValue.textContent = `${Math.round(view.zoom)}%`;
 }
 
+function calculateLayoutMetrics(viewportWidth, baseLeftWidth, baseRightWidth, detailOpen) {
+  const viewport = Math.max(320, Number(viewportWidth) || 320);
+  let leftWidth = Math.min(460, Math.max(190, Number(baseLeftWidth) || 250));
+  let rightWidth = Math.min(540, Math.max(260, Number(baseRightWidth) || 330));
+  const allStacked = viewport <= 800;
+  const inspectorStacked = viewport <= 1064;
+  const preferredDetailWidth = detailOpen ? Math.min(270, Math.max(220, viewport * 0.18)) : 0;
+
+  if (allStacked) {
+    return {
+      viewportWidth: viewport,
+      leftWidth,
+      detailWidth: detailOpen ? leftWidth : 0,
+      leftRegionWidth: viewport,
+      rightWidth,
+      centerWidth: viewport,
+      inspectorStacked: true,
+      allStacked: true
+    };
+  }
+
+  const minimumCenterWidth = inspectorStacked ? 360 : 420;
+  const dividerWidth = inspectorStacked ? 7 : 14;
+  if (inspectorStacked) rightWidth = 0;
+  let detailWidth = preferredDetailWidth;
+  const panelBudget = Math.max(0, viewport - minimumCenterWidth - dividerWidth);
+  let excess = leftWidth + detailWidth + rightWidth - panelBudget;
+  if (excess > 0 && rightWidth) {
+    const reduction = Math.min(excess, rightWidth - 260);
+    rightWidth -= reduction;
+    excess -= reduction;
+  }
+  if (excess > 0 && detailWidth) {
+    const reduction = Math.min(excess, detailWidth - 180);
+    detailWidth -= reduction;
+    excess -= reduction;
+  }
+  if (excess > 0) {
+    const reduction = Math.min(excess, leftWidth - 190);
+    leftWidth -= reduction;
+    excess -= reduction;
+  }
+  if (excess > 0 && detailWidth) detailWidth = Math.max(0, detailWidth - excess);
+
+  const leftRegionWidth = leftWidth + detailWidth;
+  const centerWidth = Math.max(0, viewport - leftRegionWidth - rightWidth - dividerWidth);
+  return {
+    viewportWidth: viewport,
+    leftWidth,
+    detailWidth,
+    leftRegionWidth,
+    rightWidth,
+    centerWidth,
+    inspectorStacked,
+    allStacked: false
+  };
+}
+
 function applyLayout() {
-  const minimumCenterWidth = 420;
-  const availableForPanels = Math.max(450, window.innerWidth - minimumCenterWidth - 14);
   state.layout.leftWidth = Math.min(460, Math.max(190, state.layout.leftWidth));
   state.layout.rightWidth = Math.min(540, Math.max(260, state.layout.rightWidth));
-  let excess = state.layout.leftWidth + state.layout.rightWidth - availableForPanels;
-  if (excess > 0) {
-    const leftReduction = Math.min(excess, state.layout.leftWidth - 190);
-    state.layout.leftWidth -= leftReduction;
-    excess -= leftReduction;
-    if (excess > 0) state.layout.rightWidth = Math.max(260, state.layout.rightWidth - excess);
-  }
-  document.documentElement.style.setProperty('--left-panel-width', `${state.layout.leftWidth}px`);
-  document.documentElement.style.setProperty('--right-panel-width', `${state.layout.rightWidth}px`);
+  const metrics = calculateLayoutMetrics(window.innerWidth, state.layout.leftWidth, state.layout.rightWidth, resourceDetailIsOpen());
+  document.documentElement.style.setProperty('--left-panel-width', `${metrics.leftWidth}px`);
+  document.documentElement.style.setProperty('--resource-detail-width', `${metrics.detailWidth}px`);
+  document.documentElement.style.setProperty('--left-region-width', `${metrics.leftRegionWidth}px`);
+  document.documentElement.style.setProperty('--right-panel-width', `${metrics.rightWidth}px`);
+  elements.workspace.dataset.resourceDetailOpen = String(resourceDetailIsOpen());
+  elements.workspace.dataset.inspectorStacked = String(metrics.inspectorStacked);
+  return metrics;
+}
+
+function scheduleCanvasLayoutReflow() {
+  if (layoutReflowFrame !== null) cancelAnimationFrame(layoutReflowFrame);
+  const opening = resourceDetailIsOpen();
+  layoutReflowFrame = requestAnimationFrame(() => {
+    layoutReflowFrame = requestAnimationFrame(() => {
+      layoutReflowFrame = null;
+      if (!state) return;
+      if (!opening) {
+        layoutViewOverride = null;
+        applyView();
+        return;
+      }
+      const base = currentView();
+      const stageWidth = elements.packageStage.offsetWidth;
+      const stageHeight = elements.packageStage.offsetHeight;
+      const availableWidth = Math.max(100, elements.canvasScroller.clientWidth - 48);
+      const availableHeight = Math.max(100, elements.canvasScroller.clientHeight - 48);
+      const fittedZoom = Math.min(180, Math.max(35, Math.min(availableWidth / stageWidth, availableHeight / stageHeight) * 100));
+      const zoom = Math.min(base.zoom, fittedZoom);
+      const scale = zoom / 100;
+      layoutViewOverride = {
+        ...base,
+        zoom,
+        x: (elements.canvasScroller.clientWidth - stageWidth * scale) / 2,
+        y: (elements.canvasScroller.clientHeight - stageHeight * scale) / 2,
+        initialized: true
+      };
+      applyView();
+    });
+  });
+}
+
+function markCanvasViewInteraction() {
+  if (layoutReflowFrame !== null) cancelAnimationFrame(layoutReflowFrame);
+  layoutReflowFrame = null;
+  if (layoutViewOverride) Object.assign(currentView(), layoutViewOverride);
+  layoutViewOverride = null;
 }
 
 function centerView(save = true) {
+  if (save) markCanvasViewInteraction();
   const view = currentView();
   const width = elements.packageStage.offsetWidth;
   const height = elements.packageStage.offsetHeight;
@@ -595,6 +710,7 @@ function centerView(save = true) {
 }
 
 function fitView(save = true) {
+  if (save) markCanvasViewInteraction();
   const view = currentView();
   const width = elements.packageStage.offsetWidth;
   const height = elements.packageStage.offsetHeight;
@@ -606,6 +722,7 @@ function fitView(save = true) {
 }
 
 function setZoom(zoom, anchor) {
+  markCanvasViewInteraction();
   const view = currentView();
   const oldScale = view.zoom / 100;
   const newZoom = Math.min(180, Math.max(35, zoom));

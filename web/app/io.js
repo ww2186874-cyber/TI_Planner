@@ -217,6 +217,11 @@ function resetTransientSelection() {
   selectedPinNumber = null;
   selectedResourceId = '';
   selectedSignal = '';
+  layoutViewOverride = null;
+  if (layoutReflowFrame !== null && globalThis.cancelAnimationFrame) cancelAnimationFrame(layoutReflowFrame);
+  layoutReflowFrame = null;
+  elements.resourceDetail?.classList?.add('hidden');
+  elements.workspace?.classList?.remove('resource-detail-open');
   activeFilter = 'all';
   activeCategory = 'All';
   elements.searchInput.value = '';

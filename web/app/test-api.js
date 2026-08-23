@@ -21,6 +21,14 @@ function installTestApi() {
     isValidProjectTarget,
     sanitizeAssignments,
     sanitizeView,
+    calculateLayoutMetrics,
+    setSidebarMode,
+    selectResourceInstance,
+    selectResourceSignal,
+    resourceDetailIsOpen,
+    resourceSelection() {
+      return { sidebarView, selectedResourceId, selectedSignal, open: resourceDetailIsOpen() };
+    },
     setState(nextState, name = '测试工程') {
       state = normalizeLoaded(nextState);
       const project = createProject(name, state);

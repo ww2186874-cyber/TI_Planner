@@ -136,6 +136,63 @@ test('creation target validation accepts blank targets and locks presets', () =>
   assert.throws(() => api.resolveProjectTarget({ templateId: 'missing', device: 'MSPM0G3507', packageCode: 'PM' }), /不存在/);
 });
 
+test('resource detail expands the left region without overlaying the canvas budget', () => {
+  const { api } = loadApp();
+  [1100, 1300, 1440, 2048].forEach(width => {
+    const closed = plain(api.calculateLayoutMetrics(width, 250, 330, false));
+    const open = plain(api.calculateLayoutMetrics(width, 250, 330, true));
+    assert.equal(closed.detailWidth, 0, `${width} closed detail`);
+    assert.ok(open.detailWidth > 0, `${width} open detail`);
+    assert.equal(open.leftRegionWidth, open.leftWidth + open.detailWidth, `${width} left region`);
+    assert.ok(open.centerWidth < closed.centerWidth, `${width} canvas must shrink`);
+    assert.ok(open.centerWidth >= 360, `${width} canvas remains usable`);
+    assert.equal(closed.leftWidth, 250, `${width} saved base sidebar remains unchanged`);
+    if (width >= 1300) assert.equal(open.leftWidth, 250, `${width} wide sidebar remains stable`);
+  });
+  const desktopMinimum = plain(api.calculateLayoutMetrics(1100, 250, 330, true));
+  assert.equal(desktopMinimum.inspectorStacked, false);
+  assert.equal(desktopMinimum.rightWidth, 260);
+  const breakpointWide = plain(api.calculateLayoutMetrics(1065, 250, 330, true));
+  assert.equal(breakpointWide.inspectorStacked, false);
+  assert.ok(breakpointWide.detailWidth >= 180);
+  assert.ok(breakpointWide.centerWidth >= 420);
+  const stacked = plain(api.calculateLayoutMetrics(1064, 250, 330, true));
+  assert.equal(stacked.inspectorStacked, true);
+  assert.equal(stacked.rightWidth, 0);
+  assert.ok(stacked.detailWidth >= 220);
+  assert.ok(stacked.centerWidth >= 360);
+  const wide = plain(api.calculateLayoutMetrics(2048, 250, 330, true));
+  assert.equal(wide.inspectorStacked, false);
+  assert.equal(wide.rightWidth, 330);
+  assert.equal(wide.detailWidth, 270);
+});
+
+test('resource instance and signal selection drive one transient detail pane', () => {
+  const { api } = loadApp();
+  api.setState(api.createProjectState('MSPM0G3519', 'PM'));
+  api.setSidebarMode('resources');
+  assert.equal(api.selectResourceInstance('UART0'), true);
+  assert.deepEqual(plain(api.resourceSelection()), {
+    sidebarView: 'resources', selectedResourceId: 'UART0', selectedSignal: '', open: true
+  });
+  assert.equal(api.selectResourceSignal('UART0_TX'), true);
+  assert.equal(api.resourceSelection().selectedSignal, 'UART0_TX');
+  assert.equal(api.selectResourceSignal('UART0_TX'), true);
+  assert.equal(api.resourceSelection().selectedSignal, '');
+  assert.equal(api.selectResourceInstance('UART1'), true);
+  assert.equal(api.resourceSelection().selectedResourceId, 'UART1');
+  assert.equal(api.resourceSelection().open, true);
+  assert.equal(api.selectResourceInstance('UART1'), true);
+  assert.equal(api.resourceSelection().open, false);
+  api.selectResourceInstance('missing');
+  assert.equal(api.resourceSelection().open, false);
+  api.selectResourceInstance('UART0');
+  api.setSidebarMode('pins');
+  assert.deepEqual(plain(api.resourceSelection()), {
+    sidebarView: 'pins', selectedResourceId: '', selectedSignal: '', open: false
+  });
+});
+
 test('board templates fix one PM target and keep their defaults', () => {
   const { api } = loadApp();
   for (const [presetId, device] of [

@@ -140,6 +140,42 @@ function resourceInstance(id) {
   return null;
 }
 
+function resourceDetailIsOpen() {
+  return sidebarView === 'resources' && Boolean(resourceInstance(selectedResourceId));
+}
+
+function selectResourceInstance(resourceId) {
+  const selected = resourceInstance(resourceId);
+  const nextId = sidebarView === 'resources' && selected && selectedResourceId !== resourceId ? resourceId : '';
+  const changed = nextId !== selectedResourceId || Boolean(selectedSignal);
+  selectedResourceId = nextId;
+  selectedSignal = '';
+  if (selectedResourceId && selected) expandedGroups.add(selected.group.key);
+  return changed;
+}
+
+function selectResourceSignal(signal) {
+  const selected = resourceInstance(selectedResourceId);
+  const available = selected ? signalsForInstance(selected.instance).some(fn => fn.signal === signal) : false;
+  const nextSignal = available && selectedSignal !== signal ? signal : '';
+  const changed = nextSignal !== selectedSignal;
+  selectedSignal = nextSignal;
+  return changed;
+}
+
+function setSidebarMode(mode) {
+  const nextMode = mode === 'resources' ? 'resources' : 'pins';
+  const changed = nextMode !== sidebarView;
+  sidebarView = nextMode;
+  if (sidebarView === 'pins') {
+    selectedResourceId = '';
+    selectedSignal = '';
+  } else {
+    resourceCatalog().forEach(group => expandedGroups.add(group.key));
+  }
+  return changed;
+}
+
 function signalMatchesInstance(signal, instance) {
   return instance.exact ? instance.exact.includes(signal) : signal.startsWith(instance.prefix);
 }
