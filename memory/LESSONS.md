@@ -128,10 +128,10 @@
 
 - 内置浏览器可能因安全策略拒绝 `file://`，这不是项目构建失败。自动预览受阻时停止重复等待，交付离线 HTML 并请用户提供实际截图定位错位。
 
-### 宿主插件布局按容器验收并只避让一次浮层
+### 宿主插件布局按容器验收并让 Slot 生命周期控制底栏
 
-- `conversation.view` 的可用宽度会受 Harness 导航、详情栏和 Composer 共同影响；使用 viewport media query 会在同一窗口宽度下误判，应以插件根的 container query 覆盖宽屏、中宽和窄内容区。
-- 根视图已经用 `--dsh-composer-height` 预留底部空间后，内部弹窗应覆盖预留后的工作区，不能再次用同一变量计算 `bottom`；否则短窗口或输入栏增高时会双重扣减可用高度。
+- `conversation.view` 的可用宽度会受 Harness 导航和详情栏影响；使用 viewport media query 会在同一窗口宽度下误判，应以插件根的 container query 覆盖宽屏、中宽和窄内容区。
+- 视图需要独占工作区时，不应读取 `--dsh-composer-height` 再用 CSS 猜测宿主底栏位置。应在视图挂载期间使用官方 `conversation.composer` chain takeover 隐藏完整 fallback，并把 disposer 交给视图生命周期；切换标签后可恢复 todo/input/stats，且不会依赖宿主 DOM 类名。
 
 ### 可选链不会保护比较表达式另一侧
 

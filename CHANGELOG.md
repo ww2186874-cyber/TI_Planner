@@ -1,5 +1,10 @@
 # 更新记录
 
+## Harness 插件 0.1.4 - 2026-08-24
+
+- “引脚规划”标签激活时通过官方 `conversation.composer` chain takeover 隐藏整个底部组，包括 todo/goal/queue dock、消息输入卡和统计状态行；切回“对话”或“轨迹”后立即恢复。
+- 规划视图不再为已隐藏的 Composer 预留 `--dsh-composer-height` 空间，可使用完整剩余高度；待处理的人类提问、批准或只读提示仍由 Harness 原生 takeover 优先显示，避免阻断必要交互。
+
 ## Harness 插件 0.1.3 - 2026-08-24
 
 - “引脚规划”页面改为按 Session 的 Agent Preset 精确挂载：只有 `mspm0-planner` 预设显示该标签，`standard`、`code`、`minimal` 及其他预设不再显示。

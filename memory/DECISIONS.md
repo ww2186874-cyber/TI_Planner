@@ -21,7 +21,7 @@
 - SPI 自动规划只定义 SCK/PICO/POCI 三线总线基线，永不标记为完整接口；片选、controller/target 角色、双工和拓扑必须另行确认。
 - 代码预览只使用锁定 TI SDK 头文件中精确宏；固定/非 IOMUX 项必须进入可见排除清单，不能静默遗漏。来源门禁必须由独立头文件提取与摘要校验，不能让生成 JSON 自证正确。
 - 安装、卸载和兼容检查不得停止或重启 DSH；元数据变更加载和最终 GUI 验收均由用户本人手动重启现有 Web Profile。
-- additive `conversation.view` 保留 Harness 原生导航与 Composer，规划区域采用与原生网页规划器同源的桌面 EDA 工作台语言：外设/信号相邻分栏、方形 LQFP 封装、焊盘与外部功能双层标签、聚焦检查器和独立检查/代码覆盖层；响应式判断以插件容器而非浏览器视口为准。
+- additive `conversation.view` 保留 Harness 原生导航；仅在“引脚规划”视图实际激活期间，通过官方 `conversation.composer` chain takeover 隐藏 todo/goal/queue dock、消息输入卡和统计行，切回“对话/轨迹”即恢复，必须处理的人类交互仍优先显示。规划区域采用与原生网页规划器同源的桌面 EDA 工作台语言，响应式判断以插件容器而非浏览器视口为准。
 
 ## 候选与正式发布（2026-07-14，2026-08-06 整理）
 
