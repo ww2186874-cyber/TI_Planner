@@ -20,14 +20,14 @@
 
 ## DeepSeek Harness 插件
 
-- `harness-plugin/` 是独立可插拔源码包，不替换原生 JavaScript 网页规划器，也不属于 Electron 发布物；当前插件版本 `0.1.2`，固定支持 MSPM0G3519 / PM-64 / `tianmengxing-g3519-pm64`。
-- Web Profile Host Bundle 提供 Settings 持久化与 `mspm0Planner`；Client Package 在 `conversation.view` 增加 additive “引脚规划”标签；用户 preset `mspm0-planner` 贡献 7 个会话规划/检查/代码预览工具。
+- `harness-plugin/` 是独立可插拔源码包，不替换原生 JavaScript 网页规划器，也不属于 Electron 发布物；当前插件版本 `0.1.3`，固定支持 MSPM0G3519 / PM-64 / `tianmengxing-g3519-pm64`。
+- Web Profile Host Bundle 提供 Settings 持久化与 `mspm0Planner`；Client Package 通过官方 Session 快照和 Session-scoped Slot，只在 Agent Preset 为 `mspm0-planner` 的会话中增加 additive “引脚规划”标签，其他 preset 不显示；同一用户 preset 贡献 7 个会话规划/检查/代码预览工具。
 - 规划标签已按真实重启截图重做为原版同源的 EDA 工作台：外设/信号相邻分栏、方形 LQFP 封装、64 个焊盘与外部功能双层标签、候选/板卡状态色、聚焦检查器、独立检查/代码覆盖层和容器响应式布局；画布已恢复 35%–180% 指针锚点滚轮缩放、跟随变换的网格、右键 Pointer Capture 拖动和适配状态机；保留 Harness 原生导航与 Composer。
 - 浏览器到 Host 使用严格 context-scoped Typert Remote，普通请求体不接受 `sessionId`；AI 风险安排由 `userQuestions` 直接询问人类，模型不能自行授权。
 - 自动规划保守避开所有板载/可选外接资源和电气风险。SPI 只表示 SCK/PICO/POCI 三线基线；代码预览不写固件，并列出全部 `nonIomux` 排除项。
 - TI SDK 来源锁固定 `mspm0g351x.h` Git blob `120ac6652d6364b8e6d33b3f55e27d4eed8dc2e7`、99,434 bytes 和 SHA-256 `d99d1fd2fa42382e8be1826b7daa5b50de421c513df51382dff69ca3260dbdc3`，独立保留/解析 812 行 IOMUX 宏，覆盖插件 PM-64 目录全部 591 个 IOMUX 功能。
 - 插件精确兼容门禁为 DSH `0.1.1-rc.2`；源码与用户 preset 不在 DSH 安装目录内，升级不会覆盖，但未来 DSH 版本仍须重新 Inspect 和验证。
-- 插件已经以本地 link 写入 Web Profile，用户 preset 已再次通过真实 `agentPresets.standingKeyFor('mspm0-planner')` mount-validation；当前进程仍运行重启前加载的 Host/Client 模块，`0.1.1` 的 Remote revision 契约与重做界面、`0.1.2` 的滚轮缩放/右键拖动都必须由用户本人手动重启现有 DSH 后再做真实 GUI/七工具验收。
+- 插件已经以本地 link 写入 Web Profile，用户 preset 已再次通过真实 `agentPresets.standingKeyFor('mspm0-planner')` mount-validation；当前进程仍运行重启前加载的 Host/Client 模块，`0.1.3` 的预设页面隔离及之前的 Remote/UI/画布更新都必须由用户本人手动重启现有 DSH 后再做真实 GUI/七工具验收。
 
 ## 兼容基线
 
@@ -38,9 +38,9 @@
 
 ## 最近验证
 
-- Harness 插件 `pnpm run build` 已通过 46/46 测试，覆盖 TI SDK 来源锁/812 项映射、模板来源防伪、风险人类确认与取消不落盘、特殊 Session key、revision/Settings、context-only Remote、代码 revision 门禁、普通引脚点击、四边 64-pin 双层 DOM、scoped 容器布局、滚轮单位/锚点缩放、右键 Pointer Capture/丢键结束、适配状态机、弹窗键盘路径、SPI 三线基线和 `nonIomux` 代码预览披露。
+- Harness 插件 `pnpm run build` 已通过 47/47 测试，覆盖 Agent Preset 页面隔离与 Session-scoped Slot 清理、TI SDK 来源锁/812 项映射、模板来源防伪、风险人类确认与取消不落盘、特殊 Session key、revision/Settings、context-only Remote、代码 revision 门禁、普通引脚点击、四边 64-pin 双层 DOM、scoped 容器布局、滚轮单位/锚点缩放、右键 Pointer Capture/丢键结束、适配状态机、弹窗键盘路径、SPI 三线基线和 `nonIomux` 代码预览披露。
 - 已用真实 Chromium/Edge 隔离 fixture 验收 1800×1050 默认工作台/代码覆盖层/引脚详情、1200×900 信号分栏和真实滚轮/右键指针序列；锚点误差为亚像素，右键拖动精确平移且不会激活起点引脚，Composer 避让、弹窗可用高度和中窄列切换正常。fixture 不代替最终 Harness shell 验收，真实 `http://127.0.0.1:3080` 仍待用户重启后确认。
-- `check-installed.ps1` 已确认 Web Profile 为本地源码 link、包版本 `0.1.2`、Bundle/Client 元数据完整，当前 launcher 与包 engine 均为 DSH `0.1.1-rc.2`；用户 preset 已再次通过 live mount-validation。尚未替用户重启 DSH。
+- `check-installed.ps1` 已确认 Web Profile 为本地源码 link、包版本 `0.1.3`、Bundle/Client 元数据完整，当前 launcher 与包 engine 均为 DSH `0.1.1-rc.2`；用户 preset 已再次通过 live mount-validation。尚未替用户重启 DSH。
 - `1.3.0-beta.13` 将顶部工程选择组在宽屏上适度向页面中部右移；窗口变窄时偏移会自动收回，避免挤压右侧操作按钮。
 - `1.3.0-beta.12` 将所选外设实例的官方信号移到外设列表右侧的独立详情栏；详情栏参与正常布局，打开时压缩并临时适配芯片画布，关闭后恢复原视图，不覆盖画布。
 - 顶部工程与操作按钮仍保持单排紧凑布局，标题下方不再显示说明小字；免责声明和数据来源仍保留在页面底部与关于窗口中。
@@ -52,7 +52,7 @@
 ## 工作区
 
 - 正式工作区：`<WORKSPACE>`。
-- 当前工作包含 `1.3.0-beta.13` 网页候选和独立 Harness 插件 `0.1.2`；本轮以无标签源码检查点保存，不创建正式版本或发布标签。
+- 当前工作包含 `1.3.0-beta.13` 网页候选和独立 Harness 插件 `0.1.3`；本轮以无标签源码检查点保存，不创建正式版本或发布标签。
 - Git 远程 `origin` 已配置为 `https://github.com/ww2186874-cyber/TI_Planner.git`；全部正式标签已推送，当前 `1.3.0-beta.13` 候选提交保留在本地 `main`，尚未推送至 `origin/main`。
 - `outputs/` 只保留当前 `1.3.0-beta.13` HTML 和 `.gitkeep`；旧候选及已有正式版本副本已清理，正式版本仍完整保存在 `releases/`。
 - `.tmp/` 本轮含可重建、已忽略且不提交的 Harness 隔离预览 HTML/截图/生成脚本；芯片数据手册、原理图/EDA 参考资料及引脚规划转换文件继续保留。
