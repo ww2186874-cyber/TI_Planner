@@ -43,6 +43,13 @@ $required = @(
   'memory\LESSONS.md',
   'memory\KNOWN_ISSUES.md',
   'memory\SESSION_HANDOFF.md',
+  'harness-plugin\package.json',
+  'harness-plugin\pnpm-lock.yaml',
+  'harness-plugin\cordis.patch.yml',
+  'harness-plugin\lib\index.js',
+  'harness-plugin\lib\tools.js',
+  'harness-plugin\src\client-module.js',
+  'harness-plugin\scripts\install.ps1',
   '.pnpm-store',
   '.cache\electron-builder',
   'desktop\node_modules\electron'
@@ -62,7 +69,7 @@ if (($version -notmatch '-') -and (-not (Test-Path -LiteralPath $releaseDir))) {
 }
 
 $allowedRootNames = @(
-  '.cache', '.git', '.pnpm-store', '.tmp', 'desktop', 'docs', 'legal', 'memory', 'outputs', 'releases', 'scripts', 'web',
+  '.cache', '.git', '.pnpm-store', '.tmp', 'desktop', 'docs', 'harness-plugin', 'legal', 'memory', 'outputs', 'releases', 'scripts', 'web',
   '.gitattributes', '.gitignore', 'AGENTS.md', 'CHANGELOG.md', 'README.md', 'build-portable.cmd', 'build-web.cmd',
   'build-folder.cmd', 'create-release.cmd', 'install-dependencies.cmd', 'run-dev.cmd', 'workspace-check.cmd'
 )
@@ -71,7 +78,7 @@ foreach ($item in $unexpected) { $warnings.Add("Unexpected root item: $($item.Na
 
 $git = Find-Git
 $status = @(& $git -C $root status --porcelain)
-$trackedGenerated = @(& $git -C $root ls-files 'outputs/*' 'desktop/app/*' 'desktop/node_modules/*' '.cache/*' '.pnpm-store/*') |
+$trackedGenerated = @(& $git -C $root ls-files 'outputs/*' 'desktop/app/*' 'desktop/node_modules/*' 'harness-plugin/node_modules/*' '.cache/*' '.pnpm-store/*') |
   Where-Object { $_ -ne 'outputs/.gitkeep' }
 foreach ($item in $trackedGenerated) { $errors.Add("Generated or cached file is tracked by Git: $item") }
 

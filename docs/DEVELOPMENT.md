@@ -27,6 +27,9 @@
 | 单文件网页构建 | `web/build.js` |
 | Electron 窗口与受限桥接 | `desktop/main.js`、`desktop/preload.js` |
 | 桌面烟雾测试 | `desktop/scripts/smoke-test.js` |
+| Harness Host/AI 工具 | `harness-plugin/lib/index.js`、`harness-plugin/lib/core.js`、`harness-plugin/lib/tools.js` |
+| Harness Client 与 Typert Remote | `harness-plugin/src/client-module.js`、`harness-plugin/lib/remote-contract.js`、`harness-plugin/lib/typert.*.js` |
+| Harness 数据来源锁与构建 | `harness-plugin/data/`、`harness-plugin/scripts/` |
 | 应用版本 | `desktop/package.json` |
 
 不要直接编辑 `outputs/mspm0g3519-pin-planner.html`、`desktop/app/index.html` 或 `desktop/dist/`。
@@ -45,6 +48,20 @@ web 分层源码、芯片清单与 JSON
 
 Electron 固定从 `app://mspm0/index.html` 加载页面，使升级或移动程序后仍能读取同一用户数据目录中的工程。
 
+独立 Harness 插件使用另一条链路：
+
+```text
+web 芯片/板卡源数据 + 锁定 TI SDK IOMUX 提取
+  -> harness-plugin/scripts/build-catalog.js
+  -> harness-plugin/src/catalog.generated.js
+  -> harness-plugin/scripts/build-client.js
+  -> harness-plugin/lib/client.js
+  -> pnpm run verify
+  -> dsh plugin --profile web add -w <本地源码目录>
+```
+
+插件不会写入固件，不属于 Electron 候选/正式发行物，也不触发 HTML、文件夹版或 portable 构建。它的 Host Bundle、Client Package 和用户 Agent Preset 分开安装；新增/卸载后只说明需重启，DSH 必须由用户本人操作。
+
 ## 验证范围
 
 | 改动类型 | 最低验证 |
@@ -54,6 +71,8 @@ Electron 固定从 `app://mspm0/index.html` 加载页面，使升级或移动程
 | 芯片数据、封装、功能或板卡资源 | `build-web.cmd` 中的数据校验，并抽查受影响的芯片/封装 |
 | 保存结构、工程模型、导入导出 | 提升存储版本并覆盖当前格式往返和重启恢复；投入使用后必须迁移旧数据，尚未投入使用的有意重做需明确记录不兼容决定 |
 | Electron 窗口、文件对话框、桥接、图标 | 先说明网页版无法验证；仅在用户明确要求发布时运行 `run-dev.cmd` 和对应桌面烟雾测试 |
+| Harness 插件 Host/Client/工具/Remote | `cd harness-plugin; pnpm run build`；再运行安装元数据检查和用户 preset mount-validation，不替用户重启 DSH |
+| Harness SDK 宏、板卡安全或代码预览 | 上述插件 build 必须覆盖来源锁、全量映射、风险确认、SPI 基线和 `nonIomux` 测试；不能以 token 测试冒充真实 TI SDK 编译 |
 | 正式发布 | 完整执行 `docs/RELEASE_CHECKLIST.md` |
 
 验证应与改动风险匹配，不为纯文档改动运行耗时的 Electron 全量测试。视觉验收优先使用用户在真实浏览器或桌面候选中的截图；自动浏览器不能打开 `file://` 时不重复等待。
@@ -87,8 +106,9 @@ Electron 固定从 `app://mspm0/index.html` 加载页面，使升级或移动程
 
 - Electron：`31.7.7`
 - electron-builder：`24.13.3`
-- 锁文件：`desktop/pnpm-lock.yaml`
-- 依赖：`desktop/node_modules/`
+- 桌面锁文件：`desktop/pnpm-lock.yaml`
+- Harness 插件锁文件：`harness-plugin/pnpm-lock.yaml`
+- 依赖：`desktop/node_modules/`、`harness-plugin/node_modules/`
 - pnpm 缓存：`.pnpm-store/`
 - Electron 缓存：`.cache/electron/`
 - builder 缓存：`.cache/electron-builder/`

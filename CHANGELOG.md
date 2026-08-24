@@ -1,5 +1,12 @@
 # 更新记录
 
+## Harness 插件 0.1.0 - 2026-08-24
+
+- 新增独立可插拔的 DeepSeek Harness MSPM0G3519 天猛星 PM-64 规划标签、每会话 Settings Service 和 7 个 AI 工具，不改变现有原生 JavaScript 网页规划器。
+- 浏览器与 Host 使用 context-scoped Typert Remote；AI 风险安排必须由当前人类通过 Harness 确认，自动规划保守避开板载、可选外接和电气风险资源。
+- 新增 TI SDK 官方头文件来源锁、812 项 IOMUX 映射全量校验，以及只读 DriverLib IOMUX 代码预览；SPI 明确仅为三线基线，固定/非 IOMUX 项不会静默省略。
+- 提供本地链接安装、精确 DSH `0.1.1-rc.2` 兼容检查、用户 Agent Preset 接入和安全卸载流程；所有 DSH 重启仍由用户本人执行。
+
 ## 1.3.0-beta.13 - 2026-08-23
 
 - 顶部工程选择组在宽屏上向页面中部适度右移，不再紧贴左上角；窗口变窄时会自动收回偏移，避免挤压右侧操作按钮。

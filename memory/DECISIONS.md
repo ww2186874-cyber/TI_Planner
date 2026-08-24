@@ -2,14 +2,25 @@
 
 这里只记录仍然有效的产品、架构和工作流取舍。当前版本和待办见 `PROJECT_STATE.md` 与 `SESSION_HANDOFF.md`。
 
-## 产品与平台（2026-07-14，2026-08-23 更新）
+## 产品与平台（2026-07-14，2026-08-24 更新）
 
 - `<WORKSPACE>` 是唯一正式开发工作区。
 - 交付目标为 Windows x64 Electron 桌面应用，优先保证目标电脑无需安装 Node、WebView2 或额外运行库；暂不以手机、macOS、Linux 或 32 位 Windows 为验收目标。
-- 当前产品只做引脚规划，不生成初始化代码，也不替代完整电气设计审查。
+- 网页/Electron 主产品只做引脚规划，不生成初始化代码。独立 Harness 插件可生成只读 DriverLib IOMUX 预览，但绝不写固件、不得冒充完整 SDK 编译，也不替代 SysConfig、原理图或电气设计审查。
 - 用户数据保存在当前电脑，不随 U 盘移动；文件夹版必须整体复制，单文件便携版允许启动时解压较慢。
 - 品牌使用原创无厂商文字的芯片图形，并明确“非 TI 官方工具”。作者统一为“天津职业技术师范大学 电子创新协会”。发布物保留项目许可证、第三方声明和数据来源。
 - QEI 完整性只要求 C0/A 相和 C1/B 相，IDX/Z 索引保持可选。
+
+## DeepSeek Harness 插件（2026-08-24）
+
+- 插件是 `harness-plugin/` 下独立的原生 JavaScript DSH Bundle，不改 DSH runtime checkout，不修改 shipped preset，也不迁移现有网页规划器；Web Profile 以本地 link 安装，用户 Agent Preset 位于 `${DSH_HOME}/.agent-presets/`。
+- Host Bundle 持有 Settings 与进程共享规划 Service，状态按 live Session 分离；Client Package只注册 additive `conversation.view` 标签；7 个 AI 工具只由用户 `mspm0-planner` preset 贡献并消费 Host Service。
+- 当前兼容范围故意固定为 DSH `0.1.1-rc.2` 和 MSPM0G3519 / PM-64 / `tianmengxing-g3519-pm64`。升级不覆盖源码或用户 preset，但每个 DSH 新版本仍须重新 Inspect、构建、mount-validate 和浏览器验收后才能放宽 engine。
+- Client→Host 使用 context-scoped Typert Remote；业务请求不含调用方自填 `sessionId`，Host 从 Agent Context 派生身份。该机制负责路由和生命周期，不把 DSH rc.2 的 trusted-browser 模型提升为敌对同源插件 ACL。
+- 风险引脚的 AI 工具参数不能包含授权开关；必须由 `userQuestions` 询问 exact live root 人类，批准后还要复查取消信号与 revision。自动规划永远不使用板载/可选外接资源或电气风险候选。
+- SPI 自动规划只定义 SCK/PICO/POCI 三线总线基线，永不标记为完整接口；片选、controller/target 角色、双工和拓扑必须另行确认。
+- 代码预览只使用锁定 TI SDK 头文件中精确宏；固定/非 IOMUX 项必须进入可见排除清单，不能静默遗漏。来源门禁必须由独立头文件提取与摘要校验，不能让生成 JSON 自证正确。
+- 安装、卸载和兼容检查不得停止或重启 DSH；元数据变更加载和最终 GUI 验收均由用户本人手动重启现有 Web Profile。
 
 ## 候选与正式发布（2026-07-14，2026-08-06 整理）
 

@@ -1,6 +1,6 @@
 # 可复用经验
 
-更新日期：2026-08-23
+更新日期：2026-08-24
 
 这里只记录已经确认过的故障规律、根因和预防方法。长期产品或架构取舍见 `DECISIONS.md`。
 
@@ -28,6 +28,28 @@
 ### Windows PowerShell 脚本保持 ASCII
 
 - Windows PowerShell 5 读取 UTF-8 无 BOM 的中文 `.ps1` 可能乱码并破坏语法。自动化脚本保持 ASCII，中文说明放 Markdown；确需中文脚本时明确使用兼容编码。
+- PowerShell 双引号中若变量后紧跟冒号，写 `${file}:` 而不是 `$file:`，否则解析器会把它当成非法 drive-qualified variable。安装脚本收尾同时做 AST parse 和非 ASCII byte 检查。
+
+### DSH 本地插件必须分开处理安装、preset 与重启
+
+- Host/Client Package 应通过 `dsh plugin --profile web add -w <绝对源码目录>` 进入 Web Profile；`-w` 是 pnpm workspace-root 确认，省略会报 `ERR_PNPM_ADDING_TO_ROOT`。AI tools 行属于用户 preset，不属于 Host patch。
+- 安装/卸载元数据由 DSH 启动时扫描，脚本只能验证并说明“需要重启”，不能替用户停止或重启当前 Host。真实 preset 校验使用 `agentPresets.standingKeyFor()`；临时 Service probe 只用于 audit，验证后立即移除。
+- `check-installed` 不能只看 link 是否存在；必须同时核对当前 launcher 版本、包 engine、Bundle patch、Client export/platform/inject。源码不被升级覆盖不代表 API 自动兼容。
+
+### Remote 会话路由不是敌对浏览器 ACL
+
+- Typert `invocation.kind: context` 配合 `sessions.scope(id)` 可让普通 UI 请求体不再携带任意 `sessionId`，Host 从 traceable `this.ctx.agent` 派生身份；这适合 DSH 的路由和生命周期。
+- DSH rc.2 仍把同源浏览器视为可信客户端。对于可寻址的普通会话，恶意同源插件/XSS 不能靠本插件获得额外能力，但平台也没有 per-plugin session ACL；文档必须准确说明该限制，不能宣称连接绑定授权。
+
+### 人类确认后仍要复查取消和 revision
+
+- `userQuestions.ask()` 能确保 delegated caller 不能冒充人类，但批准返回到 mutation 落盘之间仍有取消窗口。高风险工具在批准后立即复查 `exec.signal`，并把 AbortSignal 贯穿入队、计算和 Settings 写入前；revision 继续防止确认期间计划被并发改写。
+- Session ID 属于寻址字符串，不应直接作为普通对象的危险键。Settings 字典使用前缀键并通过 `Object.hasOwn()` 读取，避免 `__proto__` 等原型属性被当成已保存规划。
+
+### 官方头文件来源不能由待测 JSON 自证
+
+- Git blob SHA 是对象标识，不一定是 `raw.githubusercontent.com/<ref>` 可用 ref；不可变复取入口使用 GitHub `git/blobs/<sha>` API，并另外固定完整文件字节数/SHA-256。
+- 构建应保留并独立解析官方宏定义提取，规范化后与 JSON 全量比较并锁定摘要/方向哨兵；这样 `(PINCM, PF)` 交换会失败，而不是只验证宏名“存在”。
 
 ### Node、pnpm 与缓存错误先查路径和权限
 
