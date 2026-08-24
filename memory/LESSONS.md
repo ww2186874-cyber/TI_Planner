@@ -128,6 +128,15 @@
 
 - 内置浏览器可能因安全策略拒绝 `file://`，这不是项目构建失败。自动预览受阻时停止重复等待，交付离线 HTML 并请用户提供实际截图定位错位。
 
+### 宿主插件布局按容器验收并只避让一次浮层
+
+- `conversation.view` 的可用宽度会受 Harness 导航、详情栏和 Composer 共同影响；使用 viewport media query 会在同一窗口宽度下误判，应以插件根的 container query 覆盖宽屏、中宽和窄内容区。
+- 根视图已经用 `--dsh-composer-height` 预留底部空间后，内部弹窗应覆盖预留后的工作区，不能再次用同一变量计算 `bottom`；否则短窗口或输入栏增高时会双重扣减可用高度。
+
+### 可选链不会保护比较表达式另一侧
+
+- `candidate?.assigned?.signal === candidate.fn.signal` 只保护左侧链，普通非候选引脚仍会在右侧解引用空对象。需要先用 `candidate && ...` 收窄，再读取 `candidate.fn`；回归应分别触发普通详情路径和候选安排路径。
+
 ## 导出安全
 
 ### CSV 引号不能单独阻止公式识别
