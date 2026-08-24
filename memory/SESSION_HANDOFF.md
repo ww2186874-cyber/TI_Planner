@@ -5,7 +5,7 @@
 ## 当前门禁
 
 - 网页/Electron 主产品仍为 `1.3.0-beta.13`；默认只等待离线 HTML 目视确认。没有用户明确“发布”前，不构建文件夹版、portable EXE、正式归档或标签。
-- DeepSeek Harness 插件已迁移到 `<USER_HOME>\Desktop\MSPM0-Harness引脚规划器` 独立 Git 仓库；插件状态、测试、安装和 GUI 待办只在该仓库维护。
+- DeepSeek Harness 插件已迁移到 `<PLUGIN_REPOSITORY>` 独立 Git 仓库；插件状态、测试、安装和 GUI 待办只在该仓库维护。
 
 ## 网页候选下一步
 

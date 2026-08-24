@@ -38,7 +38,7 @@
 ## 工作区
 
 - 正式工作区：`<WORKSPACE>`。
-- 当前工作只维护 `1.3.0-beta.13` 网页/Electron 候选；DeepSeek Harness 插件已迁移到同级独立 Git 仓库 `<USER_HOME>\Desktop\MSPM0-Harness引脚规划器`，本仓库不再包含或构建插件源码。
+- 当前工作只维护 `1.3.0-beta.13` 网页/Electron 候选；DeepSeek Harness 插件已迁移到 Web Profile 内的独立 Git 仓库 `<PLUGIN_REPOSITORY>`，本仓库不再包含或构建插件源码。
 - Git 远程 `origin` 已配置为 `https://github.com/ww2186874-cyber/TI_Planner.git`；全部正式标签已推送，当前 `1.3.0-beta.13` 候选提交保留在本地 `main`，尚未推送至 `origin/main`。
 - `outputs/` 只保留当前 `1.3.0-beta.13` HTML 和 `.gitkeep`；旧候选及已有正式版本副本已清理，正式版本仍完整保存在 `releases/`。
 - `.tmp/` 中的插件隔离预览和生成脚本已迁到插件独立仓库；本仓库继续保留芯片数据手册、原理图/EDA 参考资料及网页/Electron 引脚规划转换文件。

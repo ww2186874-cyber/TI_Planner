@@ -4,7 +4,7 @@
 
 ## 产品与平台（2026-07-14，2026-08-24 更新）
 
-- `<WORKSPACE>` 只维护网页/Electron 主产品；DeepSeek Harness 插件使用同级独立仓库 `<USER_HOME>\Desktop\MSPM0-Harness引脚规划器`，两个仓库不采用子模块或隐式相对路径依赖。
+- `<WORKSPACE>` 只维护网页/Electron 主产品；DeepSeek Harness 插件使用 Web Profile 内的独立仓库 `<PLUGIN_REPOSITORY>`，两个仓库不采用子模块或隐式路径依赖。
 - 交付目标为 Windows x64 Electron 桌面应用，优先保证目标电脑无需安装 Node、WebView2 或额外运行库；暂不以手机、macOS、Linux 或 32 位 Windows 为验收目标。
 - 网页/Electron 主产品只做引脚规划，不生成初始化代码。
 - 用户数据保存在当前电脑，不随 U 盘移动；文件夹版必须整体复制，单文件便携版允许启动时解压较慢。
