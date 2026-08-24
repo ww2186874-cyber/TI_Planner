@@ -1,6 +1,6 @@
 # MSPM0 引脚规划器开发工作区
 
-这是 MSPM0 引脚规划器的唯一长期维护目录。源码、依赖缓存和全部正式版本应与发布用 EXE 一起保留。
+这是 MSPM0 网页/Electron 引脚规划器的长期维护目录。源码、依赖缓存和全部正式版本应与发布用 EXE 一起保留。DeepSeek Harness 插件已迁移到同级独立 Git 仓库 `<USER_HOME>\Desktop\MSPM0-Harness引脚规划器`，不再由本仓库构建或发布。
 
 ## 当前产品
 
@@ -18,7 +18,6 @@
 |---|---|
 | `web/` | 网页界面、交互、芯片数据、板卡数据和单文件 HTML 构建 |
 | `desktop/` | Electron 外壳、权限、图标、桌面测试和打包配置 |
-| `harness-plugin/` | 独立可插拔的 DeepSeek Harness 规划标签、会话规划 Service、AI 工具和 DriverLib 代码预览 |
 | `scripts/` | 构建、缓存准备、归档和工作区检查脚本 |
 | `outputs/` | 可覆盖的候选产物 |
 | `releases/vX.Y.Z/` | 不可覆盖的正式历史归档 |
@@ -38,11 +37,8 @@
 | `create-release.cmd` | 用户明确说“发布”后构建并归档正式版本 |
 | `workspace-check.cmd` | 只读检查版本、Git、目录、缓存和归档 |
 | `install-dependencies.cmd` | 桌面依赖缺失或损坏时安装/校验依赖 |
-| `cd harness-plugin; pnpm run build` | 生成并验证独立 Harness 插件，不构建 Electron |
-| `harness-plugin/scripts/install.ps1` | 将插件以本地链接安装到 DSH Web Profile；不停止或重启 DSH |
-| `harness-plugin/scripts/check-installed.ps1` | 只读核对插件链接、DSH 精确版本和 Client/Bundle 元数据 |
 
-网页/桌面脚本优先使用 Codex 自带的 Node.js 和 pnpm，也支持系统安装；下载镜像和缓存路径由 `scripts/common.ps1` 统一管理。Harness 插件有独立 `package.json`、`pnpm-lock.yaml`、构建/验证和安装脚本，完整边界见 `harness-plugin/README.md`。
+网页/桌面脚本优先使用 Codex 自带的 Node.js 和 pnpm，也支持系统安装；下载镜像和缓存路径由 `scripts/common.ps1` 统一管理。
 
 普通改动只遵循“源码 -> HTML 候选”流程，不自动生成文件夹版或便携 EXE。只有用户明确说“发布”才进入桌面构建和正式归档。不要直接修改 `outputs/mspm0g3519-pin-planner.html` 或 `desktop/app/index.html`。
 

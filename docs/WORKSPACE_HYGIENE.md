@@ -10,9 +10,8 @@
 | `.tmp/` | 临时截图、测试数据、日志和一次性脚本 | 仅限本任务确认生成的内容 |
 | `outputs/` | 当前候选 HTML、EXE 和文件夹版 | 是，同一候选可重建 |
 | `desktop/app/`、`desktop/dist/` | 构建生成内容 | 是，由脚本管理 |
-| `harness-plugin/` | 独立 DSH 插件源码、锁文件、生成 catalog/Client bundle 与测试 | 仅生成文件由插件构建脚本覆盖；源码/锁文件不可自动清理 |
 | `releases/vX.Y.Z/` | 正式历史归档 | 否 |
-| `.cache/`、`.pnpm-store/`、`desktop/node_modules/`、`harness-plugin/node_modules/` | 长期依赖与构建缓存 | 否，除非确认损坏 |
+| `.cache/`、`.pnpm-store/`、`desktop/node_modules/` | 长期依赖与构建缓存 | 否，除非确认损坏 |
 
 ## 整理原则
 

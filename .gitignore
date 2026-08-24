@@ -7,7 +7,6 @@ desktop/app/
 desktop/.test-user-data/
 desktop/.portable-test-user-data/
 desktop/.move-test/
-harness-plugin/node_modules/
 outputs/*
 !outputs/.gitkeep
 releases/*/*.exe
