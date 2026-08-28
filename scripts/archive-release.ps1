@@ -2,7 +2,7 @@
 
 $packageJson = Get-Content -LiteralPath (Join-Path $script:DesktopRoot 'package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $version = [string]$packageJson.version
-if ($version -notmatch '^\d+\.\d+\.\d+([-.][0-9A-Za-z.-]+)?$') { throw "Invalid version: $version" }
+if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Formal release version required: $version" }
 
 $exeName = "MSPM0-Pin-Planner-$version-Portable.exe"
 $folderName = "MSPM0-Pin-Planner-$version-Folder"
@@ -19,32 +19,41 @@ if (Test-Path -LiteralPath $releaseDir) {
   throw "Release v$version already exists. Increase the version number instead of overwriting it."
 }
 
-New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
-Copy-Item -LiteralPath $exePath, $htmlPath -Destination $releaseDir
-Copy-Item -LiteralPath $folderPath -Destination $releaseDir -Recurse
+$stagingDir = Join-Path (Split-Path -Parent $releaseDir) ".v$version-$([guid]::NewGuid().ToString('N')).staging"
+try {
+  New-Item -ItemType Directory -Path $stagingDir | Out-Null
+  Copy-Item -LiteralPath $exePath, $htmlPath -Destination $stagingDir
+  Copy-Item -LiteralPath $folderPath -Destination $stagingDir -Recurse
 
-$exeHash = (Get-FileHash -LiteralPath $exePath -Algorithm SHA256).Hash
-$htmlHash = (Get-FileHash -LiteralPath $htmlPath -Algorithm SHA256).Hash
-$hashText = "$exeHash  $exeName`r`n$htmlHash  $htmlName"
-Set-Content -LiteralPath (Join-Path $releaseDir 'SHA256.txt') -Value $hashText -Encoding UTF8
-$folderManifest = Get-ChildItem -LiteralPath (Join-Path $releaseDir $folderName) -Recurse -File | ForEach-Object {
-  $relative = $_.FullName.Substring((Join-Path $releaseDir $folderName).Length + 1)
-  "$(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256 | Select-Object -ExpandProperty Hash)  $relative"
+  $exeHash = (Get-FileHash -LiteralPath $exePath -Algorithm SHA256).Hash
+  $htmlHash = (Get-FileHash -LiteralPath $htmlPath -Algorithm SHA256).Hash
+  $hashText = "$exeHash  $exeName`r`n$htmlHash  $htmlName"
+  Set-Content -LiteralPath (Join-Path $stagingDir 'SHA256.txt') -Value $hashText -Encoding UTF8
+  $archivedFolder = Join-Path $stagingDir $folderName
+  $folderManifest = Get-ChildItem -LiteralPath $archivedFolder -Recurse -File | ForEach-Object {
+    $relative = $_.FullName.Substring($archivedFolder.Length + 1)
+    "$(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256 | Select-Object -ExpandProperty Hash)  $relative"
+  }
+  Set-Content -LiteralPath (Join-Path $stagingDir 'FOLDER-SHA256.txt') -Value $folderManifest -Encoding UTF8
+
+  $date = Get-Date -Format 'yyyy-MM-dd'
+  $notes = @(
+    "# MSPM0 Pin Planner v$version",
+    '',
+    "- Release date: $date",
+    "- Single-file portable build: $exeName",
+    "- Fast-start folder build: $folderName",
+    "- Offline web build: $htmlName",
+    '- Copy the entire folder build when using or distributing it; do not copy only its EXE.',
+    '- This build is not commercially code-signed',
+    '- See the project CHANGELOG.md for details'
+  )
+  Set-Content -LiteralPath (Join-Path $stagingDir 'RELEASE_NOTES.md') -Value $notes -Encoding UTF8
+
+  if (Test-Path -LiteralPath $releaseDir) { throw "Release v$version was created concurrently." }
+  Move-Item -LiteralPath $stagingDir -Destination $releaseDir
+} finally {
+  if (Test-Path -LiteralPath $stagingDir) { Remove-Item -LiteralPath $stagingDir -Recurse -Force }
 }
-Set-Content -LiteralPath (Join-Path $releaseDir 'FOLDER-SHA256.txt') -Value $folderManifest -Encoding UTF8
-
-$date = Get-Date -Format 'yyyy-MM-dd'
-$notes = @(
-  "# MSPM0 Pin Planner v$version",
-  '',
-  "- Release date: $date",
-  "- Single-file portable build: $exeName",
-  "- Fast-start folder build: $folderName",
-  "- Offline web build: $htmlName",
-  '- Copy the entire folder build when using or distributing it; do not copy only its EXE.',
-  '- This build is not commercially code-signed',
-  '- See the project CHANGELOG.md for details'
-)
-Set-Content -LiteralPath (Join-Path $releaseDir 'RELEASE_NOTES.md') -Value $notes -Encoding UTF8
 
 Write-Host "Release v$version archived at $releaseDir"

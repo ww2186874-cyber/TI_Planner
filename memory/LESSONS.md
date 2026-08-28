@@ -1,6 +1,6 @@
 # 可复用经验
 
-更新日期：2026-08-24
+更新日期：2026-08-28
 
 这里只记录已经确认过的故障规律、根因和预防方法。长期产品或架构取舍见 `DECISIONS.md`。
 
@@ -34,6 +34,8 @@
 
 - Codex 自带 Node 不一定在系统 PATH；`scripts/common.ps1` 会定位 Node/pnpm 并为当前进程补 PATH，无需依赖用户全局环境。
 - pnpm 报 `unable to open database file` 时，先核对 `.pnpm-store/v11/index.db`、目录权限和执行环境。数据库存在但不可写不代表缓存损坏，不要先删除缓存或重装依赖。
+- 工作区移动或改名后，`node_modules/.modules.yaml` 可能仍引用旧绝对路径，甚至留下存在但内容为空的顶层包目录。构建前必须检查 Electron 可执行文件和包入口，而不是只检查目录；确认损坏后使用非交互 `pnpm install --frozen-lockfile` 从保留的缓存重建链接。
+- Windows 批处理在失败后直接执行 `pause` 会覆盖原始退出码。正式发布入口必须先保存失败码，并在暂停后用 `exit /b` 原样返回，不能只根据外层任务状态判断成功。
 
 ## 自动化与桌面测试
 

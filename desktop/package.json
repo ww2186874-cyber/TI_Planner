@@ -1,6 +1,6 @@
 {
   "name": "mspm0-pin-planner-desktop",
-  "version": "1.3.0-beta.13",
+  "version": "1.3.1",
   "description": "Portable desktop wrapper for the MSPM0 pin planner",
   "author": "天津职业技术师范大学 电子创新协会",
   "main": "main.js",

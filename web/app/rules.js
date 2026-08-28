@@ -231,6 +231,10 @@ function textMatchesQuery(text) {
       const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       return new RegExp(`(^|[^a-z0-9])${escaped}($|[^a-z0-9])`).test(haystack);
     }
+    if (/^[a-z0-9]{1,3}$/.test(term)) {
+      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp(`(^|[^a-z0-9])${escaped}`).test(haystack);
+    }
     return haystack.includes(term);
   });
 }
@@ -279,7 +283,7 @@ function boardTextMatches(pin, query = rawQuery()) {
     ...boardFixedHardwareForPin(pin).flatMap(item => [item.id, item.name, item.detail, '固定连接']),
     ...boardSharedBusesForPin(pin).flatMap(bus => [bus.id, bus.name, bus.summary, bus.detail, ...Object.values(bus.chipSelectPins || {})])
   ]
-    .some(text => String(text || '').toLowerCase().includes(query));
+    .some(text => textMatchesQuery(text));
 }
 
 function activeResourceMatch(pin) {

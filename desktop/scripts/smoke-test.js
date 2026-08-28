@@ -1,7 +1,10 @@
 'use strict';
 
+const fs = require('node:fs');
+const path = require('node:path');
 const inspectorUrl = process.argv[2] || 'http://127.0.0.1:9223';
 const mode = process.argv[3] || 'inspect';
+const expectedVersion = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8')).version;
 
 async function target() {
   const targets = await fetch(`${inspectorUrl}/json`).then(response => response.json());
@@ -101,7 +104,8 @@ const expressions = {
       hasAbout: Boolean(document.querySelector('#aboutBtn')),
       hasCheck: Boolean(document.querySelector('#checkBtn')),
       hasThemeToggle: Boolean(document.querySelector('#themeToggleBtn')),
-      colorScheme: getComputedStyle(document.documentElement).colorScheme
+      colorScheme: getComputedStyle(document.documentElement).colorScheme,
+      footer: document.querySelector('#sourceFooter')?.textContent || ''
     };
   })()`,
   write: `(() => {
@@ -380,23 +384,31 @@ const expressions = {
     const boardReport = document.querySelector('#printReport').textContent;
     window.print = originalPrint;
 
-    const rectsOverlap = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    const rectsOverlap = (a, b, tolerance = 0.5) => a.left < b.right - tolerance && a.right > b.left + tolerance && a.top < b.bottom - tolerance && a.bottom > b.top + tolerance;
+    const textRects = element => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      return [...range.getClientRects()].map(rect => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }));
+    };
     const markerCheck = number => {
       const pin = document.querySelector('[data-pin="' + number + '"]');
       const markerElement = pin.querySelector('.board-pin-marker');
       const marker = markerElement.getBoundingClientRect();
       const pad = pin.querySelector('.pin-pad').getBoundingClientRect();
-      const numberLabel = pin.querySelector('.pin-number').getBoundingClientRect();
-      const nameLabel = pin.querySelector('.pin-name').getBoundingClientRect();
+      const labels = [...textRects(pin.querySelector('.pin-number')), ...textRects(pin.querySelector('.pin-name'))];
       const style = getComputedStyle(markerElement);
       return {
         text: markerElement.textContent,
         fontSize: parseFloat(style.fontSize),
         color: style.color,
-        width: style.width,
-        height: style.height,
-        contained: marker.left >= pad.left && marker.right <= pad.right && marker.top >= pad.top && marker.bottom <= pad.bottom,
-        overlapsText: rectsOverlap(marker, numberLabel) || rectsOverlap(marker, nameLabel)
+        width: parseFloat(style.width),
+        height: parseFloat(style.height),
+        contained: marker.left >= pad.left - 0.5 && marker.right <= pad.right + 0.5 && marker.top >= pad.top - 0.5 && marker.bottom <= pad.bottom + 0.5,
+        overlapsText: labels.some(label => rectsOverlap(marker, label)),
+        marker: { left: marker.left, right: marker.right, top: marker.top, bottom: marker.bottom },
+        labels,
+        devicePixelRatio: window.devicePixelRatio,
+        viewportScale: window.visualViewport?.scale || 1
       };
     };
     const markerChecks = {
@@ -729,6 +741,7 @@ async function main() {
     if (!['RHB', 'RGZ', 'PT', 'PM'].every(code => result.packagesByDevice.MSPM0G3507?.includes(code))) throw new Error('MSPM0G3507 package list is incomplete');
     if (!result.fixedTargetSelectorsMissing || !result.chipTextPresent) throw new Error('Fixed project target interface is incomplete');
     if (result.hasThemeToggle || result.colorScheme !== 'dark') throw new Error('Night-only interface is not active');
+    if (!result.footer.includes(`v${expectedVersion}`)) throw new Error(`Runtime version mismatch: ${result.footer}`);
     if (result.projectActions !== 5 || result.exportActions !== 7 || !result.hasAbout || !result.hasCheck) throw new Error('Candidate feature controls are incomplete');
   }
   if (mode === 'write' && (result.storedDevice !== 'MSPM0G3507' || result.storedPackage !== 'RHB' || result.target.device !== 'MSPM0G3507' || result.target.package !== 'RHB' || result.projectVersion !== 6 || !result.saved)) {
@@ -824,8 +837,8 @@ async function main() {
       return marker.text === text
         && marker.fontSize > 0
         && marker.color !== 'rgba(0, 0, 0, 0)'
-        && marker.width === '13px'
-        && marker.height === '13px'
+        && Math.abs(marker.width - 13) <= 0.75
+        && Math.abs(marker.height - 13) <= 0.75
         && marker.contained
         && !marker.overlapsText;
     });

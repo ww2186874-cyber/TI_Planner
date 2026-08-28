@@ -56,3 +56,26 @@ function Invoke-Pnpm {
     Pop-Location
   }
 }
+
+function Ensure-DesktopBuildDependencies {
+  $required = @(
+    (Join-Path $script:DesktopRoot 'node_modules\electron\package.json'),
+    (Join-Path $script:DesktopRoot 'node_modules\electron\dist\electron.exe'),
+    (Join-Path $script:DesktopRoot 'node_modules\electron-builder\package.json'),
+    (Join-Path $script:DesktopRoot 'node_modules\electron-builder\out\cli\cli.js')
+  )
+  $missing = @($required | Where-Object { -not (Test-Path -LiteralPath $_) })
+  if ($missing.Count -eq 0) { return }
+
+  $previousCi = $env:CI
+  try {
+    $env:CI = 'true'
+    Invoke-Pnpm install --frozen-lockfile
+  } finally {
+    $env:CI = $previousCi
+  }
+
+  foreach ($path in $required) {
+    if (-not (Test-Path -LiteralPath $path)) { throw "Missing desktop build dependency: $path" }
+  }
+}
