@@ -326,7 +326,7 @@ test('structured GPIO search matches PB1 but not PB10 or PB11', () => {
   assert.deepEqual(plain(api.searchPinNames('PB1')), ['PB1']);
 });
 
-test('short board keywords match token starts without treating OLED as LED', () => {
+test('short catalog terms use token starts while free user text remains substring-searchable', () => {
   const { api } = loadApp();
   api.setState(api.createPresetState('tianmengxing-g3519-pm64'));
   assert.deepEqual(plain(api.searchPinNames('LED')), ['PB22']);
@@ -335,6 +335,9 @@ test('short board keywords match token starts without treating OLED as LED', () 
   assert.deepEqual(plain(api.searchPinNames('LCD')).sort(), ['PB10', 'PB11', 'PB14', 'PB26', 'PB8', 'PB9']);
   assert.deepEqual(plain(api.searchPinNames('U21-3')), ['PA0']);
   ['TIM', 'PWM', 'QEI', 'I2C'].forEach(query => assert.ok(api.searchPinNames(query).length > 0, query));
+
+  api.setAssignment(33, { alias: 'OLED 用户标注' });
+  assert.deepEqual(plain(api.searchPinNames('LED')).sort(), ['PA0', 'PB22']);
 });
 
 test('board resource conflicts and shared SPI lines stay predictable', () => {

@@ -10,7 +10,7 @@
 | `.tmp/` | 临时截图、测试数据、日志和一次性脚本 | 仅限本任务确认生成的内容 |
 | `outputs/` | 当前候选 HTML、EXE 和文件夹版 | 是，同一候选可重建 |
 | `desktop/app/`、`desktop/dist/` | 构建生成内容 | 是，由脚本管理 |
-| `releases/vX.Y.Z/` | 正式历史归档 | 否 |
+| `releases/vX.Y.Z/` | 正式历史归档；含 `REJECTED.md` 时仅为未发布审计记录 | 否 |
 | `.cache/`、`.pnpm-store/`、`desktop/node_modules/` | 长期依赖与构建缓存 | 否，除非确认损坏 |
 
 ## 整理原则

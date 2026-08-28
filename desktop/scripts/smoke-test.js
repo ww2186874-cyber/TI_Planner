@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const inspectorUrl = process.argv[2] || 'http://127.0.0.1:9223';
 const mode = process.argv[3] || 'inspect';
-const expectedVersion = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8')).version;
+const expectedVersion = process.argv[4] || JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8')).version;
 
 async function target() {
   const targets = await fetch(`${inspectorUrl}/json`).then(response => response.json());
@@ -104,8 +104,7 @@ const expressions = {
       hasAbout: Boolean(document.querySelector('#aboutBtn')),
       hasCheck: Boolean(document.querySelector('#checkBtn')),
       hasThemeToggle: Boolean(document.querySelector('#themeToggleBtn')),
-      colorScheme: getComputedStyle(document.documentElement).colorScheme,
-      footer: document.querySelector('#sourceFooter')?.textContent || ''
+      colorScheme: getComputedStyle(document.documentElement).colorScheme
     };
   })()`,
   write: `(() => {
@@ -618,7 +617,8 @@ const expressions = {
       rotationAfter,
       zoom: document.querySelector('#zoomValue').textContent,
       checkOpen: document.querySelector('#checkDialog').open,
-      checkText: document.querySelector('#checkDialog').textContent
+      checkText: document.querySelector('#checkDialog').textContent,
+      footer: document.querySelector('#sourceFooter')?.textContent || ''
     };
   })()`,
   'import-v4': `(async () => {
@@ -741,7 +741,6 @@ async function main() {
     if (!['RHB', 'RGZ', 'PT', 'PM'].every(code => result.packagesByDevice.MSPM0G3507?.includes(code))) throw new Error('MSPM0G3507 package list is incomplete');
     if (!result.fixedTargetSelectorsMissing || !result.chipTextPresent) throw new Error('Fixed project target interface is incomplete');
     if (result.hasThemeToggle || result.colorScheme !== 'dark') throw new Error('Night-only interface is not active');
-    if (!result.footer.includes(`v${expectedVersion}`)) throw new Error(`Runtime version mismatch: ${result.footer}`);
     if (result.projectActions !== 5 || result.exportActions !== 7 || !result.hasAbout || !result.hasCheck) throw new Error('Candidate feature controls are incomplete');
   }
   if (mode === 'write' && (result.storedDevice !== 'MSPM0G3507' || result.storedPackage !== 'RHB' || result.target.device !== 'MSPM0G3507' || result.target.package !== 'RHB' || result.projectVersion !== 6 || !result.saved)) {
@@ -952,6 +951,7 @@ async function main() {
     || result.zoom !== '125%'
     || !result.checkOpen
     || !result.checkText.includes('规划检查')
+    || !result.footer.includes(`v${expectedVersion}`)
   )) {
     throw new Error(`Release workflow smoke test failed: ${JSON.stringify(result)}`);
   }
