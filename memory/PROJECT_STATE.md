@@ -36,7 +36,7 @@
 
 ## 工作区
 
-- 正式工作区：`<WORKSPACE>`。
-- DeepSeek Harness 插件只在独立仓库 `<PLUGIN_REPOSITORY>` 维护，本仓库不包含或构建插件源码。
-- `main` 与 `v1.3.1` 已同步至 `origin`；当前没有待推送的正式发布内容。
+- 本仓库根目录是网页/Electron 主产品的正式工作区。
+- DeepSeek Harness 插件只在用户 Web Profile 内的独立 Git 仓库维护，本仓库不包含或构建插件源码。
+- 远端仓库仍为 Private；完整历史脱敏与公开切换正在执行，正式产品内容和 `v1.3.1` 归档保持不变。
 - `.pnpm-store/`、`.cache/`、`desktop/node_modules/` 和全部 `releases/` 必须长期保留。

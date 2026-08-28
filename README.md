@@ -1,6 +1,6 @@
 # MSPM0 引脚规划器开发工作区
 
-这是 MSPM0 网页/Electron 引脚规划器的长期维护目录。源码、依赖缓存和全部正式版本应与发布用 EXE 一起保留。DeepSeek Harness 插件已迁移到 Web Profile 内的独立 Git 仓库 `<PLUGIN_REPOSITORY>`，不再由本仓库构建或发布。
+这是 MSPM0 网页/Electron 引脚规划器的长期维护目录。源码、依赖缓存和全部正式版本应与发布用 EXE 一起保留。DeepSeek Harness 插件已迁移到用户 Web Profile 内的独立 Git 仓库，不再由本仓库构建或发布。
 
 ## 当前产品
 

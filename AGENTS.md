@@ -1,6 +1,6 @@
 # MSPM0 项目协作规则
 
-`<WORKSPACE>` 是网页/Electron 主产品的唯一正式开发工作区。DeepSeek Harness 插件在独立仓库 `<PLUGIN_REPOSITORY>` 维护；除非用户明确提出跨仓库同步，本仓库不得包含、构建或修改插件源码。用户最新明确要求优先于本文；实际行为以源码和测试为准，正式版本以 Git 标签和 `releases/` 归档为准，memory 只作辅助上下文。
+本仓库根目录是网页/Electron 主产品的唯一正式开发工作区。DeepSeek Harness 插件在用户 Web Profile 内的独立 Git 仓库维护；除非用户明确提出跨仓库同步，本仓库不得包含、构建或修改插件源码。用户最新明确要求优先于本文；实际行为以源码和测试为准，正式版本以 Git 标签和 `releases/` 归档为准，memory 只作辅助上下文。
 
 ## 开始任务
 
