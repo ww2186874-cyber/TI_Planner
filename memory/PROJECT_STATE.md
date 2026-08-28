@@ -38,5 +38,5 @@
 
 - 本仓库根目录是网页/Electron 主产品的正式工作区。
 - DeepSeek Harness 插件只在用户 Web Profile 内的独立 Git 仓库维护，本仓库不包含或构建插件源码。
-- 远端仓库仍为 Private；完整历史脱敏与公开切换正在执行，正式产品内容和 `v1.3.1` 归档保持不变。
+- GitHub 远端仓库为 Public；`main` 与 7 个正式标签已同步，公开历史不包含本机绝对路径或独立 Harness 插件源码。
 - `.pnpm-store/`、`.cache/`、`desktop/node_modules/` 和全部 `releases/` 必须长期保留。
