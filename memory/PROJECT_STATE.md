@@ -38,5 +38,5 @@
 
 - 正式工作区：`<WORKSPACE>`。
 - DeepSeek Harness 插件只在独立仓库 `<PLUGIN_REPOSITORY>` 维护，本仓库不包含或构建插件源码。
-- 本地 `main` 和 `v1.3.1` 尚未推送远端；没有当前任务的远端写入授权。
+- `main` 与 `v1.3.1` 已同步至 `origin`；当前没有待推送的正式发布内容。
 - `.pnpm-store/`、`.cache/`、`desktop/node_modules/` 和全部 `releases/` 必须长期保留。
